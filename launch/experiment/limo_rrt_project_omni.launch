@@ -21,7 +21,7 @@
 
     <arg name="resolution_of_local_map" default="0.02"/>
     <arg name="use_rviz" default="false"/>
-    <arg name="control_point_offset" default="0.1" />
+    <arg name="control_point_offset" default="-0.08" />
 
     <!-- <include file="$(find rrt_project)/launch/rosbag.launch">
         <arg name="filename" value="RRT_simple_limo.bag"/>
@@ -76,7 +76,7 @@
         <param name="path_topic" value="$(arg path_topic)" />
         <param name="rate" value="10.0" />
         <param name="robot_frame" value="$(arg robot_frame)" />
-        <param name="control_point_offset" value="-$(arg control_point_offset)" />
+        <param name="control_point_offset" value="0.08" />
         <param name="first_point_obstructed_offset_" value="0.1" />
         <param name="number_of_bezier_points" value="6" />
     </node>
@@ -87,11 +87,11 @@
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="a" value="$(arg control_point_offset)" />
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
-        <param name="reference_velocity" value="0.17" />
+        <param name="reference_velocity" value="0.2" />
 
         <param name="gains/x" type="double" value="1"/>
         <param name="gains/y" type="double" value="1"/>
-        <param name="angular_gain" type="double" value="1"/>
+        <param name="angular_gain" type="double" value="1.0"/>
 
         <param name="obs_filter_gain" value="0.5"/>
         <param name="angular_filter_gain" value="0.2"/>
