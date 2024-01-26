@@ -32,14 +32,16 @@
 
 
 //main function
-int main(int argc, char** argv)
-{
-
+int main(int argc, char** argv){
     #ifdef TIME 
         float total_time = 0;
         float starttime, endtime;
         starttime = omp_get_wtime();
     #endif
+
+    std::string imagePath = std::string(PROJECT_ROOT_DIR) + "/images/mipui.png";
+
+    cv::Mat image = cv::imread(imagePath);
 
 
     // if(argc != 4){

@@ -3,12 +3,8 @@
 #include <cmath>
 #include <opencv2/opencv.hpp>
 
-struct Point {
-    int x, y;
-};
-
-std::vector<Point> drawLine(int x1, int y1, int x2, int y2) {
-    std::vector<Point> linePoints;
+std::vector<cv::Point> drawLine(int x1, int y1, int x2, int y2) {
+    std::vector<cv::Point> linePoints;
     
     int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1;
     int dy = -abs(y2 - y1), sy = y1 < y2 ? 1 : -1; 
@@ -36,17 +32,16 @@ int main() {
     y1 = image.rows - y1;
     y2 = image.rows - y2;
 
-    std::vector<Point> line = drawLine(x1, y1, x2, y2);
+    std::vector<cv::Point> line = drawLine(x1, y1, x2, y2);
 
     // Draw the points on the image
-    for (const Point& p : line) {
+    for (const cv::Point& p : line) {
         //cv::circle(image, cv::Point(p.x, p.y), 1, cv::Scalar(255, 0, 0), -1);
         //Alternatively, set the pixel directly: 
         image.at<cv::Vec3b>(p.y, p.x) = cv::Vec3b(255, 0, 0);
     }
 
     // Display the image
-
     cv::resize(image, image, cv::Size(500, 500));
     cv::imshow("Line", image);
     cv::waitKey(0); // Wait for a key press

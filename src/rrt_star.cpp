@@ -1,4 +1,5 @@
 #include"rrt_star.hpp"
+#include "grid_map.hpp"
 #include <iostream>
 #include <cfloat>
 #include <algorithm>
@@ -22,7 +23,7 @@ Node::~Node(){
 }
 
 //RRTSTAR class Constructors
-RRTSTAR::RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, float step_size = 10, int max_iter = 5000, std::pair<float, float> map_size= std::make_pair(10.0f, 10.0f)) {
+RRTSTAR::RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size = 10, int max_iter = 5000) {
     //set the default values and set the first node as the staring point
     startPoint = start_pos;
     destination = end_pos;
@@ -36,7 +37,7 @@ RRTSTAR::RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh,
 
     m_step_size = step_size;
     m_max_iter = max_iter;
-    m_map_size = map_size;
+    m_map = map;
     m_rrstar_radius = radius;
     m_destination_threshhold = end_thresh;
     m_num_itr = 0;
@@ -293,10 +294,6 @@ const std::vector<Node*> RRTSTAR::getBestPath() const {
     return this->bestpath;
 }
 
-const std::pair<float, float> RRTSTAR::getMapSize() const {
-    return this->m_map_size;
-}
-
 std::vector<Point> RRTSTAR::generatePlan(Node* n) {// generate shortest path to destination.
     while (n != NULL) { // It goes from the given node to the root
         this->path.push_back(n);
@@ -329,11 +326,11 @@ void RRTSTAR::deleteNodes(Node* root){ //Free up memory when RRTSTAR destructor 
 
 void RRTSTAR::plotBestPath() {
     // Create a white image
-    cv::Mat img(m_map_size.first, m_map_size.second, CV_8UC3, cv::Scalar(255, 255, 255));
+    cv::Mat img(m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
 
     // Draw all available points in blue
     for (const Point& p : get_available_points()) {
-        cv::circle(img, cv::Point(p.m_x, p.m_y), 1, cv::Scalar(255, 0, 0), -1);  // -1 to fill the circle
+        cv::circle(img, cv::Point(p.m_x, p.m_y), 1, cv::Scalar(255, 0, 0), -1);
     }
 
     // If we have a best path, draw it in red
@@ -346,5 +343,23 @@ void RRTSTAR::plotBestPath() {
 
     // Show the image
     cv::imshow("RRT* Path", img);
-    cv::waitKey(1); // Wait until a key is pressed
+    cv::waitKey(1);
+}
+
+std::vector<cv::Point> drawLine(int x1, int y1, int x2, int y2) {
+    std::vector<cv::Point> linePoints;
+    
+    int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1;
+    int dy = -abs(y2 - y1), sy = y1 < y2 ? 1 : -1; 
+    int error = dx + dy, error2;
+
+    while (true) {
+        linePoints.push_back({x1, y1});
+        if (x1 == x2 && y1 == y2) break;
+        error2 = 2 * error;
+        if (error2 >= dy) { error += dy; x1 += sx; }
+        if (error2 <= dx) { error += dx; y1 += sy; }
+    }
+
+    return linePoints;
 }

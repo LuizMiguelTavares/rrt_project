@@ -92,7 +92,7 @@ private:
     float m_destination_threshhold;
     int m_max_iter;
     float m_step_size;
-    std::pair<float, float> m_map_size;
+    cv::Mat m_map;
 
 public:
 
@@ -113,7 +113,7 @@ public:
     * @param float radius. Within a radius of r, RRT* will find all neighbour nodes of a node
     * @param float end threshold. Check within the radius of the end threshold to find nodes near the end point
      */
-    RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, float step_size, int max_iter, std::pair<float, float> map_size);
+    RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter);
 
     //Destructor
     ~RRTSTAR();
