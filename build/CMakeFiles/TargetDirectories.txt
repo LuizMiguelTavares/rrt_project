@@ -1,7 +1,6 @@
-/home/miguel/rrt_cpp/build/CMakeFiles/rebuild_cache.dir
-/home/miguel/rrt_cpp/build/CMakeFiles/edit_cache.dir
-/home/miguel/rrt_cpp/build/CMakeFiles/Draw_line_test.dir
-/home/miguel/rrt_cpp/build/CMakeFiles/Image.dir
-/home/miguel/rrt_cpp/build/CMakeFiles/RRT_star.dir
-/home/miguel/rrt_cpp/build/CMakeFiles/RRT_kynematics.dir
-/home/miguel/rrt_cpp/build/CMakeFiles/RRT_simple.dir
+/home/public/RRT_project/build/CMakeFiles/rebuild_cache.dir
+/home/public/RRT_project/build/CMakeFiles/edit_cache.dir
+/home/public/RRT_project/build/CMakeFiles/Draw_line_test.dir
+/home/public/RRT_project/build/CMakeFiles/RRT_star.dir
+/home/public/RRT_project/build/CMakeFiles/RRT_kynematics.dir
+/home/public/RRT_project/build/CMakeFiles/RRT_simple.dir

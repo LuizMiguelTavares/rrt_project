@@ -5,6 +5,7 @@
 #pragma once
 #include <random>
 #include <optional>
+#include <opencv2/opencv.hpp>
 
 // ======= 3 Classes : Point, Node, RRTSTAR ============== //
 
@@ -317,4 +318,7 @@ public:
     void deleteNodes(Node* root);
 
     void plotBestPath();
+
+    bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd);
 };
+

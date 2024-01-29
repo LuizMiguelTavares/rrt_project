@@ -5,8 +5,9 @@
 struct GridData {
     cv::Point startingGridCell;
     cv::Point goalGridCell;
-    std::vector<cv::Point> obstacleCells;
-    cv::Size adjustedGridSize;
+    cv::Mat gridMap;
+    // std::vector<cv::Point> obstacleCells;
+    // cv::Size adjustedGridSize; // Changed on new code
 };
 
 GridData processImage(const cv::Mat& image, int desiredGridWidth, int desiredGridHeight);

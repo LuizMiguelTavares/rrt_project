@@ -18,6 +18,7 @@
 #include"rrt_star.hpp"
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include "grid_map.hpp"
 #include"omp.h"
 
 #define TIME
@@ -43,7 +44,12 @@ int main(int argc, char** argv){
 
     cv::Mat image = cv::imread(imagePath);
 
+    GridData grid_data = processImage(image, 300, 300);
 
+    Point start_pos(grid_data.startingGridCell.x, grid_data.startingGridCell.y);
+    Point end_pos(grid_data.goalGridCell.x, grid_data.goalGridCell.y);
+
+    cv::Mat grid_img = grid_data.gridMap;
     // if(argc != 4){
     //     std::cout<<"Error format, :=> ./RRTstar <first_path_name> <opt_path_name> <available_pts_name>" ;
     //     return 0;
@@ -57,20 +63,20 @@ int main(int argc, char** argv){
     // std::string AVAILABLE_PATH_FILE =  argv[3];
 
     //define start and end positions
-    Point start_pos(25,475);
-    Point end_pos(475, 25);
+    // Point start_pos(25,475);
+    // Point end_pos(475, 25);
     
     //define the raduis for RRT* algorithm (Within a radius of r, RRT* will find all neighbour nodes of a new node).
-    float rrt_radius = 25;
+    float rrt_radius = 5;
     //define the radius to check if the last node in the tree is close to the end position
-    float end_thresh = 10;
+    float end_thresh = 5;
     //
-    float step_size = 100;
-    int max_iter = 3000;
-    std::pair<float, float> map_size = std::make_pair(500.0f, 500.0f);
+    float step_size = 5;
+    int max_iter = 30000;
+
     //instantiate RRTSTAR class
     // Point start_pos, Point end_pos, float radius, float end_thresh, float step_size = 10, int max_iter = 5000, std::pair<float, float> map_size= std::make_pair(10.0f, 10.0f)
-    RRTSTAR* rrtstar = new RRTSTAR(start_pos, end_pos, rrt_radius, end_thresh, step_size, max_iter, map_size);
+    RRTSTAR* rrtstar = new RRTSTAR(start_pos, end_pos, rrt_radius, end_thresh, grid_img, step_size, max_iter);
 
     // set step size and max iterations. If the values are not set, the default values are max_iter=5000 and step_size=10.0
     // rrtstar->setMaxIterations(10000);
@@ -104,8 +110,6 @@ int main(int argc, char** argv){
     // // rrtstar->savePlanToFile({}, "Mfiles//Path_after_MAX_ITER.txt", {});
     // rrtstar->savePlanToFile({}, FIRST_PATH_FILE, {});
     // rrtstar->savePlanToFile({}, OPTIMIZE_PATH_FILE, {});
-
-
 
     // RRT* Algorithm
     /*

@@ -48,10 +48,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/miguel/rrt_cpp
+CMAKE_SOURCE_DIR = /home/public/RRT_project
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/miguel/rrt_cpp/build
+CMAKE_BINARY_DIR = /home/public/RRT_project/build
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -80,9 +80,9 @@ edit_cache/fast: edit_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/miguel/rrt_cpp/build/CMakeFiles /home/miguel/rrt_cpp/build/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/public/RRT_project/build/CMakeFiles /home/public/RRT_project/build/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/miguel/rrt_cpp/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/public/RRT_project/build/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -122,19 +122,6 @@ Draw_line_test: cmake_check_build_system
 Draw_line_test/fast:
 	$(MAKE) -f CMakeFiles/Draw_line_test.dir/build.make CMakeFiles/Draw_line_test.dir/build
 .PHONY : Draw_line_test/fast
-
-#=============================================================================
-# Target rules for targets named Image
-
-# Build rule for target.
-Image: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 Image
-.PHONY : Image
-
-# fast build rule for target.
-Image/fast:
-	$(MAKE) -f CMakeFiles/Image.dir/build.make CMakeFiles/Image.dir/build
-.PHONY : Image/fast
 
 #=============================================================================
 # Target rules for targets named RRT_star
@@ -208,7 +195,7 @@ src/image_transformation.o: src/image_transformation.cpp.o
 
 # target to build an object file
 src/image_transformation.cpp.o:
-	$(MAKE) -f CMakeFiles/Image.dir/build.make CMakeFiles/Image.dir/src/image_transformation.cpp.o
+	$(MAKE) -f CMakeFiles/RRT_star.dir/build.make CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o
 .PHONY : src/image_transformation.cpp.o
 
 src/image_transformation.i: src/image_transformation.cpp.i
@@ -217,7 +204,7 @@ src/image_transformation.i: src/image_transformation.cpp.i
 
 # target to preprocess a source file
 src/image_transformation.cpp.i:
-	$(MAKE) -f CMakeFiles/Image.dir/build.make CMakeFiles/Image.dir/src/image_transformation.cpp.i
+	$(MAKE) -f CMakeFiles/RRT_star.dir/build.make CMakeFiles/RRT_star.dir/src/image_transformation.cpp.i
 .PHONY : src/image_transformation.cpp.i
 
 src/image_transformation.s: src/image_transformation.cpp.s
@@ -226,7 +213,7 @@ src/image_transformation.s: src/image_transformation.cpp.s
 
 # target to generate assembly for a file
 src/image_transformation.cpp.s:
-	$(MAKE) -f CMakeFiles/Image.dir/build.make CMakeFiles/Image.dir/src/image_transformation.cpp.s
+	$(MAKE) -f CMakeFiles/RRT_star.dir/build.make CMakeFiles/RRT_star.dir/src/image_transformation.cpp.s
 .PHONY : src/image_transformation.cpp.s
 
 src/main_rrt_star.o: src/main_rrt_star.cpp.o
@@ -346,7 +333,6 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... Draw_line_test"
-	@echo "... Image"
 	@echo "... RRT_star"
 	@echo "... RRT_kynematics"
 	@echo "... RRT_simple"

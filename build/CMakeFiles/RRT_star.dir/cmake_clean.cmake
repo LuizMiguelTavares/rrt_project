@@ -1,4 +1,5 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o"
   "CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o"
   "CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o"
   "RRT_star"

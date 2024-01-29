@@ -61,7 +61,9 @@ std::vector<Point> RRTSTAR::planner() {
             
             Node* plan_n_nearest = this->findNearest(plan_n_rand.position);  //Find the closest node to the new random node.
             Point plan_p_new = this->steer(plan_n_rand, plan_n_nearest); //Steer from "N_Nearest" towards "N_rand": interpolate if node is too far away.
-            if (true) { // Check obstacle
+            bool intersection = this->check_obstacle_intersection(this->m_map, plan_n_nearest->position.m_x, plan_n_nearest->position.m_y, plan_p_new.m_x, plan_p_new.m_y);
+        
+        if (!intersection) { // Check obstacle
                     Node* plan_n_new = new Node; //create new node to store the position of the steered node.
                     plan_n_new->position = plan_p_new; //create new node from the streered new point
                     std::vector<Node*> plan_v_n_near; //create a vector for neighbor nodes
@@ -106,15 +108,21 @@ std::vector<Point> RRTSTAR::planner() {
 }
 
 Node RRTSTAR::getRandomNode() {
-
-    std::random_device rand_rd;  //Will be used to obtain a seed for the random number engine
-    std::mt19937 rand_gen(rand_rd()); //Standard mersenne_twister_engine seeded with rd()
-    std::uniform_real_distribution<> rand_unif(0, 1.0);  // initialize a uniform distribution between 0 and 1
+    std::random_device rand_rd;
+    std::mt19937 rand_gen(rand_rd());
+    std::uniform_real_distribution<> rand_unif(0, 1.0);
     
-    Point rand_point(rand_unif(rand_gen) * this->m_map_size.first, rand_unif(rand_gen) * this->m_map_size.second);//Generate a random point
-    if (rand_point.m_x >= 0 && rand_point.m_x <= this->m_map_size.first && rand_point.m_y >= 0 && rand_point.m_y <= this->m_map_size.second) { //check of the generated point is inside the world!
+    // Generate random float coordinates
+    float rand_x = rand_unif(rand_gen) * this->m_map.rows;
+    float rand_y = rand_unif(rand_gen) * this->m_map.cols;
+    
+    // Convert to integer coordinates
+    int rand_x_int = static_cast<int>(rand_x);
+    int rand_y_int = static_cast<int>(rand_y);
+    
+    if (rand_x_int >= 0 && rand_x_int < this->m_map.rows && rand_y_int >= 0 && rand_y_int < this->m_map.cols) {
         Node rand_randomnode;
-        rand_randomnode.position = rand_point;
+        rand_randomnode.position = Point(rand_x_int, rand_y_int); // Create a Point with integer coordinates
         return rand_randomnode;
     }
     return {};
@@ -324,9 +332,34 @@ void RRTSTAR::deleteNodes(Node* root){ //Free up memory when RRTSTAR destructor 
     delete root;
 }
 
+// void RRTSTAR::plotBestPath() {
+//     // Create a white image
+//     cv::Mat img(m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+
+//     // Draw all available points in blue
+//     for (const Point& p : get_available_points()) {
+//         cv::circle(img, cv::Point(p.m_x, p.m_y), 1, cv::Scalar(255, 0, 0), -1);
+//     }
+
+//     // If we have a best path, draw it in red
+//     if (!bestpath.empty()) {
+//         for (size_t i = 1; i < bestpath.size(); i++) {
+//             cv::line(img, cv::Point(bestpath[i - 1]->position.m_x, bestpath[i - 1]->position.m_y),
+//                      cv::Point(bestpath[i]->position.m_x, bestpath[i]->position.m_y), cv::Scalar(0, 0, 255), 1);
+//         }
+//     }
+
+//     // Show the image
+//     cv::imshow("RRT* Path", img);
+//     cv::waitKey(1);
+// }
+
 void RRTSTAR::plotBestPath() {
     // Create a white image
-    cv::Mat img(m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+    cv::Mat img(this->m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+
+    // Overlay the grayscale map onto the white image
+    cv::cvtColor(m_map, img, cv::COLOR_GRAY2BGR);
 
     // Draw all available points in blue
     for (const Point& p : get_available_points()) {
@@ -337,7 +370,7 @@ void RRTSTAR::plotBestPath() {
     if (!bestpath.empty()) {
         for (size_t i = 1; i < bestpath.size(); i++) {
             cv::line(img, cv::Point(bestpath[i - 1]->position.m_x, bestpath[i - 1]->position.m_y),
-                     cv::Point(bestpath[i]->position.m_x, bestpath[i]->position.m_y), cv::Scalar(0, 0, 255), 1);
+                     cv::Point(bestpath[i]->position.m_x, bestpath[i]->position.m_y), cv::Scalar(0, 0, 255), 2);
         }
     }
 
@@ -346,20 +379,63 @@ void RRTSTAR::plotBestPath() {
     cv::waitKey(1);
 }
 
-std::vector<cv::Point> drawLine(int x1, int y1, int x2, int y2) {
-    std::vector<cv::Point> linePoints;
-    
-    int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1;
-    int dy = -abs(y2 - y1), sy = y1 < y2 ? 1 : -1; 
+// Obstacle detection function
+// bool RRTSTAR::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd) {
+//     int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
+//     int dy = -abs(yEnd - yBegin), sy = yBegin < yEnd ? 1 : -1; 
+//     int error = dx + dy, error2;
+
+//     while (true) {
+//         // Check if the point is within the image boundaries and is an obstacle
+//         if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
+//             if (image.at<uchar>(yBegin, xBegin) != 255) { // Check for black pixel (obstacle)
+//                 std::cout << "Obstacle detected!" << std::endl;
+//                 return true;
+                
+//             }
+//         }
+
+//         if (xBegin == xEnd && yBegin == yEnd) break;
+//         error2 = 2 * error;
+//         if (error2 >= dy) { error += dy; xBegin += sx; }
+//         if (error2 <= dx) { error += dx; yBegin += sy; }
+//     }
+
+//     return false;
+// }
+
+bool RRTSTAR::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd) {
+    int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
+    int dy = -abs(yEnd - yBegin), sy = yBegin < yEnd ? 1 : -1; 
     int error = dx + dy, error2;
 
+    std::vector<cv::Point> line_points; // Vector to store line points
+
     while (true) {
-        linePoints.push_back({x1, y1});
-        if (x1 == x2 && y1 == y2) break;
+        line_points.push_back(cv::Point(xBegin, yBegin)); // Add point to the vector
+
+        // Check if the point is within the image boundaries and is an obstacle
+        if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
+            if (image.at<uchar>(yBegin, xBegin) != 255) { // Check for black pixel (obstacle)
+                //std::cout << "Obstacle detected!" << std::endl;
+                return true;
+                // // Uncomment for debugging
+            }
+        }
+
+        if (xBegin == xEnd && yBegin == yEnd) break;
         error2 = 2 * error;
-        if (error2 >= dy) { error += dy; x1 += sx; }
-        if (error2 <= dx) { error += dx; y1 += sy; }
+        if (error2 >= dy) { error += dy; xBegin += sx; }
+        if (error2 <= dx) { error += dx; yBegin += sy; }
     }
 
-    return linePoints;
+    // Drawing the line on the image for visualization
+    cv::Mat img_with_line = image.clone();
+    for (const auto& point : line_points) {
+        cv::circle(img_with_line, point, 1, cv::Scalar(0, 0, 255), -1); // Drawing in red
+    }
+    //cv::imshow("Line on Image", img_with_line);
+    //cv::waitKey(0); // Wait for a key press to close the image window
+
+    return false;
 }
