@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/public/RRT_project/src/rrt_kynematics.cpp
+/home/miguel/rrt_cpp/src/rrt_kynematics.cpp
 iostream
 -
 vector

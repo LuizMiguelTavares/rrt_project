@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_FLAGS =   -std=gnu++17
 
-CXX_DEFINES = -DPROJECT_ROOT_DIR=\"/home/public/RRT_project\"
+CXX_DEFINES = -DPROJECT_ROOT_DIR=\"/home/miguel/rrt_cpp\"
 
-CXX_INCLUDES = -I/home/public/RRT_project/Include -isystem /usr/include/opencv4 
+CXX_INCLUDES = -I/home/miguel/rrt_cpp/Include -isystem /usr/include/opencv4 
 

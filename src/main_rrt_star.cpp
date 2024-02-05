@@ -23,16 +23,6 @@
 
 #define TIME
 
-// Specify output file path and filename
-// std::string FIRST_PATH_FILE = "Mfiles//first_path_c4.txt";
-// std::string OPTIMIZE_PATH_FILE = "Mfiles//opt_path_c4.txt";
-// // std::string OPTIMIZE_PATH_FILE = "Mfiles//Path_after_MAX_ITER.txt";
-// std::string OBSTACLES_FILE = "Mfiles//Obstacles_c4.txt";
-
-// std::string AVAILABLE_PATH_FILE = "Mfiles//available_c4.txt";
-
-
-//main function
 int main(int argc, char** argv){
     #ifdef TIME 
         float total_time = 0;
@@ -40,7 +30,7 @@ int main(int argc, char** argv){
         starttime = omp_get_wtime();
     #endif
 
-    std::string imagePath = std::string(PROJECT_ROOT_DIR) + "/images/mipui.png";
+    std::string imagePath = std::string(PROJECT_ROOT_DIR) + "/images/second_room.png"; // min cost = 636.254
 
     cv::Mat image = cv::imread(imagePath);
 
@@ -50,83 +40,18 @@ int main(int argc, char** argv){
     Point end_pos(grid_data.goalGridCell.x, grid_data.goalGridCell.y);
 
     cv::Mat grid_img = grid_data.gridMap;
-    // if(argc != 4){
-    //     std::cout<<"Error format, :=> ./RRTstar <first_path_name> <opt_path_name> <available_pts_name>" ;
-    //     return 0;
-    // }
 
-    // std::string FIRST_PATH_FILE = argv[1];
-    // std::string OPTIMIZE_PATH_FILE =  argv[2];
-    // std::string OPTIMIZE_PATH_FILE = "Mfiles//Path_after_MAX_ITER.txt";
-    // std::string OBSTACLES_FILE = "Mfiles//Obstacles_c4.txt";
-
-    // std::string AVAILABLE_PATH_FILE =  argv[3];
-
-    //define start and end positions
-    // Point start_pos(25,475);
-    // Point end_pos(475, 25);
-    
     //define the raduis for RRT* algorithm (Within a radius of r, RRT* will find all neighbour nodes of a new node).
     float rrt_radius = 5;
     //define the radius to check if the last node in the tree is close to the end position
     float end_thresh = 5;
     //
     float step_size = 5;
-    int max_iter = 30000;
+    int max_iter = 200000;
 
     //instantiate RRTSTAR class
     // Point start_pos, Point end_pos, float radius, float end_thresh, float step_size = 10, int max_iter = 5000, std::pair<float, float> map_size= std::make_pair(10.0f, 10.0f)
     RRTSTAR* rrtstar = new RRTSTAR(start_pos, end_pos, rrt_radius, end_thresh, grid_img, step_size, max_iter);
-
-    // set step size and max iterations. If the values are not set, the default values are max_iter=5000 and step_size=10.0
-    // rrtstar->setMaxIterations(10000);
-    // rrtstar->setMaxIterations(100);
-    // rrtstar->setStepSize(10.0);
-
-    // //Create obstacles
-    // //Obstacle 1
-    // Point ob1_1(0, 400); //position of the top left point of obstacle 1
-    // Point ob1_2(350, 350.0); //position of the bottom right point of obstacle 1
-    // rrtstar->world->addObstacle(ob1_1, ob1_2);//create obstacle 1
-    // //Obstacle 2;
-    // Point ob2_1(150, 150.0); //position of the top left point of obstacle 2
-    // Point ob2_2(500, 100.0); //position of the bottom right point of obstacle 2
-    // rrtstar->world->addObstacle(ob2_1, ob2_2);//create obstacle 2
-
-    // //Obstacle 3
-    // Point ob3_1(30, 30); //position of the top left point of obstacle 3
-    // Point ob3_2(60, 60); //position of the bottom right point of obstacle 3
-    // rrtstar->world->addObstacle(ob3_1, ob3_2);//create obstacle 3
-    // //Obstacle 4;
-    // Point ob4_1(250, 200.0); //position of the top left point of obstacle 4
-    // Point ob4_2(350, 300.0); //position of the bottom right point of obstacle 4
-
-    // rrtstar->world->addObstacle(ob4_1, ob4_2);//create obstacle 4
-    // //Save obstacles to  file;
-    // rrtstar->world->saveObsToFile(OBSTACLES_FILE);
-
-    // //clear saved paths from previous run
-    // // rrtstar->savePlanToFile({}, "Mfiles//first_viable_path.txt", {});
-    // // rrtstar->savePlanToFile({}, "Mfiles//Path_after_MAX_ITER.txt", {});
-    // rrtstar->savePlanToFile({}, FIRST_PATH_FILE, {});
-    // rrtstar->savePlanToFile({}, OPTIMIZE_PATH_FILE, {});
-
-    // RRT* Algorithm
-    /*
-     Description of RRT* algorithm: 
-    1. Pick a random node "N_rand".
-    2. Find the closest node "N_Nearest" from explored nodes to branch out towards "N_rand".
-    3. Steer from "N_Nearest" towards "N_rand": interpolate if node is too far away. The interpolated Node is "N_new"
-    4.  Check if an obstacle is between new node and nearest nod.
-    5. Update cost of reaching "N_new" from "N_Nearest", treat it as "cmin". For now, "N_Nearest" acts as the parent node of "N_new".
-    6. Find nearest neighbors with a given radius from "N_new", call them "N_near"
-    7. In all members of "N_near", check if "N_new" can be reached from a different parent node with cost lower than Cmin, and without colliding
-    with the obstacle. Select the node that results in the least cost and update the parent of "N_new".
-    8. Add N_new to node list.
-    9. Rewire the tree if possible. Search through nodes in "N_near" and see if changing their parent to "N_new" lowers the cost of the path. If so, rewire the tree and
-    add them as the children of "N_new" and update the cost of the path.
-    10. Continue until maximum number of nodes is reached or goal is hit.
-    */
 
     std::cout << "Starting RRT* Algorithm..." << std::endl;
     //search for the first viable solution

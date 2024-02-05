@@ -20,17 +20,17 @@ optional
 opencv2/opencv.hpp
 -
 
-/home/public/RRT_project/src/main_rrt_star.cpp
+/home/miguel/rrt_cpp/src/main_rrt_star.cpp
 rrt_star.hpp
-/home/public/RRT_project/src/rrt_star.hpp
+/home/miguel/rrt_cpp/src/rrt_star.hpp
 iostream
 -
 opencv2/opencv.hpp
 -
 grid_map.hpp
-/home/public/RRT_project/src/grid_map.hpp
+/home/miguel/rrt_cpp/src/grid_map.hpp
 omp.h
-/home/public/RRT_project/src/omp.h
+/home/miguel/rrt_cpp/src/omp.h
 
 /usr/include/opencv4/opencv2/calib3d.hpp
 opencv2/core.hpp

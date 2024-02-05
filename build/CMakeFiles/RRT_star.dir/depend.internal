@@ -3,7 +3,7 @@
 
 CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o
  ../Include/grid_map.hpp
- /home/public/RRT_project/src/image_transformation.cpp
+ /home/miguel/rrt_cpp/src/image_transformation.cpp
  /usr/include/opencv4/opencv2/calib3d.hpp
  /usr/include/opencv4/opencv2/core.hpp
  /usr/include/opencv4/opencv2/core/affine.hpp
@@ -135,7 +135,7 @@ CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o
 CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o
  ../Include/grid_map.hpp
  ../Include/rrt_star.hpp
- /home/public/RRT_project/src/main_rrt_star.cpp
+ /home/miguel/rrt_cpp/src/main_rrt_star.cpp
  /usr/include/opencv4/opencv2/calib3d.hpp
  /usr/include/opencv4/opencv2/core.hpp
  /usr/include/opencv4/opencv2/core/affine.hpp
@@ -267,7 +267,7 @@ CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o
 CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o
  ../Include/grid_map.hpp
  ../Include/rrt_star.hpp
- /home/public/RRT_project/src/rrt_star.cpp
+ /home/miguel/rrt_cpp/src/rrt_star.cpp
  /usr/include/opencv4/opencv2/calib3d.hpp
  /usr/include/opencv4/opencv2/core.hpp
  /usr/include/opencv4/opencv2/core/affine.hpp

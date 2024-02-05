@@ -4,15 +4,15 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/home/public/RRT_project/src/image_transformation.cpp" "/home/public/RRT_project/build/CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o"
-  "/home/public/RRT_project/src/main_rrt_star.cpp" "/home/public/RRT_project/build/CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o"
-  "/home/public/RRT_project/src/rrt_star.cpp" "/home/public/RRT_project/build/CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o"
+  "/home/miguel/rrt_cpp/src/image_transformation.cpp" "/home/miguel/rrt_cpp/build/CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o"
+  "/home/miguel/rrt_cpp/src/main_rrt_star.cpp" "/home/miguel/rrt_cpp/build/CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o"
+  "/home/miguel/rrt_cpp/src/rrt_star.cpp" "/home/miguel/rrt_cpp/build/CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
 
 # Preprocessor definitions for this target.
 set(CMAKE_TARGET_DEFINITIONS_CXX
-  "PROJECT_ROOT_DIR=\"/home/public/RRT_project\""
+  "PROJECT_ROOT_DIR=\"/home/miguel/rrt_cpp\""
   )
 
 # The include file search paths:

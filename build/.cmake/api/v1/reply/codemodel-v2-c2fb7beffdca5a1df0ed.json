@@ -1,0 +1,86 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"name" : "",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "RRT_star",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "Draw_line_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-Draw_line_test-6b7fbf314bd19db71b3b.json",
+					"name" : "Draw_line_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "RRT_kynematics::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-RRT_kynematics-2804c5c3d1a131b167b6.json",
+					"name" : "RRT_kynematics",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "RRT_simple::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-RRT_simple-b078476cb00835b62bcd.json",
+					"name" : "RRT_simple",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "RRT_star::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-RRT_star-f4e807983d6ec7ba6891.json",
+					"name" : "RRT_star",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/miguel/rrt_cpp/build",
+		"source" : "/home/miguel/rrt_cpp"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 0
+	}
+}

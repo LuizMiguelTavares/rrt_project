@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/Image.dir/src/image_transformation.cpp.o  -o Image 
