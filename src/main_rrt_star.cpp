@@ -34,6 +34,7 @@ int main(int argc, char** argv){
 
     cv::Mat image = cv::imread(imagePath);
 
+    Teste
     GridData grid_data = processImage(image, 300, 300);
 
     Point start_pos(grid_data.startingGridCell.x, grid_data.startingGridCell.y);
