@@ -60,15 +60,15 @@ include CMakeFiles/RRT_kynematics.dir/flags.make
 CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.o: CMakeFiles/RRT_kynematics.dir/flags.make
 CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.o: ../src/rrt_kynematics.cpp
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/miguel/rrt_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.o -c /home/miguel/rrt_cpp/src/rrt_kynematics.cpp
+	/usr/bin/g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.o -c /home/miguel/rrt_cpp/src/rrt_kynematics.cpp
 
 CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/rrt_kynematics.cpp > CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.i
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/rrt_kynematics.cpp > CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.i
 
 CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/rrt_kynematics.cpp -o CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.s
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/rrt_kynematics.cpp -o CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.s
 
 # Object files for target RRT_kynematics
 RRT_kynematics_OBJECTS = \

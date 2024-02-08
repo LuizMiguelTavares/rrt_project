@@ -60,15 +60,15 @@ include CMakeFiles/RRT_simple.dir/flags.make
 CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.o: CMakeFiles/RRT_simple.dir/flags.make
 CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.o: ../src/rrt_test.cpp
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/miguel/rrt_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.o -c /home/miguel/rrt_cpp/src/rrt_test.cpp
+	/usr/bin/g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.o -c /home/miguel/rrt_cpp/src/rrt_test.cpp
 
 CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/rrt_test.cpp > CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.i
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/rrt_test.cpp > CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.i
 
 CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/rrt_test.cpp -o CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.s
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/rrt_test.cpp -o CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.s
 
 # Object files for target RRT_simple
 RRT_simple_OBJECTS = \

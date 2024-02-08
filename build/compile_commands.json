@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/home/miguel/rrt_cpp/build",
+  "command": "/usr/bin/g++  -DPROJECT_ROOT_DIR=\\\"/home/miguel/rrt_cpp\\\" -I/home/miguel/rrt_cpp/Include -isystem /usr/include/opencv4  -g   -std=gnu++17 -o CMakeFiles/Draw_line_test.dir/src/drawline_test.cpp.o -c /home/miguel/rrt_cpp/src/drawline_test.cpp",
+  "file": "/home/miguel/rrt_cpp/src/drawline_test.cpp"
+},
+{
+  "directory": "/home/miguel/rrt_cpp/build",
+  "command": "/usr/bin/g++  -DPROJECT_ROOT_DIR=\\\"/home/miguel/rrt_cpp\\\" -I/home/miguel/rrt_cpp/Include -isystem /usr/include/opencv4  -g   -fopenmp -std=gnu++17 -o CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o -c /home/miguel/rrt_cpp/src/main_rrt_star.cpp",
+  "file": "/home/miguel/rrt_cpp/src/main_rrt_star.cpp"
+},
+{
+  "directory": "/home/miguel/rrt_cpp/build",
+  "command": "/usr/bin/g++  -DPROJECT_ROOT_DIR=\\\"/home/miguel/rrt_cpp\\\" -I/home/miguel/rrt_cpp/Include -isystem /usr/include/opencv4  -g   -fopenmp -std=gnu++17 -o CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o -c /home/miguel/rrt_cpp/src/rrt_star.cpp",
+  "file": "/home/miguel/rrt_cpp/src/rrt_star.cpp"
+},
+{
+  "directory": "/home/miguel/rrt_cpp/build",
+  "command": "/usr/bin/g++  -DPROJECT_ROOT_DIR=\\\"/home/miguel/rrt_cpp\\\" -I/home/miguel/rrt_cpp/Include -isystem /usr/include/opencv4  -g   -fopenmp -std=gnu++17 -o CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o -c /home/miguel/rrt_cpp/src/image_transformation.cpp",
+  "file": "/home/miguel/rrt_cpp/src/image_transformation.cpp"
+},
+{
+  "directory": "/home/miguel/rrt_cpp/build",
+  "command": "/usr/bin/g++  -DPROJECT_ROOT_DIR=\\\"/home/miguel/rrt_cpp\\\" -I/home/miguel/rrt_cpp/Include -isystem /usr/include/opencv4  -g   -std=gnu++17 -o CMakeFiles/RRT_kynematics.dir/src/rrt_kynematics.cpp.o -c /home/miguel/rrt_cpp/src/rrt_kynematics.cpp",
+  "file": "/home/miguel/rrt_cpp/src/rrt_kynematics.cpp"
+},
+{
+  "directory": "/home/miguel/rrt_cpp/build",
+  "command": "/usr/bin/g++  -DPROJECT_ROOT_DIR=\\\"/home/miguel/rrt_cpp\\\" -I/home/miguel/rrt_cpp/Include -isystem /usr/include/opencv4  -g   -std=gnu++17 -o CMakeFiles/RRT_simple.dir/src/rrt_test.cpp.o -c /home/miguel/rrt_cpp/src/rrt_test.cpp",
+  "file": "/home/miguel/rrt_cpp/src/rrt_test.cpp"
+}
+]

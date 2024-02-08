@@ -60,41 +60,41 @@ include CMakeFiles/RRT_star.dir/flags.make
 CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o: CMakeFiles/RRT_star.dir/flags.make
 CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o: ../src/main_rrt_star.cpp
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/miguel/rrt_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o -c /home/miguel/rrt_cpp/src/main_rrt_star.cpp
+	/usr/bin/g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.o -c /home/miguel/rrt_cpp/src/main_rrt_star.cpp
 
 CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/main_rrt_star.cpp > CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.i
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/main_rrt_star.cpp > CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.i
 
 CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/main_rrt_star.cpp -o CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.s
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/main_rrt_star.cpp -o CMakeFiles/RRT_star.dir/src/main_rrt_star.cpp.s
 
 CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o: CMakeFiles/RRT_star.dir/flags.make
 CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o: ../src/rrt_star.cpp
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/miguel/rrt_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o -c /home/miguel/rrt_cpp/src/rrt_star.cpp
+	/usr/bin/g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_star.dir/src/rrt_star.cpp.o -c /home/miguel/rrt_cpp/src/rrt_star.cpp
 
 CMakeFiles/RRT_star.dir/src/rrt_star.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/RRT_star.dir/src/rrt_star.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/rrt_star.cpp > CMakeFiles/RRT_star.dir/src/rrt_star.cpp.i
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/rrt_star.cpp > CMakeFiles/RRT_star.dir/src/rrt_star.cpp.i
 
 CMakeFiles/RRT_star.dir/src/rrt_star.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/RRT_star.dir/src/rrt_star.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/rrt_star.cpp -o CMakeFiles/RRT_star.dir/src/rrt_star.cpp.s
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/rrt_star.cpp -o CMakeFiles/RRT_star.dir/src/rrt_star.cpp.s
 
 CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o: CMakeFiles/RRT_star.dir/flags.make
 CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o: ../src/image_transformation.cpp
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/miguel/rrt_cpp/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o -c /home/miguel/rrt_cpp/src/image_transformation.cpp
+	/usr/bin/g++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/RRT_star.dir/src/image_transformation.cpp.o -c /home/miguel/rrt_cpp/src/image_transformation.cpp
 
 CMakeFiles/RRT_star.dir/src/image_transformation.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/RRT_star.dir/src/image_transformation.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/image_transformation.cpp > CMakeFiles/RRT_star.dir/src/image_transformation.cpp.i
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/miguel/rrt_cpp/src/image_transformation.cpp > CMakeFiles/RRT_star.dir/src/image_transformation.cpp.i
 
 CMakeFiles/RRT_star.dir/src/image_transformation.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/RRT_star.dir/src/image_transformation.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/image_transformation.cpp -o CMakeFiles/RRT_star.dir/src/image_transformation.cpp.s
+	/usr/bin/g++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/miguel/rrt_cpp/src/image_transformation.cpp -o CMakeFiles/RRT_star.dir/src/image_transformation.cpp.s
 
 # Object files for target RRT_star
 RRT_star_OBJECTS = \

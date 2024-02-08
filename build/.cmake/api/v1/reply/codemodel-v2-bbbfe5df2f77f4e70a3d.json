@@ -21,7 +21,7 @@
 					]
 				}
 			],
-			"name" : "",
+			"name" : "Debug",
 			"projects" : 
 			[
 				{
@@ -44,28 +44,28 @@
 				{
 					"directoryIndex" : 0,
 					"id" : "Draw_line_test::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-Draw_line_test-6b7fbf314bd19db71b3b.json",
+					"jsonFile" : "target-Draw_line_test-Debug-b4a91359022568f478d5.json",
 					"name" : "Draw_line_test",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "RRT_kynematics::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-RRT_kynematics-2804c5c3d1a131b167b6.json",
+					"jsonFile" : "target-RRT_kynematics-Debug-c424ed91bc1ccb389b83.json",
 					"name" : "RRT_kynematics",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "RRT_simple::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-RRT_simple-b078476cb00835b62bcd.json",
+					"jsonFile" : "target-RRT_simple-Debug-8a3fd5bf0bd516e9baa1.json",
 					"name" : "RRT_simple",
 					"projectIndex" : 0
 				},
 				{
 					"directoryIndex" : 0,
 					"id" : "RRT_star::@6890427a1f51a3e7e1df",
-					"jsonFile" : "target-RRT_star-f4e807983d6ec7ba6891.json",
+					"jsonFile" : "target-RRT_star-Debug-904a68edf531e7642f8c.json",
 					"name" : "RRT_star",
 					"projectIndex" : 0
 				}
