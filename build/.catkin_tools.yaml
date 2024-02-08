@@ -1,6 +1,0 @@
-devel_space: /home/miguel/rrt_cpp/devel
-install: false
-install_space: /home/miguel/rrt_cpp/install
-profile: default
-source_space: /home/miguel/rrt_cpp/src
-workspace: /home/miguel/rrt_cpp
