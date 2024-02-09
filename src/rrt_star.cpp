@@ -56,7 +56,7 @@ std::vector<Point> RRTSTAR::planner() {
     while (this->m_num_itr<this->m_max_iter)
     {
         this->m_num_itr++;
-        Node plan_n_rand = this->getRandomNode(); //Pick a random node
+        Node plan_n_rand = this->getRandomNode(); //Generate a random node
         if (plan_n_rand.position.m_x!=0 && plan_n_rand.position.m_y!=0) {
             
             Node* plan_n_nearest = this->findNearest(plan_n_rand.position);  //Find the closest node to the new random node.
@@ -90,8 +90,7 @@ std::vector<Point> RRTSTAR::planner() {
                                 return this->generatePlan(Plan_NearNodeEnd);
                             }
                         }
-                    }
-                    
+                    } 
             }            
         }
     }
@@ -129,25 +128,6 @@ Node RRTSTAR::getRandomNode() {
 }
 
 Node* RRTSTAR::findNearest(const Point point) {
-    // float fn_minDist = FLT_MAX;//set the minimum distance to the maximum number possible
-    // Node* fn_closest = NULL;
-
-    // #pragma omp parallel for    
-    // for (size_t i = 0; i < this->nodes.size(); i++) { //iterate through all nodes of the tree to find the closest to the new node
-    //     int omp_id = omp_get_thread_num();
-    //     if(omp_id == 0 && this->getCurrentIterations()%4000==0 ){
-    //         printf("iter: %d, thread %d, Total %d of threads\n",this->getCurrentIterations(), omp_id, omp_get_num_threads());
-    //     }
-    //     float fn_dist = this->distance(point, this->nodes[i]->position);
-    //     if (fn_dist < fn_minDist) {
-    //         fn_minDist = fn_dist;
-    //         fn_closest = this->nodes[i];
-    //     }
-    // }
-
-    // // TODO: should modify here since dependencies: 有4個threads的話，要比較4個中最近的neighbor!
-    // return fn_closest;
-
     Node* local_closest[omp_get_max_threads()]; 
     float local_minDist[omp_get_max_threads()];
 
@@ -268,7 +248,6 @@ void RRTSTAR::updateChildrenCost(Node* n, const float costdifference) {//Update 
         n->children[i]->cost = n->children[i]->cost - costdifference;
         this->updateChildrenCost(n->children[i], costdifference); //recursive function. call it self to go through all children of the given node.
     }
-
 }
 
 bool RRTSTAR::reached() { //check if the last node in the tree is close to the end position.
@@ -332,28 +311,6 @@ void RRTSTAR::deleteNodes(Node* root){ //Free up memory when RRTSTAR destructor 
     delete root;
 }
 
-// void RRTSTAR::plotBestPath() {
-//     // Create a white image
-//     cv::Mat img(m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
-
-//     // Draw all available points in blue
-//     for (const Point& p : get_available_points()) {
-//         cv::circle(img, cv::Point(p.m_x, p.m_y), 1, cv::Scalar(255, 0, 0), -1);
-//     }
-
-//     // If we have a best path, draw it in red
-//     if (!bestpath.empty()) {
-//         for (size_t i = 1; i < bestpath.size(); i++) {
-//             cv::line(img, cv::Point(bestpath[i - 1]->position.m_x, bestpath[i - 1]->position.m_y),
-//                      cv::Point(bestpath[i]->position.m_x, bestpath[i]->position.m_y), cv::Scalar(0, 0, 255), 1);
-//         }
-//     }
-
-//     // Show the image
-//     cv::imshow("RRT* Path", img);
-//     cv::waitKey(1);
-// }
-
 void RRTSTAR::plotBestPath() {
     // Create a white image
     cv::Mat img(this->m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
@@ -374,35 +331,9 @@ void RRTSTAR::plotBestPath() {
         }
     }
 
-    // Show the image
     cv::imshow("RRT* Path", img);
     cv::waitKey(1);
 }
-
-// Obstacle detection function
-// bool RRTSTAR::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd) {
-//     int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
-//     int dy = -abs(yEnd - yBegin), sy = yBegin < yEnd ? 1 : -1; 
-//     int error = dx + dy, error2;
-
-//     while (true) {
-//         // Check if the point is within the image boundaries and is an obstacle
-//         if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
-//             if (image.at<uchar>(yBegin, xBegin) != 255) { // Check for black pixel (obstacle)
-//                 std::cout << "Obstacle detected!" << std::endl;
-//                 return true;
-                
-//             }
-//         }
-
-//         if (xBegin == xEnd && yBegin == yEnd) break;
-//         error2 = 2 * error;
-//         if (error2 >= dy) { error += dy; xBegin += sx; }
-//         if (error2 <= dx) { error += dx; yBegin += sy; }
-//     }
-
-//     return false;
-// }
 
 bool RRTSTAR::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd) {
     int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
@@ -416,10 +347,8 @@ bool RRTSTAR::check_obstacle_intersection(const cv::Mat& image, int xBegin, int 
 
         // Check if the point is within the image boundaries and is an obstacle
         if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
-            if (image.at<uchar>(yBegin, xBegin) != 255) { // Check for black pixel (obstacle)
-                //std::cout << "Obstacle detected!" << std::endl;
+            if (image.at<uchar>(yBegin, xBegin) != 255) { 
                 return true;
-                // // Uncomment for debugging
             }
         }
 
@@ -434,8 +363,6 @@ bool RRTSTAR::check_obstacle_intersection(const cv::Mat& image, int xBegin, int 
     for (const auto& point : line_points) {
         cv::circle(img_with_line, point, 1, cv::Scalar(0, 0, 255), -1); // Drawing in red
     }
-    //cv::imshow("Line on Image", img_with_line);
-    //cv::waitKey(0); // Wait for a key press to close the image window
 
     return false;
 }

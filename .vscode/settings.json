@@ -61,7 +61,18 @@
         "variant": "cpp",
         "bit": "cpp",
         "cfloat": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "csignal": "cpp",
+        "any": "cpp",
+        "codecvt": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "forward_list": "cpp",
+        "unordered_set": "cpp",
+        "future": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "stop_token": "cpp"
     },
     "python.autoComplete.extraPaths": [
         "/home/miguel/catkin_ws/devel/lib/python3/dist-packages",

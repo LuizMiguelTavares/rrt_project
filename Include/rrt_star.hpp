@@ -82,11 +82,7 @@ private:
     Point destination;
     std::vector<Node*> path;
     std::vector<Node*> bestpath;
-    // std::vector<Node*> nodes; // can I traverse this vector?
-
-    // TODO: Add one more vector to record 'reachable workspace'
     std::vector<Point> Available_Points;
-    // int goal_threshold; // how close are we to the goal.
     
     int m_num_itr;
     float m_rrstar_radius;
@@ -321,4 +317,3 @@ public:
 
     bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd);
 };
-

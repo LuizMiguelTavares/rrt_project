@@ -16,18 +16,14 @@ find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
 
 # Add your source files here
-add_executable(RRT_simple src/rrt_test.cpp)
+# add_executable(RRT_simple src/rrt_test.cpp)
+add_executable(RRT_simple src/rrt_simple_map.cpp src/image_transformation.cpp)
 add_executable(RRT_kynematics src/rrt_kynematics.cpp)
 add_executable(RRT_star src/main_rrt_star.cpp src/rrt_star.cpp src/image_transformation.cpp)
-# add_executable(Image src/image_transformation.cpp)
-add_executable(Draw_line_test src/drawline_test.cpp)
 
 # Link with OpenCV libraries
 target_link_libraries(RRT_simple ${OpenCV_LIBS})
 target_link_libraries(RRT_kynematics ${OpenCV_LIBS})
 target_link_libraries(RRT_star ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
-# target_link_libraries(Image ${OpenCV_LIBS})
-target_link_libraries(Draw_line_test ${OpenCV_LIBS})
-
 
 include_directories(${PROJECT_SOURCE_DIR}/Include)

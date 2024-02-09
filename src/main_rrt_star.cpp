@@ -34,7 +34,6 @@ int main(int argc, char** argv){
 
     cv::Mat image = cv::imread(imagePath);
 
-    Teste
     GridData grid_data = processImage(image, 300, 300);
 
     Point start_pos(grid_data.startingGridCell.x, grid_data.startingGridCell.y);
@@ -87,10 +86,8 @@ int main(int argc, char** argv){
         std::cout << "Saving the generated plan (vector of points)" << std::endl;
     }
    
-
     // Save "Avalible point! .txt"
     // rrtstar->savePlanToFile(rrtstar->get_available_points(), AVAILABLE_PATH_FILE, "Saved a vector of reachable workspace points.");
-
 
     #ifdef TIME 
         endtime = omp_get_wtime();

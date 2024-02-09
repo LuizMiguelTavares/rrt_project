@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <random>
 #include <opencv2/opencv.hpp>
+#include "grid_map.hpp"
 
 class Node {
 public:
@@ -27,7 +28,7 @@ Node* nearest_node(const Node& sample, const std::vector<Node*>& nodes) {
     });
 }
 
-Node* steer(Node* nearest, const Node& sample, double step_size) {
+Node* steer(Node* nearest, const Node& sample, const double step_size) {
     std::vector<double> direction;
     double dist = distance(*nearest, sample);
     for (size_t i = 0; i < sample.position.size(); i++) {
@@ -42,25 +43,65 @@ Node* steer(Node* nearest, const Node& sample, double step_size) {
     return new Node(new_position, nearest);
 }
 
-Node* biased_sample(const Node& goal, double bias_probability, int space_dim, const std::vector<double>& space_size) {
+Node* biased_sample(const cv::Mat& map, const Node& goal, const double bias_probability) {
     static std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
     static std::uniform_real_distribution<double> distribution(0.0, 1.0);
+
     if (distribution(generator) < bias_probability) {
         return new Node(goal.position);
     }
 
     std::vector<double> random_position;
-    for (int i = 0; i < space_dim; i++) {
-        random_position.push_back(distribution(generator) * space_size[i]);
-    }
+
+    // Generate random float coordinates
+    float rand_x = distribution(generator) * map.rows;
+    float rand_y = distribution(generator) * map.cols;
+    
+    // Convert to integer coordinates
+    int rand_x_int = static_cast<int>(rand_x);
+    int rand_y_int = static_cast<int>(rand_y);
+
+    random_position.push_back(rand_x_int);
+    random_position.push_back(rand_y_int);
 
     return new Node(random_position);
 }
 
-std::vector<Node*> rrt(Node* start, Node* goal, int space_dim, const std::vector<double>& space_size, int num_nodes, double step_size, double goal_threshold, double bias_probability) {
+bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, const int xEnd, const int yEnd) {
+    int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
+    int dy = -abs(yEnd - yBegin), sy = yBegin < yEnd ? 1 : -1; 
+    int error = dx + dy, error2;
+
+    std::vector<cv::Point> line_points; 
+
+    while (true) {
+        line_points.push_back(cv::Point(xBegin, yBegin)); // Add point to the vector
+
+        // Check if the point is within the image boundaries and is an obstacle
+        if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
+            if (image.at<uchar>(yBegin, xBegin) != 255) { 
+                return true;
+            }
+        }
+
+        if (xBegin == xEnd && yBegin == yEnd) break;
+        error2 = 2 * error;
+        if (error2 >= dy) { error += dy; xBegin += sx; }
+        if (error2 <= dx) { error += dx; yBegin += sy; }
+    }
+    return false;
+}
+
+std::vector<Node*> rrt(const cv::Mat& map, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability) {
+    GridData grid_data = processImage(map, 300, 300);
+
+    std::vector<double> start_position = { (double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y };
+    Node* start = new Node(start_position);
+    Node* goal = new Node({ (double)grid_data.goalGridCell.x, (double)grid_data.goalGridCell.y });
+
     std::vector<Node*> nodes = { start };
     for (int i = 0; i < num_nodes; i++) {
-        Node* sample = biased_sample(*goal, bias_probability, space_dim, space_size);
+        Node* sample = biased_sample(map, *goal, bias_probability);
         Node* nearest = nearest_node(*sample, nodes);
         Node* new_node = steer(nearest, *sample, step_size);
         nodes.push_back(new_node);
@@ -71,7 +112,7 @@ std::vector<Node*> rrt(Node* start, Node* goal, int space_dim, const std::vector
             nodes.push_back(goal);
             break;
         }
-        delete sample;
+        delete sample; // Avoid memory leaks
     }
     return nodes;
 }
