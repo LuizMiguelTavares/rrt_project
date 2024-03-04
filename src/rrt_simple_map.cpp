@@ -117,31 +117,56 @@ std::vector<Node*> rrt(const cv::Mat& map, const int num_nodes, const double ste
     return nodes;
 }
 
-void plot_rrt(const std::vector<Node*>& nodes) {
-    int width = 500;
-    int height = 500;
-    cv::Mat image(height, width, CV_8UC3, cv::Scalar(255, 255, 255));
+void plot_rrt(const cv::Mat& map, const std::vector<Node*>& nodes) {
+    // Create a white image
+    cv::Mat image(map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+
+    // Overlay the grayscale map onto the white image
+    cv::cvtColor(map, image, cv::COLOR_GRAY2BGR);
 
     // Draw nodes and edges
-    for (auto node : nodes) {
-        if (node->parent) {
-            cv::line(image, 
-                     cv::Point(static_cast<int>(node->parent->position[0] * width/10), static_cast<int>(node->parent->position[1] * height/10)),
-                     cv::Point(static_cast<int>(node->position[0] * width/10), static_cast<int>(node->position[1] * height/10)), 
-                     cv::Scalar(255, 0, 0), 1);
-        }
+    for (int i = 1; i < nodes.size(); i++) {
         cv::circle(image, 
-                   cv::Point(static_cast<int>(node->position[0] * width/10), static_cast<int>(node->position[1] * height/10)), 
-                   3, cv::Scalar(0, 0, 255), -1);
+            cv::Point(static_cast<int>(nodes[i-1]->position[0]), static_cast<int>(nodes[i-1]->position[1])), 
+            3, cv::Scalar(0, 0, 255), -1);
+            
+        // cv::line(image, 
+        //             cv::Point(static_cast<int>(nodes[i-1]->position[0]), static_cast<int>(nodes[i-1]->position[1])),
+        //             cv::Point(static_cast<int>(nodes[i]->position[0]), static_cast<int>(nodes[i]->position[0])), 
+        //             cv::Scalar(255, 0, 0), 1);
+
     }
 
     // Draw start and goal
-    cv::circle(image, cv::Point(static_cast<int>(nodes[0]->position[0] * width/10), static_cast<int>(nodes[0]->position[1] * height/10)), 6, cv::Scalar(0, 0, 0), -1);
-    cv::circle(image, cv::Point(static_cast<int>(nodes.back()->position[0] * width/10), static_cast<int>(nodes.back()->position[1] * height/10)), 6, cv::Scalar(0, 0, 0), -1);
+    cv::circle(image, cv::Point(static_cast<int>(nodes[0]->position[0]), static_cast<int>(nodes[0]->position[1])), 6, cv::Scalar(0, 0, 0), -1);
+    cv::circle(image, cv::Point(static_cast<int>(nodes.back()->position[0]), static_cast<int>(nodes.back()->position[1])), 6, cv::Scalar(0, 0, 255), 1);
 
     cv::imshow("RRT", image);
     cv::waitKey(0);
 }
+// void RRTSTAR::plotBestPath() {
+//     // Create a white image
+//     cv::Mat img(this->m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+
+//     // Overlay the grayscale map onto the white image
+//     cv::cvtColor(m_map, img, cv::COLOR_GRAY2BGR);
+
+//     // Draw all available points in blue
+//     for (const Point& p : get_available_points()) {
+//         cv::circle(img, cv::Point(p.m_x, p.m_y), 1, cv::Scalar(255, 0, 0), -1);
+//     }
+
+//     // If we have a best path, draw it in red
+//     if (!bestpath.empty()) {
+//         for (size_t i = 1; i < bestpath.size(); i++) {
+//             cv::line(img, cv::Point(bestpath[i - 1]->position.m_x, bestpath[i - 1]->position.m_y),
+//                      cv::Point(bestpath[i]->position.m_x, bestpath[i]->position.m_y), cv::Scalar(0, 0, 255), 2);
+//         }
+//     }
+
+//     cv::imshow("RRT* Path", img);
+//     cv::waitKey(1);
+// }
 
 std::vector<Node*> trace_goal_path(Node* goal_node) {
     std::vector<Node*> path;
@@ -158,20 +183,29 @@ std::vector<Node*> trace_goal_path(Node* goal_node) {
 int main() {
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    Node* start = new Node({ 0.0, 0.0 });
-    Node* goal = new Node({ 6.0, 9.0 });
+    std::string imagePath = std::string(PROJECT_ROOT_DIR) + "/images/second_room.png";
+
+    cv::Mat image = cv::imread(imagePath);
+
     double goal_threshold = 0.05;
-    std::vector<Node*> nodes = rrt(start, goal, 2, { 10, 10 }, 5000, 0.1, goal_threshold, 0.1);
+
+    // map, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability
+
+    std::vector<Node*> nodes = rrt(image, 10000, 5, goal_threshold, 1);
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     std::cout << "Time taken by function: " << duration << " milliseconds" << std::endl;
 
-    plot_rrt(nodes);
+    GridData grid_data = processImage(image, 300, 300);
+    cv::Mat grid_img = grid_data.gridMap;
 
+    Node* goal = new Node({ (double)grid_data.goalGridCell.x, (double)grid_data.goalGridCell.y });
+
+    plot_rrt(grid_img, nodes);
     if (distance(*nodes.back(), *goal) < goal_threshold) {
         std::vector<Node*> goal_path = trace_goal_path(nodes[nodes.size() - 2]);
-        plot_rrt(goal_path);
+        plot_rrt(grid_img, goal_path);
     } else {
         std::cout << "Goal not reached!" << std::endl;
     }

@@ -19,6 +19,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include "grid_map.hpp"
+#include <chrono>
 #include"omp.h"
 
 #define TIME
@@ -52,16 +53,19 @@ int main(int argc, char** argv){
     //instantiate RRTSTAR class
     // Point start_pos, Point end_pos, float radius, float end_thresh, float step_size = 10, int max_iter = 5000, std::pair<float, float> map_size= std::make_pair(10.0f, 10.0f)
     RRTSTAR* rrtstar = new RRTSTAR(start_pos, end_pos, rrt_radius, end_thresh, grid_img, step_size, max_iter);
-
+    
     std::cout << "Starting RRT* Algorithm..." << std::endl;
     //search for the first viable solution
+    auto start = std::chrono::high_resolution_clock::now();
     std::vector<Point> initial_solution =rrtstar->planner();
+    auto end = std::chrono::high_resolution_clock::now();
     
     //save initial solution
     // rrtstar->savePlanToFile(initial_solution, FIRST_PATH_FILE, "First viable solution . This file contains vector of points of the generated path.");
     if (!initial_solution.empty()) {
         std::cout << "First Viable Solution Obtained after " << rrtstar->getCurrentIterations() << " iterations" << std::endl;
         std::cout << "Cost is " << rrtstar->lastnode->cost << std::endl;
+        std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
         std::cout << "Saving the generated plan (vector of points)" << std::endl;
         rrtstar->plotBestPath();
     }
@@ -71,9 +75,12 @@ int main(int argc, char** argv){
     {
         std::cout << "=========================================================================" << std::endl;
         std::cout << "The algorithm continues iterating on the current plan to improve the plan" << std::endl;
+        start = std::chrono::high_resolution_clock::now();
         optimized_solution = rrtstar->planner();
+        end = std::chrono::high_resolution_clock::now();
         std::cout << "More optimal solution has obtained after " << rrtstar->getCurrentIterations() << " iterations" << std::endl;
         std::cout << "Cost is " << rrtstar->m_cost_bestpath << std::endl;
+        std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
         rrtstar->plotBestPath();
         
     }
