@@ -5,6 +5,8 @@
 #include <random>
 #include <opencv2/opencv.hpp>
 #include "grid_map.hpp"
+#include <thread> 
+#include <flann/flann.hpp>
 
 class Node {
 public:
@@ -89,21 +91,31 @@ bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, c
         if (error2 >= dy) { error += dy; xBegin += sx; }
         if (error2 <= dx) { error += dx; yBegin += sy; }
     }
+
+    // Add wait time to make the function slower
+    // std::this_thread::sleep_for(std::chrono::milliseconds(1));
     return false;
 }
 
 std::vector<Node*> rrt(const cv::Mat& map, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability) {
     GridData grid_data = processImage(map, 300, 300);
 
-    std::vector<double> start_position = { (double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y };
-    Node* start = new Node(start_position);
-    Node* goal = new Node({ (double)grid_data.goalGridCell.x, (double)grid_data.goalGridCell.y });
+    Node* start = new Node({ (double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y });
+    Node* goal  = new Node({ (double)grid_data.goalGridCell.x,     (double)grid_data.goalGridCell.y });
+    cv::Mat grid_map = grid_data.gridMap;
 
     std::vector<Node*> nodes = { start };
     for (int i = 0; i < num_nodes; i++) {
-        Node* sample = biased_sample(map, *goal, bias_probability);
+        Node* sample = biased_sample(grid_map, *goal, bias_probability);
         Node* nearest = nearest_node(*sample, nodes);
         Node* new_node = steer(nearest, *sample, step_size);
+
+        if (check_obstacle_intersection(grid_map, nearest->position[0], nearest->position[1], new_node->position[0], new_node->position[1])) {
+            delete sample;
+            delete new_node;
+            continue;
+        }
+
         nodes.push_back(new_node);
 
         if (distance(*new_node, *goal) <= goal_threshold) {
@@ -112,12 +124,12 @@ std::vector<Node*> rrt(const cv::Mat& map, const int num_nodes, const double ste
             nodes.push_back(goal);
             break;
         }
-        delete sample; // Avoid memory leaks
+        delete sample;
     }
     return nodes;
 }
 
-void plot_rrt(const cv::Mat& map, const std::vector<Node*>& nodes) {
+void plot_rrt(const cv::Mat& map, const Node* start, const Node* end, const bool reached, const std::vector<Node*>& nodes) {
     // Create a white image
     cv::Mat image(map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
 
@@ -125,48 +137,44 @@ void plot_rrt(const cv::Mat& map, const std::vector<Node*>& nodes) {
     cv::cvtColor(map, image, cv::COLOR_GRAY2BGR);
 
     // Draw nodes and edges
-    for (int i = 1; i < nodes.size(); i++) {
+    for (int i = 1; i < nodes.size()-1; i++) {
         cv::circle(image, 
             cv::Point(static_cast<int>(nodes[i-1]->position[0]), static_cast<int>(nodes[i-1]->position[1])), 
             3, cv::Scalar(0, 0, 255), -1);
-            
-        // cv::line(image, 
-        //             cv::Point(static_cast<int>(nodes[i-1]->position[0]), static_cast<int>(nodes[i-1]->position[1])),
-        //             cv::Point(static_cast<int>(nodes[i]->position[0]), static_cast<int>(nodes[i]->position[0])), 
-        //             cv::Scalar(255, 0, 0), 1);
 
+        Node* parent_node = nodes[i]->parent;
+
+        
+        cv::line(image, 
+            cv::Point(static_cast<int>(nodes[i]->position[0]), static_cast<int>(nodes[i]->position[1])),
+            cv::Point(static_cast<int>(parent_node->position[0]), static_cast<int>(parent_node->position[1])), 
+            cv::Scalar(255, 0, 0), 1);
     }
 
+    cv::circle(image, 
+                cv::Point(static_cast<int>(nodes[nodes.size()-2]->position[0]), static_cast<int>(nodes[nodes.size()-2]->position[1])), 
+                3, cv::Scalar(0, 0, 255), -1);
+
+    if (reached){
+        cv::circle(image, 
+                cv::Point(static_cast<int>(end->position[0]), static_cast<int>(end->position[1])), 
+                3, cv::Scalar(0, 0, 255), -1);
+
+        cv::line(image, 
+                cv::Point(static_cast<int>(nodes[nodes.size()-2]->position[0]), static_cast<int>(nodes[nodes.size()-2]->position[1])),
+                cv::Point(static_cast<int>(end->position[0]), static_cast<int>(end->position[1])), 
+                cv::Scalar(255, 0, 0), 1);
+    }
     // Draw start and goal
-    cv::circle(image, cv::Point(static_cast<int>(nodes[0]->position[0]), static_cast<int>(nodes[0]->position[1])), 6, cv::Scalar(0, 0, 0), -1);
-    cv::circle(image, cv::Point(static_cast<int>(nodes.back()->position[0]), static_cast<int>(nodes.back()->position[1])), 6, cv::Scalar(0, 0, 255), 1);
+    cv::circle(image, cv::Point(static_cast<int>(start->position[0]), static_cast<int>(start->position[1])), 6, cv::Scalar(0, 0, 255), 1);
+    cv::circle(image, cv::Point(static_cast<int>(end->position[0]), static_cast<int>(end->position[1])), 6, cv::Scalar(0, 0, 255), 1);
+
+    // rechape to 500,500
+    cv::resize(image, image, cv::Size(500, 500), 0, 0, cv::INTER_NEAREST);
 
     cv::imshow("RRT", image);
     cv::waitKey(0);
 }
-// void RRTSTAR::plotBestPath() {
-//     // Create a white image
-//     cv::Mat img(this->m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
-
-//     // Overlay the grayscale map onto the white image
-//     cv::cvtColor(m_map, img, cv::COLOR_GRAY2BGR);
-
-//     // Draw all available points in blue
-//     for (const Point& p : get_available_points()) {
-//         cv::circle(img, cv::Point(p.m_x, p.m_y), 1, cv::Scalar(255, 0, 0), -1);
-//     }
-
-//     // If we have a best path, draw it in red
-//     if (!bestpath.empty()) {
-//         for (size_t i = 1; i < bestpath.size(); i++) {
-//             cv::line(img, cv::Point(bestpath[i - 1]->position.m_x, bestpath[i - 1]->position.m_y),
-//                      cv::Point(bestpath[i]->position.m_x, bestpath[i]->position.m_y), cv::Scalar(0, 0, 255), 2);
-//         }
-//     }
-
-//     cv::imshow("RRT* Path", img);
-//     cv::waitKey(1);
-// }
 
 std::vector<Node*> trace_goal_path(Node* goal_node) {
     std::vector<Node*> path;
@@ -187,11 +195,11 @@ int main() {
 
     cv::Mat image = cv::imread(imagePath);
 
-    double goal_threshold = 0.05;
+    double goal_threshold = 10;
 
     // map, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability
 
-    std::vector<Node*> nodes = rrt(image, 10000, 5, goal_threshold, 1);
+    std::vector<Node*> nodes = rrt(image, 10000, 10, goal_threshold, 0.05);
 
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
@@ -200,12 +208,13 @@ int main() {
     GridData grid_data = processImage(image, 300, 300);
     cv::Mat grid_img = grid_data.gridMap;
 
+    Node* start = new Node({ (double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y });
     Node* goal = new Node({ (double)grid_data.goalGridCell.x, (double)grid_data.goalGridCell.y });
 
-    plot_rrt(grid_img, nodes);
+    plot_rrt(grid_img, start, goal, false, nodes);
     if (distance(*nodes.back(), *goal) < goal_threshold) {
         std::vector<Node*> goal_path = trace_goal_path(nodes[nodes.size() - 2]);
-        plot_rrt(grid_img, goal_path);
+        plot_rrt(grid_img, start, goal, true, goal_path);
     } else {
         std::cout << "Goal not reached!" << std::endl;
     }
