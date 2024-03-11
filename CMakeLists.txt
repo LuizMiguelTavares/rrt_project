@@ -53,10 +53,12 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg")
 add_executable(RRT_simple src/rrt_simple_map.cpp src/image_transformation.cpp)
 add_executable(RRT_kynematics src/rrt_kynematics.cpp)
 add_executable(RRT_star src/main_rrt_star.cpp src/rrt_star.cpp src/image_transformation.cpp)
+add_executable(QTree_test src/test_quad_tree.cpp)
 
 # Link with OpenCV libraries
 target_link_libraries(RRT_simple ${OpenCV_LIBS} ${FLANN_LIBRARIES} flann_cpp)
 target_link_libraries(RRT_kynematics ${OpenCV_LIBS})
 target_link_libraries(RRT_star ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
+target_link_libraries(QTree_test ${OpenCV_LIBS})
 
 include_directories(${PROJECT_SOURCE_DIR}/Include)
