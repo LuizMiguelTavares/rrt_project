@@ -45,7 +45,7 @@ int main() {
 
     cv::Mat img = cv::Mat::zeros(501, 501, CV_8UC3);
 
-    for (int i = 0; i < 300; i++) {
+    for (int i = 0; i < 1300; i++) {
         int x = generateRandomPoint(500);
         int y = generateRandomPoint(500);
         QTree::Point point(x, y);

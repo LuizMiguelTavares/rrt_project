@@ -243,8 +243,8 @@ namespace QTree {
                 subdivide();
             }
 
-            points.push_back(point);
-            this->number_of_points++;
+            // points.push_back(point);
+            // this->number_of_points++;
 
             if (northeast->insert(point) || northwest->insert(point) || 
                 southeast->insert(point) || southwest->insert(point)) {
@@ -265,8 +265,6 @@ namespace QTree {
             current_closest_point_for_test = current_closest_point;
             Rectangle range = Rectangle(point.x, point.y, std::sqrt(distance)*2, std::sqrt(distance)*2);
             range_for_test = range;
-
-            std::cout << "Range: " << range.left << " " << range.right << " " << range.top << " " << range.bottom << std::endl;
 
             std::vector<Point> points;
             query(range, points);
@@ -352,12 +350,12 @@ namespace QTree {
             this->southeast = new QuadTree(seRect, capacity, depth + 1, this, "southeast");
             this->southwest = new QuadTree(swRect, capacity, depth + 1, this, "southwest");
 
-            for (const auto& point : points) {
-                if (this->northeast->insert(point) || this->northwest->insert(point) || 
-                    this->southeast->insert(point) || this->southwest->insert(point)) {
-                    continue;
-                }
-            }
+            // for (const auto& point : points) {
+            //     if (this->northeast->insert(point) || this->northwest->insert(point) || 
+            //         this->southeast->insert(point) || this->southwest->insert(point)) {
+            //         continue;
+            //     }
+            // }
 
             divided = true;
         }

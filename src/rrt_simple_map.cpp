@@ -130,18 +130,15 @@ std::vector<Node*> rrt2(const cv::Mat& map, const int num_nodes, const double st
     return nodes;
 }
 
-std::vector<Node*> rrt(const cv::Mat& map, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability) {
-    GridData grid_data = processImage(map, 300, 300);
-
-    QTree::Point start((double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y);
-    Node* goal  = new Node({ (double)grid_data.goalGridCell.x,     (double)grid_data.goalGridCell.y });
-    cv::Mat grid_map = grid_data.gridMap;
+std::vector<Node*> rrt(const cv::Mat& grid_map, const QTree::Point& start, Node* goal, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability) {
 
     QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
-    QTree::QuadTree tree(boundary, 1);
+    QTree::QuadTree tree(boundary, 4);
 
     tree.insert(start);
     std::vector<Node*> nodes = {new Node({start.x, start.y})};
+    nodes.reserve(num_nodes);
+
     for (int i = 0; i < num_nodes; i++) {
         Node* sample = biased_sample(grid_map, *goal, bias_probability);
         //Node* nearest = nearest_node(*sample, nodes);
@@ -185,7 +182,6 @@ void plot_rrt(const cv::Mat& map, const Node* start, const Node* end, const bool
 
         Node* parent_node = nodes[i]->parent;
 
-        
         cv::line(image, 
             cv::Point(static_cast<int>(nodes[i]->position[0]), static_cast<int>(nodes[i]->position[1])),
             cv::Point(static_cast<int>(parent_node->position[0]), static_cast<int>(parent_node->position[1])), 
@@ -230,7 +226,6 @@ std::vector<Node*> trace_goal_path(Node* goal_node) {
 }
 
 int main() {
-    auto start_time = std::chrono::high_resolution_clock::now();
 
     std::string imagePath = std::string(PROJECT_ROOT_DIR) + "/images/second_room.png";
 
@@ -238,24 +233,28 @@ int main() {
 
     double goal_threshold = 10;
 
-    // map, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability
+    // Process the image
+    GridData grid_data = processImage(image, 300, 300);
 
-    std::vector<Node*> nodes = rrt(image, 10000, 10, goal_threshold, 0.05);
+    QTree::Point start((double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y);
+    Node* goal = new Node({ (double)grid_data.goalGridCell.x, (double)grid_data.goalGridCell.y });
+    cv::Mat grid_map = grid_data.gridMap;
 
+    auto start_time = std::chrono::high_resolution_clock::now();
+    std::vector<Node*> nodes = rrt(grid_map, start, goal, 10000, 10, goal_threshold, 0.05);
+
+    // Calculate time taken
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     std::cout << "Time taken by function: " << duration << " milliseconds" << std::endl;
 
-    GridData grid_data = processImage(image, 300, 300);
-    cv::Mat grid_img = grid_data.gridMap;
-
-    Node* start = new Node({ (double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y });
-    Node* goal = new Node({ (double)grid_data.goalGridCell.x, (double)grid_data.goalGridCell.y });
-
-    plot_rrt(grid_img, start, goal, false, nodes);
+    Node* start_plot = new Node({ (double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y });
+    
+    // Plot the RRT
+    plot_rrt(grid_map, start_plot, goal, false, nodes);
     if (distance(*nodes.back(), *goal) < goal_threshold) {
         std::vector<Node*> goal_path = trace_goal_path(nodes[nodes.size() - 2]);
-        plot_rrt(grid_img, start, goal, true, goal_path);
+        plot_rrt(grid_map, start_plot, goal, true, goal_path);
     } else {
         std::cout << "Goal not reached!" << std::endl;
     }
