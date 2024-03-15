@@ -4,6 +4,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <algorithm>
+#include <iostream>
 
 namespace QTree {
 
@@ -173,6 +174,13 @@ namespace QTree {
         double left, right, top, bottom;
         Point top_left, top_right, bottom_left, bottom_right;
 
+        Rectangle() : x(0), y(0), w(0), h(0) {
+            left = x - w / 2;
+            right = x + w / 2;
+            top = y - h / 2;
+            bottom = y + h / 2;
+        }
+
         Rectangle(double x, double y, double w, double h) : x(x), y(y), w(w), h(h) {
             left = x - w / 2;
             right = x + w / 2;
@@ -201,17 +209,17 @@ namespace QTree {
                     }
                 }
         
-        QuadTree(const Rectangle& boundary, const int capacity = DEFAULT_CAPACITY, std::vector<Point> points)
-                : boundary(boundary), capacity(capacity), divided(false), depth(0),
-                northeast(nullptr), northwest(nullptr), southeast(nullptr), southwest(nullptr), parent(nullptr), position("root"), number_of_points(0) {
-                    if (capacity < 1) {
-                        throw std::range_error("capacity must be greater than 0");
-                    }
+        // QuadTree(const Rectangle& boundary, const int capacity = DEFAULT_CAPACITY, std::vector<Point> points)
+        //         : boundary(boundary), capacity(capacity), divided(false), depth(0),
+        //         northeast(nullptr), northwest(nullptr), southeast(nullptr), southwest(nullptr), parent(nullptr), position("root"), number_of_points(0) {
+        //             if (capacity < 1) {
+        //                 throw std::range_error("capacity must be greater than 0");
+        //             }
 
-                    for (const auto& point : points) {
-                        insert(point);
-                    }
-                }
+        //             for (const auto& point : points) {
+        //                 insert(point);
+        //             }
+        //         }
 
         ~QuadTree() {
                 delete northeast;
@@ -247,6 +255,34 @@ namespace QTree {
             return false;
         }
 
+        Point nearest_neighbor_test(const Point& point, Rectangle& range_for_test, Point& current_closest_point_for_test, std::vector<Point>& points_test) {
+            QuadTree* current_quadtree = find_quadtree(this, point);
+
+            Point current_closest_point = point;
+            double distance = find_parent_distance(current_quadtree, point, current_closest_point);
+
+            Point nearest_point = current_closest_point;
+            current_closest_point_for_test = current_closest_point;
+            Rectangle range = Rectangle(point.x, point.y, std::sqrt(distance)*2, std::sqrt(distance)*2);
+            range_for_test = range;
+
+            std::cout << "Range: " << range.left << " " << range.right << " " << range.top << " " << range.bottom << std::endl;
+
+            std::vector<Point> points;
+            query(range, points);
+
+            points_test = points;
+
+            // Iterate over the points and find the nearest one to the given point
+            for (const auto& p : points) {
+                if (p.sqDistanceFrom(point) <= distance) {
+                    distance = p.sqDistanceFrom(point);
+                    nearest_point = p;
+                }
+            }
+            return nearest_point;
+        }
+
         Point nearest_neighbor(const Point& point) {
             QuadTree* current_quadtree = find_quadtree(this, point);
 
@@ -254,23 +290,21 @@ namespace QTree {
             double distance = find_parent_distance(current_quadtree, point, current_closest_point);
 
             Point nearest_point = current_closest_point;
-            Rectangle range = Rectangle(point.x, point.y, distance*2, distance*2);
+            Rectangle range = Rectangle(point.x, point.y, std::sqrt(distance)*2, std::sqrt(distance)*2);
+
             std::vector<Point> points;
             query(range, points);
 
             // Iterate over the points and find the nearest one to the given point
-
             for (const auto& p : points) {
                 if (p.sqDistanceFrom(point) <= distance) {
                     distance = p.sqDistanceFrom(point);
                     nearest_point = p;
                 }
             }
-
             return nearest_point;
         }
 
-    private:
         static const int DEFAULT_CAPACITY = 4;
         static const int MAX_DEPTH = 8;
         Rectangle boundary;
@@ -283,6 +317,7 @@ namespace QTree {
         std::string position;
         int depth;
 
+    private:
 
         QuadTree(const Rectangle& boundary, const int capacity, int depth, QuadTree *parent, std::string position)
             : boundary(boundary), capacity(capacity), divided(false), depth(depth),
@@ -360,12 +395,11 @@ namespace QTree {
                 return 0; // Code to calculate all the distances because there are not much points
                           // Mostly shouldn't happen
             }
-            
+
             if (quadtree->points.size() > 0) {
                 current_closest_point = quadtree->points[0];
                 return quadtree->points[0].sqDistanceFrom(point);
-            }
-             else {
+            } else {
                 if (quadtree->position == "northeast"){
                     if (quadtree->parent->northwest->points.size() > 0) {
                         current_closest_point = quadtree->parent->northwest->points[0];
@@ -412,6 +446,8 @@ namespace QTree {
                     }
                 }
             }
+
+            return 0;
         }
     };
 }  // namespace QTree

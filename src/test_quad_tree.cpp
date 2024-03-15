@@ -41,7 +41,7 @@ void QTShow(cv::Mat img, const QTree::QuadTree& tree) {
 
 int main() {
     QTree::Rectangle boundary(250, 250, 500, 500);
-    QTree::QuadTree tree(boundary, 1, 10);
+    QTree::QuadTree tree(boundary, 1); // Specify the constructor with the correct argument types
 
     cv::Mat img = cv::Mat::zeros(501, 501, CV_8UC3);
 
@@ -52,7 +52,26 @@ int main() {
         tree.insert(point);
     }
 
+    QTree::Rectangle range_test;
+    QTree::Point p_test;
+    std::vector<QTree::Point> points_test; 
+
+    QTree::Point p(tree.nearest_neighbor_test(QTree::Point(224, 340), range_test, p_test, points_test));
+
+    cv::Point left_bottom(range_test.left, range_test.bottom);
+    cv::Point right_top(range_test.right, range_test.top);
+
     QTShow(img, tree);
+
+    for (auto point : points_test) {
+        cv::circle(img, cv::Point(point.x, point.y), 1, cv::Scalar(0, 0, 255), -1);
+    }
+
+    cv::circle(img, cv::Point(224, 340), 1, cv::Scalar(255, 0, 0), -1);
+    cv::circle(img, cv::Point(p.x, p.y), 2, cv::Scalar(255, 255, 255), -1);
+    cv::circle(img, cv::Point(p_test.x, p_test.y), 1, cv::Scalar(255, 0, 0), -1);
+
+    cv::rectangle(img, left_bottom, right_top, cv::Scalar(0, 0, 255), 1);
 
     cv::resize(img, img, cv::Size(800, 800));
     cv::imshow("QuadTree", img);
