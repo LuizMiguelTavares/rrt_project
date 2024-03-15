@@ -289,11 +289,20 @@ namespace QTree {
             Point current_closest_point = point;
             double distance = find_parent_distance(current_quadtree, point, current_closest_point);
 
-            Point nearest_point = current_closest_point;
-            Rectangle range = Rectangle(point.x, point.y, std::sqrt(distance)*2, std::sqrt(distance)*2);
-
             std::vector<Point> points;
-            query(range, points);
+
+            Point possible_nearest_point;
+
+            if(distance == 0){
+                points = this->points;
+                possible_nearest_point = points[0];
+            } else {
+                possible_nearest_point = current_closest_point;
+                Rectangle range = Rectangle(point.x, point.y, std::sqrt(distance)*2, std::sqrt(distance)*2);
+                query(range, points);
+            }
+
+            Point nearest_point = possible_nearest_point;
 
             // Iterate over the points and find the nearest one to the given point
             for (const auto& p : points) {
