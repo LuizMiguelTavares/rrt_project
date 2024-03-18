@@ -46,8 +46,10 @@ find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
 
 # Optionally, enable profiling with gprof for Debug builds
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -pg")
-set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg")
+# set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -pg")
+# set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -pg")
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 # Add your source files here
 add_executable(RRT_simple src/rrt_simple_map.cpp src/image_transformation.cpp)
