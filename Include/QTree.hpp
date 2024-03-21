@@ -57,28 +57,32 @@ namespace QTree {
         }
     };
 
+    template<typename Node>
     class QuadTree {
     public:
-        QuadTree(const Rectangle& boundary, const int capacity = DEFAULT_CAPACITY)
+        QuadTree(const Rectangle& boundary, Node* start, const int capacity = DEFAULT_CAPACITY)
                 : boundary(boundary), capacity(capacity), divided(false), depth(0), parent(nullptr), position("root") {
                     if (capacity < 1) {
                         throw std::range_error("capacity must be greater than 0");
                     }
 
-                    this->points.reserve(5000);
+                    this->nodes.reserve(5000);
+                    this->insert(start);
                 }
 
         static std::unique_ptr<QuadTree> Create(const Rectangle& boundary, const int capacity, const int depth, const QuadTree* parent, const std::string& position) {
             return std::unique_ptr<QuadTree>(new QuadTree(boundary, capacity, depth, parent, position));
         }
 
-        bool insert(const Point& point) {
+        bool insert(Node* node) {
+            Point point(node->x, node->y);
+
             if (!boundary.contains(point)) {
                 return false;
             }
 
-            if (points.size() < capacity || depth == MAX_DEPTH) {
-                points.push_back(point);
+            if (this->nodes.size() < capacity || depth == MAX_DEPTH) {
+                this->nodes.push_back(node);
                 return true;
             }
 
@@ -86,8 +90,8 @@ namespace QTree {
                 subdivide();
             }
 
-            if (northeast->insert(point) || northwest->insert(point) || 
-                southeast->insert(point) || southwest->insert(point)) {
+            if (northeast->insert(node) || northwest->insert(node) || 
+                southeast->insert(node) || southwest->insert(node)) {
                 return true;
             }
 
@@ -123,42 +127,45 @@ namespace QTree {
             return nearest_point;
         }
 
-        Point nearest_neighbor(const Point& point) {
+        Node* nearest_neighbor(const Node* node) {
+            
+            Point point(node->x, node->y);
             QuadTree* current_quadtree = find_quadtree(this, point);
 
-            Point current_closest_point = point;
-            double distance = find_parent_distance(current_quadtree, point, current_closest_point);
+            Node* current_closest_node = nullptr;
+            double distance = find_parent_distance(current_quadtree, point, current_closest_node);
 
-            std::vector<Point> points;
+            std::vector<Node*> nodes;
 
-            Point possible_nearest_point;
+            Node* possible_nearest_node;
 
             if(distance == 0){
-                points = this->points;
-                possible_nearest_point = points[0];
+                nodes = this->nodes;
+                possible_nearest_node = nodes[0];
             } else {
-                possible_nearest_point = current_closest_point;
+                possible_nearest_node = current_closest_node;
                 Rectangle range = Rectangle(point.x, point.y, std::sqrt(distance)*2, std::sqrt(distance)*2);
-                query(range, points);
+                query(range, nodes);
             }
 
-            Point nearest_point = possible_nearest_point;
+             Node* nearest_node  = possible_nearest_node;
 
-            // Iterate over the points and find the nearest one to the given point
-            for (const auto& p : points) {
-                if (p.sqDistanceFrom(point) <= distance) {
-                    distance = p.sqDistanceFrom(point);
-                    nearest_point = p;
+            // Iterate over the nodes and find the nearest one to the given point
+            for (const auto& p : nodes) {
+                Point p_point(p->x, p->y);
+                if (p_point.sqDistanceFrom(point) <= distance) {
+                    distance = p_point.sqDistanceFrom(point);
+                    nearest_node = p;
                 }
             }
-            return nearest_point;
+            return nearest_node;
         }
 
         static const int DEFAULT_CAPACITY = 4;
         static const int MAX_DEPTH = 8;
         const Rectangle boundary;
         const int capacity;
-        std::vector<Point> points;
+        std::vector<Node*> nodes;
         bool divided;
         std::unique_ptr<QuadTree> northeast, northwest, southeast, southwest;
         const QuadTree *parent;
@@ -169,7 +176,7 @@ namespace QTree {
 
         QuadTree(const Rectangle& boundary, const int capacity, const int depth, const QuadTree *parent, const std::string position)
             : boundary(boundary), capacity(capacity), divided(false), depth(depth), parent(parent), position(position) {
-                this->points.reserve(5000);
+                this->nodes.reserve(5000);
             }
 
         void subdivide() {
@@ -191,14 +198,15 @@ namespace QTree {
             divided = true;
         }
 
-        void query(const Rectangle& range, std::vector<Point>& found) const {
+        void query(const Rectangle& range, std::vector<Node*>& found) const {
             if (!boundary.intersects(range)) {
                 return ;
             }
 
-            for (const auto& point : points) {
+            for (const auto& node : this->nodes) {
+                Point point(node->x, node->y);
                 if (range.contains(point)) {
-                    found.push_back(point);
+                    found.push_back(node);
                 }
             }
 
@@ -227,60 +235,73 @@ namespace QTree {
             return quad_tree;
         }
 
-        double find_parent_distance(const QuadTree* quadtree, const Point& point, Point& current_closest_point) const {
+        double find_parent_distance(const QuadTree* quadtree, const Point& point, Node*& current_closest_node) const {
 
             if (quadtree->parent == nullptr) {
                 return 0; // Code to calculate all the distances because there are not much points
                           // Mostly shouldn't happen
             }
 
-            if (quadtree->points.size() > 0) {
-                current_closest_point = quadtree->points[0];
-                return quadtree->points[0].sqDistanceFrom(point);
+            if (quadtree->nodes.size() > 0) {
+                current_closest_node = quadtree->nodes[0];
+                Point p(quadtree->nodes[0]->x, quadtree->nodes[0]->y);
+                return p.sqDistanceFrom(point);
             } else {
                 if (quadtree->position == "northeast"){
-                    if (quadtree->parent->northwest->points.size() > 0) {
-                        current_closest_point = quadtree->parent->northwest->points[0];
-                        return quadtree->parent->northwest->points[0].sqDistanceFrom(point);
-                    } else if (quadtree->parent->southwest->points.size() > 0) {
-                        current_closest_point = quadtree->parent->southwest->points[0];
-                        return quadtree->parent->southwest->points[0].sqDistanceFrom(point);
-                    } else if (quadtree->parent->southeast->points.size() > 0) {
-                        current_closest_point = quadtree->parent->southeast->points[0];
-                        return quadtree->parent->southeast->points[0].sqDistanceFrom(point);
+                    if (quadtree->parent->northwest->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->northwest->nodes[0];
+                        Point p(quadtree->parent->northwest->nodes[0]->x, quadtree->parent->northwest->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
+                    } else if (quadtree->parent->southwest->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->southwest->nodes[0];
+                        Point p(quadtree->parent->southwest->nodes[0]->x, quadtree->parent->southwest->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
+                    } else if (quadtree->parent->southeast->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->southeast->nodes[0];
+                        Point p(quadtree->parent->southeast->nodes[0]->x, quadtree->parent->southeast->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
                     }
-                } else if (quadtree->position == "northwest") {
-                    if (quadtree->parent->northeast->points.size() > 0) {
-                        current_closest_point = quadtree->parent->northeast->points[0];
-                        return quadtree->parent->northeast->points[0].sqDistanceFrom(point);
-                    } else if (quadtree->parent->southwest->points.size() > 0) {
-                        current_closest_point = quadtree->parent->southwest->points[0];
-                        return quadtree->parent->southwest->points[0].sqDistanceFrom(point);
-                    } else if (quadtree->parent->southeast->points.size() > 0) {
-                        current_closest_point = quadtree->parent->southeast->points[0];
-                        return quadtree->parent->southeast->points[0].sqDistanceFrom(point);
+                } else if (quadtree->position == "northwest"){
+                    if (quadtree->parent->northeast->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->northeast->nodes[0];
+                        Point p(quadtree->parent->northeast->nodes[0]->x, quadtree->parent->northeast->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
+                    } else if (quadtree->parent->southwest->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->southwest->nodes[0];
+                        Point p(quadtree->parent->southwest->nodes[0]->x, quadtree->parent->southwest->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
+                    } else if (quadtree->parent->southeast->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->southeast->nodes[0];
+                        Point p(quadtree->parent->southeast->nodes[0]->x, quadtree->parent->southeast->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
                     }
-                } else if (quadtree->position == "southeast") {
-                    if (quadtree->parent->northeast->points.size() > 0) {
-                        current_closest_point = quadtree->parent->northeast->points[0];
-                        return quadtree->parent->northeast->points[0].sqDistanceFrom(point);
-                    } else if (quadtree->parent->southwest->points.size() > 0) {
-                        current_closest_point = quadtree->parent->southwest->points[0];
-                        return quadtree->parent->southwest->points[0].sqDistanceFrom(point);
-                    } else if (quadtree->parent->northwest->points.size() > 0) {
-                        current_closest_point = quadtree->parent->northwest->points[0];
-                        return quadtree->parent->northwest->points[0].sqDistanceFrom(point);
+                } else if (quadtree->position == "southwest"){
+                    if (quadtree->parent->northeast->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->northeast->nodes[0];
+                        Point p(quadtree->parent->northeast->nodes[0]->x, quadtree->parent->northeast->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
+                    } else if (quadtree->parent->northwest->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->northwest->nodes[0];
+                        Point p(quadtree->parent->northwest->nodes[0]->x, quadtree->parent->northwest->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
+                    } else if (quadtree->parent->southeast->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->southeast->nodes[0];
+                        Point p(quadtree->parent->southeast->nodes[0]->x, quadtree->parent->southeast->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
                     }
-                } else if (quadtree->position == "southwest") {
-                    if (quadtree->parent->northeast->points.size() > 0) {
-                        current_closest_point = quadtree->parent->northeast->points[0];
-                        return quadtree->parent->northeast->points[0].sqDistanceFrom(point);
-                    } else if (quadtree->parent->northwest->points.size() > 0) {
-                        current_closest_point = quadtree->parent->northwest->points[0];
-                        return quadtree->parent->northwest->points[0].sqDistanceFrom(point);
-                    } else if (quadtree->parent->southeast->points.size() > 0) {
-                        current_closest_point = quadtree->parent->southeast->points[0];
-                        return quadtree->parent->southeast->points[0].sqDistanceFrom(point);
+                } else if (quadtree->position == "southeast"){
+                    if (quadtree->parent->northeast->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->northeast->nodes[0];
+                        Point p(quadtree->parent->northeast->nodes[0]->x, quadtree->parent->northeast->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
+                    } else if (quadtree->parent->northwest->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->northwest->nodes[0];
+                        Point p(quadtree->parent->northwest->nodes[0]->x, quadtree->parent->northwest->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
+                    } else if (quadtree->parent->southwest->nodes.size() > 0) {
+                        current_closest_node = quadtree->parent->southwest->nodes[0];
+                        Point p(quadtree->parent->southwest->nodes[0]->x, quadtree->parent->southwest->nodes[0]->y);
+                        return p.sqDistanceFrom(point);
                     }
                 }
             }

@@ -12,8 +12,10 @@ class Node {
 public:
     std::vector<double> position;
     Node* parent;
+    int x;
+    int y;
 
-    Node(std::vector<double> pos, Node* par = nullptr) : position(pos), parent(par) {}
+    Node(std::vector<double> pos, Node* par = nullptr) : position(pos), parent(par), x(pos[0]), y(pos[1]) {}
 };
 
 double distance(const Node& node1, const Node& node2) {
@@ -129,36 +131,34 @@ std::vector<Node*> rrt2(const cv::Mat& map, const int num_nodes, const double st
     return nodes;
 }
 
-std::vector<Node*> rrt(const cv::Mat& grid_map, const QTree::Point& start, Node* goal, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability) {
+std::vector<Node*> rrt(const cv::Mat& grid_map, Node* start, Node* goal, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability) {
 
     QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
-    QTree::QuadTree tree(boundary, 4);
+    QTree::QuadTree tree(boundary, start, 4);
 
-    tree.insert(start);
-    std::vector<Node*> nodes = {new Node({start.x, start.y})};
+    std::vector<Node*> nodes;
     nodes.reserve(num_nodes);
+    nodes.push_back(start);
 
     for (int i = 0; i < num_nodes; i++) {
         Node* sample = biased_sample(grid_map, *goal, bias_probability);
         //Node* nearest = nearest_node(*sample, nodes);
-        QTree::Point nearest_point = tree.nearest_neighbor(QTree::Point(sample->position[0], sample->position[1]));
-        Node* nearest = new Node({nearest_point.x, nearest_point.y});
-        Node* new_node = steer(nearest, *sample, step_size);
+        Node* nearest_node = tree.nearest_neighbor(sample);
+        Node* new_node = steer(nearest_node, *sample, step_size);
 
-        if (check_obstacle_intersection(grid_map, nearest->position[0], nearest->position[1], new_node->position[0], new_node->position[1])) {
+        if (check_obstacle_intersection(grid_map, nearest_node->position[0], nearest_node->position[1], new_node->position[0], new_node->position[1])) {
             delete sample;
             delete new_node;
             continue;
         }
 
         nodes.push_back(new_node);
-        tree.insert(QTree::Point(new_node->position[0], new_node->position[1]));
+        tree.insert(new_node);
 
         if (distance(*new_node, *goal) <= goal_threshold) {
             std::cout << "Goal reached!" << std::endl;
             std::cout << nodes.size() << std::endl;
             nodes.push_back(goal);
-            tree.insert(QTree::Point(goal->position[0], goal->position[1]));
             break;
         }
         delete sample;
@@ -235,7 +235,8 @@ int main() {
     // Process the image
     GridData grid_data = processImage(image, 300, 300);
 
-    QTree::Point start((double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y);
+    //QTree::Point start((double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y);
+    Node* start = new Node({ (double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y });
     Node* goal = new Node({ (double)grid_data.goalGridCell.x, (double)grid_data.goalGridCell.y });
     cv::Mat grid_map = grid_data.gridMap;
 
@@ -246,14 +247,12 @@ int main() {
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     std::cout << "Time taken by function: " << duration << " milliseconds" << std::endl;
-
-    Node* start_plot = new Node({ (double)grid_data.startingGridCell.x, (double)grid_data.startingGridCell.y });
     
     // Plot the RRT
-    plot_rrt(grid_map, start_plot, goal, false, nodes);
+    plot_rrt(grid_map, start, goal, false, nodes);
     if (distance(*nodes.back(), *goal) < goal_threshold) {
         std::vector<Node*> goal_path = trace_goal_path(nodes[nodes.size() - 2]);
-        plot_rrt(grid_map, start_plot, goal, true, goal_path);
+        plot_rrt(grid_map, start, goal, true, goal_path);
     } else {
         std::cout << "Goal not reached!" << std::endl;
     }
