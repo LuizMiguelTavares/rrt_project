@@ -6,8 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include "grid_map.hpp"
 #include "QTree.hpp"
-#include <thread> 
-#include <flann/flann.hpp>
+#include <thread>
 
 class Node {
 public:

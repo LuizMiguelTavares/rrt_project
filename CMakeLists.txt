@@ -58,7 +58,7 @@ add_executable(RRT_star src/main_rrt_star.cpp src/rrt_star.cpp src/image_transfo
 add_executable(QTree_test src/test_quad_tree.cpp)
 
 # Link with OpenCV libraries
-target_link_libraries(RRT_simple ${OpenCV_LIBS} ${FLANN_LIBRARIES} flann_cpp)
+target_link_libraries(RRT_simple ${OpenCV_LIBS})
 target_link_libraries(RRT_kynematics ${OpenCV_LIBS})
 target_link_libraries(RRT_star ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
 target_link_libraries(QTree_test ${OpenCV_LIBS})

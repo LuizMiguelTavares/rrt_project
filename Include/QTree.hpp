@@ -285,6 +285,7 @@ namespace QTree {
                 }
             }
 
+            // This should never happen
             return 0;
         }
     };
