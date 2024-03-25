@@ -57,7 +57,7 @@ int main() {
     // std::vector<QTree::Point> points_test; 
 
     // QTree::Point p(tree.nearest_neighbor_test(QTree::Point(224, 340), range_test, p_test, points_test));
-
+    
     // cv::Point left_bottom(range_test.left, range_test.bottom);
     // cv::Point right_top(range_test.right, range_test.top);
 

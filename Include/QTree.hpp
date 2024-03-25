@@ -10,26 +10,26 @@
 namespace QTree {
     class Point {
     public:
-        double x, y;
+        float x, y;
 
         Point() : x(0), y(0) {}
-        Point(double x, double y) : x(x), y(y) {}
+        Point(float x, float y) : x(x), y(y) {}
 
-        double sqDistanceFrom(const Point& other) const {
-            double dx = other.x - this->x;
-            double dy = other.y - this->y;
+        float sqDistanceFrom(const Point& other) const {
+            float dx = other.x - this->x;
+            float dy = other.y - this->y;
             return dx * dx + dy * dy;
         }
 
-        double distanceFrom(const Point& other) const {
+        float distanceFrom(const Point& other) const {
             return std::sqrt(this->sqDistanceFrom(other));
         }
     };
 
     class Rectangle {
     public:
-        double x, y, w, h;
-        double left, right, top, bottom;
+        float x, y, w, h;
+        float left, right, top, bottom;
         Point top_left, top_right, bottom_left, bottom_right;
 
         Rectangle() : x(0), y(0), w(0), h(0) {
@@ -39,7 +39,7 @@ namespace QTree {
             bottom = y + h / 2;
         }
 
-        Rectangle(double x, double y, double w, double h) : x(x), y(y), w(w), h(h) {
+        Rectangle(float x, float y, float w, float h) : x(x), y(y), w(w), h(h) {
             left = x - w / 2;
             right = x + w / 2;
             top = y - h / 2;
@@ -103,7 +103,7 @@ namespace QTree {
             QuadTree* current_quadtree = find_quadtree(this, point);
 
             Point current_closest_point = point;
-            double distance = find_parent_distance(current_quadtree, point, current_closest_point);
+            float distance = find_parent_distance(current_quadtree, point, current_closest_point);
 
             Point nearest_point = current_closest_point;
             current_closest_point_for_test = current_closest_point;
@@ -133,7 +133,7 @@ namespace QTree {
             QuadTree* current_quadtree = find_quadtree(this, point);
 
             Node* current_closest_node = nullptr;
-            double distance = find_parent_distance(current_quadtree, point, current_closest_node);
+            float distance = find_parent_distance(current_quadtree, point, current_closest_node);
 
             std::vector<Node*> nodes;
 
@@ -180,10 +180,10 @@ namespace QTree {
             }
 
         void subdivide() {
-            double x = boundary.x;
-            double y = boundary.y;
-            double w = boundary.w / 2.0;
-            double h = boundary.h / 2.0;
+            float x = boundary.x;
+            float y = boundary.y;
+            float w = boundary.w / 2.0;
+            float h = boundary.h / 2.0;
 
             Rectangle neRect(x + w / 2, y - h / 2, w, h);
             Rectangle nwRect(x - w / 2, y - h / 2, w, h);
@@ -235,7 +235,7 @@ namespace QTree {
             return quad_tree;
         }
 
-        double find_parent_distance(const QuadTree* quadtree, const Point& point, Node*& current_closest_node) const {
+        float find_parent_distance(const QuadTree* quadtree, const Point& point, Node*& current_closest_node) const {
 
             if (quadtree->parent == nullptr) {
                 return 0; // Code to calculate all the distances because there are not much points

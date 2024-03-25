@@ -93,9 +93,6 @@ bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, c
         if (error2 >= dy) { error += dy; xBegin += sx; }
         if (error2 <= dx) { error += dx; yBegin += sy; }
     }
-
-    // Add wait time to make the function slower
-    // std::this_thread::sleep_for(std::chrono::milliseconds(1));
     return false;
 }
 
@@ -142,7 +139,6 @@ std::vector<Node*> rrt(const cv::Mat& grid_map, Node* start, Node* goal, const i
 
     for (int i = 0; i < num_nodes; i++) {
         Node* sample = biased_sample(grid_map, *goal, bias_probability);
-        //Node* nearest = nearest_node(*sample, nodes);
         Node* nearest_node = tree.nearest_neighbor(sample);
         Node* new_node = steer(nearest_node, *sample, step_size);
 
