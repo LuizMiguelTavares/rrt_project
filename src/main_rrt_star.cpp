@@ -16,6 +16,7 @@
 // 4. Visualize random exploration points. (Visible point)
 
 #include"rrt_star.hpp"
+#include "QTree.hpp"
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include "grid_map.hpp"
@@ -40,7 +41,13 @@ int main(int argc, char** argv){
     Point start_pos(grid_data.startingGridCell.x, grid_data.startingGridCell.y);
     Point end_pos(grid_data.goalGridCell.x, grid_data.goalGridCell.y);
 
-    cv::Mat grid_img = grid_data.gridMap;
+    cv::Mat grid_map = grid_data.gridMap;
+
+    Node* start_node = new Node();
+    start_node->set_position(start_pos);
+
+    QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
+    QTree::QuadTree<Node>* tree = new QTree::QuadTree<Node>(boundary, start_node, 4);
 
     //define the raduis for RRT* algorithm (Within a radius of r, RRT* will find all neighbour nodes of a new node).
     float rrt_radius = 5;
@@ -52,7 +59,7 @@ int main(int argc, char** argv){
 
     //instantiate RRTSTAR class
     // Point start_pos, Point end_pos, float radius, float end_thresh, float step_size = 10, int max_iter = 5000, std::pair<float, float> map_size= std::make_pair(10.0f, 10.0f)
-    RRTSTAR* rrtstar = new RRTSTAR(start_pos, end_pos, rrt_radius, end_thresh, grid_img, step_size, max_iter);
+    RRTSTAR* rrtstar = new RRTSTAR(start_pos, end_pos, rrt_radius, end_thresh, grid_map, step_size, max_iter, tree);
     
     std::cout << "Starting RRT* Algorithm..." << std::endl;
     //search for the first viable solution
@@ -67,7 +74,7 @@ int main(int argc, char** argv){
         std::cout << "Cost is " << rrtstar->lastnode->cost << std::endl;
         std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
         std::cout << "Saving the generated plan (vector of points)" << std::endl;
-        rrtstar->plotBestPath();
+        //rrtstar->plotBestPath();
     }
     std::vector<Point> optimized_solution;
     //search for the optimized paths
@@ -81,7 +88,7 @@ int main(int argc, char** argv){
         std::cout << "More optimal solution has obtained after " << rrtstar->getCurrentIterations() << " iterations" << std::endl;
         std::cout << "Cost is " << rrtstar->m_cost_bestpath << std::endl;
         std::cout << "Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
-        rrtstar->plotBestPath();
+        //rrtstar->plotBestPath();
         
     }
     cv::waitKey(0);
@@ -104,4 +111,6 @@ int main(int argc, char** argv){
 
     //free up the memory
     delete rrtstar;
+    delete start_node;
+    delete tree;
 }

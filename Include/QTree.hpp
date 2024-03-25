@@ -161,6 +161,28 @@ namespace QTree {
             return nearest_node;
         }
 
+        void query(const Rectangle& range, std::vector<Node*>& found) const {
+            if (!boundary.intersects(range)) {
+                return ;
+            }
+
+            for (const auto& node : this->nodes) {
+                Point point(node->x, node->y);
+                if (range.contains(point)) {
+                    found.push_back(node);
+                }
+            }
+
+            if (divided) {
+                this->northeast->query(range, found);
+                this->northwest->query(range, found);
+                this->southeast->query(range, found);
+                this->southwest->query(range, found);
+            }
+
+            return ;
+        }
+
         static const int DEFAULT_CAPACITY = 4;
         static const int MAX_DEPTH = 8;
         const Rectangle boundary;
@@ -196,28 +218,6 @@ namespace QTree {
             this->southwest = QuadTree::Create(swRect, capacity, depth + 1, this, "southwest");
 
             divided = true;
-        }
-
-        void query(const Rectangle& range, std::vector<Node*>& found) const {
-            if (!boundary.intersects(range)) {
-                return ;
-            }
-
-            for (const auto& node : this->nodes) {
-                Point point(node->x, node->y);
-                if (range.contains(point)) {
-                    found.push_back(node);
-                }
-            }
-
-            if (divided) {
-                this->northeast->query(range, found);
-                this->northwest->query(range, found);
-                this->southeast->query(range, found);
-                this->southwest->query(range, found);
-            }
-
-            return ;
         }
 
         QuadTree* find_quadtree(QuadTree* quad_tree, const Point& point) const {

@@ -1,5 +1,6 @@
 #include"rrt_star.hpp"
 #include "grid_map.hpp"
+#include "QTree.hpp"
 #include <iostream>
 #include <cfloat>
 #include <algorithm>
@@ -22,8 +23,14 @@ Node::Node() {
 Node::~Node(){
 }
 
+void Node::set_position(Point pos){
+    this->position = pos;
+    this->x = pos.m_x;
+    this->y = pos.m_y;
+}
+
 //RRTSTAR class Constructors
-RRTSTAR::RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size = 10, int max_iter = 5000) {
+RRTSTAR::RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter, QTree::QuadTree<Node>*& qtree) {
     //set the default values and set the first node as the staring point
     startPoint = start_pos;
     destination = end_pos;
@@ -42,6 +49,7 @@ RRTSTAR::RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh,
     m_destination_threshhold = end_thresh;
     m_num_itr = 0;
     m_cost_bestpath = 0;
+    this->qtree = qtree;
 }
 
 //Destructor
@@ -53,21 +61,28 @@ RRTSTAR::~RRTSTAR()
 //RRTSTAR methods
 std::vector<Point> RRTSTAR::planner() {
     // while iter < MAX_Iterations
-    while (this->m_num_itr<this->m_max_iter)
+    while (this->m_num_itr < this->m_max_iter)
     {
         this->m_num_itr++;
         Node plan_n_rand = this->getRandomNode(); //Generate a random node
         if (plan_n_rand.position.m_x!=0 && plan_n_rand.position.m_y!=0) {
             
-            Node* plan_n_nearest = this->findNearest(plan_n_rand.position);  //Find the closest node to the new random node.
+            Node* plan_n_nearest = this->qtree->nearest_neighbor(&plan_n_rand);
+            // Node* plan_n_nearest = this->findNearest(plan_n_rand.position);  //Find the closest node to the new random node.
             Point plan_p_new = this->steer(plan_n_rand, plan_n_nearest); //Steer from "N_Nearest" towards "N_rand": interpolate if node is too far away.
             bool intersection = this->check_obstacle_intersection(this->m_map, plan_n_nearest->position.m_x, plan_n_nearest->position.m_y, plan_p_new.m_x, plan_p_new.m_y);
         
         if (!intersection) { // Check obstacle
                     Node* plan_n_new = new Node; //create new node to store the position of the steered node.
-                    plan_n_new->position = plan_p_new; //create new node from the streered new point
+                    plan_n_new->set_position(plan_p_new); //set the position of the new node
+
+                    this->qtree->insert(plan_n_new); // Insert the new node to the quadtree
+
                     std::vector<Node*> plan_v_n_near; //create a vector for neighbor nodes
-                    this->findNearNeighbors(plan_n_new->position, this->m_rrstar_radius, plan_v_n_near); // Find nearest neighbors with a given radius from new node.
+                    // QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
+                    QTree::Rectangle nn(plan_n_new->x, plan_n_new->y, m_rrstar_radius*2, m_rrstar_radius*2);
+                    this->qtree->query(nn, plan_v_n_near);
+                    // this->findNearNeighbors(plan_n_new->position, this->m_rrstar_radius, plan_v_n_near); // Find nearest neighbors with a given radius from new node.
                     Node* plan_n_parent=this->findParent(plan_v_n_near,plan_n_nearest,plan_n_new); //Find the parent of the given node (the node that is near and has the lowest path cost)
                     this->insertNode(plan_n_parent, plan_n_new);//Add N_new to node list.
                     this->reWire(plan_n_new, plan_v_n_near); //rewire the tree
@@ -121,7 +136,8 @@ Node RRTSTAR::getRandomNode() {
     
     if (rand_x_int >= 0 && rand_x_int < this->m_map.rows && rand_y_int >= 0 && rand_y_int < this->m_map.cols) {
         Node rand_randomnode;
-        rand_randomnode.position = Point(rand_x_int, rand_y_int); // Create a Point with integer coordinates
+        rand_randomnode.set_position(Point(rand_x_int, rand_y_int)); // Create a Point with integer coordinates
+        //rand_randomnode.position = Point(rand_x_int, rand_y_int); // Create a Point with integer coordinates
         return rand_randomnode;
     }
     return {};

@@ -6,6 +6,7 @@
 #include <random>
 #include <optional>
 #include <opencv2/opencv.hpp>
+#include "QTree.hpp"
 
 // ======= 3 Classes : Point, Node, RRTSTAR ============== //
 
@@ -61,6 +62,8 @@ public:
     std::vector<Node*> children;
     Node* parent;
     Point position;
+    float x;
+    float y;
     float cost;
     float cur_dist;
 
@@ -68,6 +71,8 @@ public:
     Node();
     //Destructor
     ~Node();
+
+    void set_position(Point pos);
 };
 
 /**
@@ -80,6 +85,7 @@ private:
     Node* root;
     Point startPoint;
     Point destination;
+    QTree::QuadTree<Node>* qtree;
     std::vector<Node*> path;
     std::vector<Node*> bestpath;
     std::vector<Point> Available_Points;
@@ -109,8 +115,12 @@ public:
     * @param Point end point (i.e., destination point)
     * @param float radius. Within a radius of r, RRT* will find all neighbour nodes of a node
     * @param float end threshold. Check within the radius of the end threshold to find nodes near the end point
+    * @param cv::Mat map. The map used for RRT* exploration
+    * @param float step size. The step size for RRT* exploration
+    * @param int max iterations. The maximum number of iterations for RRT* exploration
+    * @param QTree::QuadTree* qtree. The quadtree used for RRT* exploration
      */
-    RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter);
+    RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter, QTree::QuadTree<Node>*& qtree);
 
     //Destructor
     ~RRTSTAR();
