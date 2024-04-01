@@ -55,7 +55,7 @@ int main(int argc, char** argv){
     float end_thresh = 5;
     //
     float step_size = 5;
-    int max_iter = 200000;
+    int max_iter = 20000;
 
     //instantiate RRTSTAR class
     // Point start_pos, Point end_pos, float radius, float end_thresh, float step_size = 10, int max_iter = 5000, std::pair<float, float> map_size= std::make_pair(10.0f, 10.0f)

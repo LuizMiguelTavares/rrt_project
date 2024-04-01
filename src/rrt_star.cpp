@@ -76,12 +76,13 @@ std::vector<Point> RRTSTAR::planner() {
                     Node* plan_n_new = new Node; //create new node to store the position of the steered node.
                     plan_n_new->set_position(plan_p_new); //set the position of the new node
 
-                    this->qtree->insert(plan_n_new); // Insert the new node to the quadtree
-
                     std::vector<Node*> plan_v_n_near; //create a vector for neighbor nodes
                     // QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
                     QTree::Rectangle nn(plan_n_new->x, plan_n_new->y, m_rrstar_radius*2, m_rrstar_radius*2);
                     this->qtree->query(nn, plan_v_n_near);
+                    
+                    this->qtree->insert(plan_n_new); // Insert the new node to the quadtree
+
                     // this->findNearNeighbors(plan_n_new->position, this->m_rrstar_radius, plan_v_n_near); // Find nearest neighbors with a given radius from new node.
                     Node* plan_n_parent=this->findParent(plan_v_n_near,plan_n_nearest,plan_n_new); //Find the parent of the given node (the node that is near and has the lowest path cost)
                     this->insertNode(plan_n_parent, plan_n_new);//Add N_new to node list.
