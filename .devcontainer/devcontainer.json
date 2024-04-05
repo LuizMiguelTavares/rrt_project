@@ -8,6 +8,7 @@
         "--privileged"
     ],
     "mounts": [
-        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind",
+        "source=/home/miguel/cba_ws/src,target=/root/catkin_ws/src,type=bind"
     ]
 }
