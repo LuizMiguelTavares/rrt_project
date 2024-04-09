@@ -46,7 +46,6 @@ add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(/usr/include)
-include_directories(include/test)
 link_directories(/usr/lib/x86_64-linux-gnu)
 
 # Find OpenCV and OpenMP
@@ -75,5 +74,4 @@ target_link_libraries(RRT_kynematics ${OpenCV_LIBS})
 target_link_libraries(RRT_star ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
 target_link_libraries(QTree_test ${OpenCV_LIBS})
 
-include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_SOURCE_DIR}/include/test)
+include_directories(${PROJECT_SOURCE_DIR}/include/rrt_project)
