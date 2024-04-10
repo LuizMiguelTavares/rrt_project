@@ -1,5 +1,8 @@
 {
-    "image": "dev-container",
+    // "image": "dev-container:latest",
+    "build": { "dockerfile": "Dockerfile" },
+    "workspaceMount": "source=${localWorkspaceFolder},target=/root/catkin_ws/src,type=bind",
+    "workspaceFolder": "/root/catkin_ws/src",
     "runArgs": [
         "-e", "DISPLAY=${localEnv:DISPLAY}",
         "-e", "${DBUS_SESSION_BUS_ADDRESS}",
@@ -8,7 +11,6 @@
         "--privileged"
     ],
     "mounts": [
-        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind",
-        "source=/home/miguel/cba_ws/src,target=/root/catkin_ws/src,type=bind"
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
     ]
 }
