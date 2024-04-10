@@ -131,7 +131,7 @@ std::vector<Node*> rrt2(const cv::Mat& map, const int num_nodes, const double st
 std::vector<Node*> rrt(const cv::Mat& grid_map, Node* start, Node* goal, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability) {
 
     QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
-    QTree::QuadTree tree(boundary, start, 4);
+    QTree::QuadTree<Node> tree(boundary, start, 4);
 
     std::vector<Node*> nodes;
     nodes.reserve(num_nodes);
