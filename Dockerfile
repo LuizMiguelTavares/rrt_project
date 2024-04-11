@@ -7,8 +7,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     BASH_ENV=~/.bashrc \
     LD_LIBRARY_PATH=/usr/local/lib
 
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
+# ENV NVIDIA_VISIBLE_DEVICES all
+# ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 
 # Install packages necessary for ROS, OpenCV, python3-pip for rosdep and cleanup in a single RUN to reduce layers
 RUN apt-get update && apt-get install -y \
