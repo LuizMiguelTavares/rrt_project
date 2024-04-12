@@ -7,13 +7,15 @@ ENV DEBIAN_FRONTEND=noninteractive \
     BASH_ENV=~/.bashrc \
     LD_LIBRARY_PATH=/usr/local/lib
 
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
+# ENV NVIDIA_VISIBLE_DEVICES all
+# ENV NVIDIA_DRIVER_CAPABILITIES graphics,utility,compute
 
 # Install packages necessary for ROS, OpenCV, python3-pip for rosdep and cleanup in a single RUN to reduce layers
 RUN apt-get update && apt-get install -y \
         software-properties-common \
         lsb-release \
+        nano \
+        gedit \
         wget \
         curl \
         build-essential \
@@ -42,13 +44,23 @@ RUN apt-get update && apt-get install -y \
     ros-noetic-gazebo-ros-control \
     ros-noetic-ros-control \
     ros-noetic-ros-controllers \
+    libcanberra-gtk-module \
+    python3-catkin-tools \
+    libeigen3-dev \
+    locales \
     # Install rosdep after installing ROS to ensure rosdep command is available
     && pip3 install -U rosdep \
     && rosdep init && rosdep update \
     && echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc \
     # Cleanup to keep the image clean and compact
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+    && apt-get clean \
+    && locale-gen en_US.UTF-8 \
+    && dpkg-reconfigure --frontend=noninteractive locales
+
+ENV LANGUAGE en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LC_ALL en_US.UTF-8
 
 WORKDIR /root
 
