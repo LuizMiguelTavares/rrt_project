@@ -12,6 +12,8 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
     && apt-get update \
     && apt-get install -y sudo \
+    ros-noetic-teleop-twist-keyboard \
+    ros-noetic-slam-gmapping \
     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
@@ -23,5 +25,4 @@ RUN mkdir -p /home/$USERNAME/catkin_ws/src \
 USER $USERNAME
 
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
-
 WORKDIR /home/$USERNAME/catkin_ws/src
