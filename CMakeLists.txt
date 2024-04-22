@@ -142,7 +142,7 @@ add_executable(rrt_simple src/rrt_simple_map.cpp src/image_transformation.cpp)
 target_link_libraries(rrt_simple ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(mapping_node src/nodes/mapping.cpp)
-target_link_libraries(mapping_node ${catkin_LIBRARIES})
+target_link_libraries(mapping_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 ## Rename C++ executable without prefix
