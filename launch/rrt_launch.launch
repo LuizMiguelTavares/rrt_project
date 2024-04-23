@@ -29,10 +29,20 @@
           respawn="false" output="screen" args="-urdf -model p3dx -param robot_description -y -2.5 -x -2.5" />
 
     <!-- Launch map_server with specified map -->
-    <!-- <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simple_map.yaml" /> -->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simple_map.yaml" />
+    
+    <!-- AMCL Node for localization -->
+    <node pkg="amcl" type="amcl" name="amcl">
+        <remap from="scan" to="/laser/scan"/>
+        <param name="odom_frame_id" value="odom"/>
+        <param name="base_frame_id" value="base_link"/>
+        <param name="global_frame_id" value="map"/>
+        <param name="initial_pose_x" value="-2.5"/>
+        <param name="initial_pose_y" value="-2.5"/>
+    </node>
 
     <!-- Launch the map node -->
-    <node name="map_node" pkg="rrt_project" type="mapping_node" output="screen" />
+    <!-- <node name="mapping_node" pkg="rrt_project" type="mapping_node" output="screen" /> -->
     <!-- Launch rviz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project.rviz" required="false" />
 
