@@ -5,7 +5,35 @@
 #include <chrono>
 
 namespace motion_planning {
-    Node::Node(std::vector<double> pos, Node* par = nullptr) : position(pos), parent(par), x(pos[0]), y(pos[1]) {}
+    Node::Node(std::vector<double> pos, Node* par) : parent(par), is_empty(false) {
+        if (!pos.empty()) {
+            position = pos;
+            x = pos[0];
+            y = pos[1];
+        } else {
+            is_empty = true; 
+        }
+    }
+ 
+    Node::Node() : is_empty(true) {}
+    Node::~Node() {
+        delete parent;
+    }
+
+    bool Node::empty() {
+        return position.empty();
+    }
+
+    void Node::setParent(Node* par) {
+        parent = par;
+    }
+
+    void Node::setPosition(std::vector<double> pos) {
+        position = pos;
+        x = pos[0];
+        y = pos[1];
+        is_empty = false;
+    }
 
     RRT::RRT(const cv::Mat& map, Node* start, Node* goal, int num_nodes, double step_size, double goal_threshold, double bias_probability)
         : map_(map), start_(start), goal_(goal), num_nodes_(num_nodes), step_size_(step_size), goal_threshold_(goal_threshold), bias_probability_(bias_probability) {}

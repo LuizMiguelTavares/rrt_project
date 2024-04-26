@@ -12,7 +12,18 @@ namespace motion_planning {
             Node* parent;
             int x;
             int y;
-            Node(std::vector<double> pos, Node* par);
+            bool is_empty;
+
+            Node(std::vector<double> pos, Node* par = nullptr); 
+            Node(); 
+
+            ~Node();
+
+            bool empty();
+
+            void setParent(Node* par);
+
+            void setPosition(std::vector<double> pos);
     };
 
     class RRT {
