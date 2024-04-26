@@ -1,0 +1,45 @@
+<launch>
+    <node pkg="rpic_article" type="emergency_button.py" name="emergency_button" output="screen" required="true"/>
+    <!-- <include file="$(find vrpn_client_ros)/launch/sample.launch"/> -->
+    <arg name="new_robot_pose_topic" default="" />
+    <arg name="new_robot_pose_message" default="" />
+    <arg name="new_robot_control_topic" default="" />
+    <arg name="new_robot_control_message" default="" />
+    <arg name="x_goal" default="2.5" />
+    <arg name="y_goal" default="2.5" />
+
+    <group ns="P1">
+        <node pkg="rpic_article" type="differential_robot_route_pose.py" name="pioneer_node" output="screen">
+            <rosparam file="$(find rpic_article)/config/differential_robots/pioneer.yaml" command="load" />
+            <param name="robot_pose_topic" value="$(arg new_robot_pose_topic)" />
+            <param name="robot_pose_message" value="$(arg new_robot_pose_message)" />
+            <param name="robot_control_topic" value="$(arg new_robot_control_topic)" />
+            <param name="robot_control_message" value="$(arg new_robot_control_message)" />
+
+        </node>
+
+        <node pkg="rrt_project" type="rrt_path_node" name="rrt_path_node" output="screen" >
+            <rosparam file="$(find rrt_project)/config/rrt.yaml" command="load" />
+            <param name="x_goal" value="$(arg x_goal)" />
+            <param name="y_goal" value="$(arg y_goal)" />
+        </node>
+
+        <node pkg="rpic_article" type="publish_robot_points_pose.py" name="publish_robot_points" output="screen">
+            <param name="robot_density" value="100"/>
+            <param name="robot_height" value="0.5"/>
+            <param name="robot_width" value="0.46"/>
+            <param name="x_offset" value="-0.142"/>
+            <param name="y_offset" value="0.0"/>
+        </node>
+
+        <node pkg="rpic_article" type="obstacle_avoidance_scan_node_pose.py" name="obstacle_avoidance_scan" output="screen">
+            <rosparam file="$(find rpic_article)/config/obstacle_avoidance/obstacle_avoidance_scan_node.yaml" command="load" />
+            <param name="scan_topic" value="/laser/scan"/>
+        </node>
+
+        <node pkg="rpic_article" type="plot_2D.py" name="plot_2D" output="screen">
+            <rosparam file="$(find rpic_article)/config/obstacle_avoidance/obstacle_avoidance_scan_node.yaml" command="load" />
+            <param name="scan_topic" value="/laser/scan"/>
+        </node>
+    </group>
+</launch>

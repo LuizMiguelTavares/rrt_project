@@ -1,0 +1,11 @@
+<launch>
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simple_map.yaml" />
+
+    <node pkg="rrt_project" type="rrt_path_node" name="rrt_path_node" output="screen" >
+            <rosparam file="$(find rrt_project)/config/rrt.yaml" command="load" />
+            <param name="x_goal" value="2.5" />
+            <param name="y_goal" value="2.5" />
+    </node>
+
+    <node name="rviz" pkg="rviz" type="rviz" required="false" />
+</launch>
