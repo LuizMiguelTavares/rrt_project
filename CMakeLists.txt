@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(rrt_project)
-
+set(CMAKE_CXX_STANDARD 20)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
@@ -28,6 +28,7 @@ catkin_package(
 
 include_directories(
   include/rrt_project
+  include/header_lib
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
@@ -41,6 +42,12 @@ add_library(motion_planning_lib
 target_link_libraries(motion_planning_lib
   ${OpenCV_LIBS}
 )
+
+add_library(motion_planning_lib2 INTERFACE)
+target_include_directories(motion_planning_lib2 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/header_lib)
+
+# Specify libraries to link a library or executable target against
+target_link_libraries(motion_planning_lib2 INTERFACE ${OpenCV_LIBS})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -57,10 +64,14 @@ target_link_libraries(motion_planning_lib
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(rrt_path_node src/nodes/rrt_path.cpp)
 add_dependencies(rrt_path_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(rrt_path_node ${catkin_LIBRARIES} motion_planning_lib)
+target_link_libraries(rrt_path_node ${catkin_LIBRARIES} motion_planning_lib2)
 
 add_executable(rrt_simple src/rrt_simple_map.cpp src/image_transformation.cpp)
 target_link_libraries(rrt_simple ${catkin_LIBRARIES} ${OpenCV_LIBS})
+
+## Dont work
+add_executable(rrt_test src/simple_map_test.cpp src/image_transformation.cpp)
+target_link_libraries(rrt_test ${OpenCV_LIBS} motion_planning_lib)
 
 add_executable(mapping_node src/nodes/mapping.cpp)
 target_link_libraries(mapping_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
