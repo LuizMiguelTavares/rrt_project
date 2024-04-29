@@ -47,7 +47,7 @@ add_library(motion_planning_lib2 INTERFACE)
 target_include_directories(motion_planning_lib2 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/header_lib)
 
 # Specify libraries to link a library or executable target against
-target_link_libraries(motion_planning_lib2 INTERFACE ${OpenCV_LIBS})
+target_link_libraries(motion_planning_lib2 INTERFACE ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

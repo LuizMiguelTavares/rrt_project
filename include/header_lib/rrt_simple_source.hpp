@@ -5,6 +5,7 @@
 #include <random>
 #include <opencv2/opencv.hpp>
 #include "QTree.hpp"
+#include <omp.h>
 #include <thread>
 
 namespace motion_planning{
@@ -71,21 +72,102 @@ namespace motion_planning{
         return new Node(random_position);
     }
 
-    bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, const int xEnd, const int yEnd) {
+    bool isBlack(const cv::Mat& image, int x, int y) {
+        if (x >= 0 && x < image.cols && y >= 0 && y < image.rows) {
+           
+            return image.at<uchar>(x, y) != 255;
+        }
+        return false;
+    }
+
+    // void _bresenhamCircleCollision(const cv::Mat& image, int xc, int yc, int radius, bool &collisionDetected) {
+    //     int x = 0;
+    //     int y = radius;
+    //     int d = 3 - 2 * radius;
+
+    //     #pragma omp parallel firstprivate(x, y, d) shared(collisionDetected)
+    //     {
+    //         while (y >= x) {
+    //             #pragma omp single nowait
+    //             {
+    //                 // Check points using 8-way symmetry
+    //                 if (isBlack(image, xc + x, yc + y) || isBlack(image, xc - x, yc + y) ||
+    //                     isBlack(image, xc + x, yc - y) || isBlack(image, xc - x, yc - y) ||
+    //                     isBlack(image, xc + y, yc + x) || isBlack(image, xc - y, yc + x) ||
+    //                     isBlack(image, xc + y, yc - x) || isBlack(image, xc - y, yc - x)) {
+    //                     #pragma omp critical
+    //                     {
+    //                         collisionDetected = true;
+    //                     }
+    //                 }
+    //             }
+
+    //             #pragma omp barrier
+
+    //             #pragma omp single
+    //             {
+    //                 if (!collisionDetected) {
+    //                     x++;
+    //                     if (d > 0) {
+    //                         y--;
+    //                         d += 4 * (x - y) + 10;
+    //                     } else {
+    //                         d += 4 * x + 6;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    void _bresenhamCircleCollision(const cv::Mat& image, int yc, int xc, int radius, bool &collisionDetected) {
+        int x = 0;
+        int y = radius;
+        int d = 3 - 2 * radius;
+        while (y >= x) {
+            // Check points using 8-way symmetry
+            if (isBlack(image, xc + x, yc + y) || isBlack(image, xc - x, yc + y) ||
+                isBlack(image, xc + x, yc - y) || isBlack(image, xc - x, yc - y) ||
+                isBlack(image, xc + y, yc + x) || isBlack(image, xc - y, yc + x) ||
+                isBlack(image, xc + y, yc - x) || isBlack(image, xc - y, yc - x)) {
+                collisionDetected = true;
+                return; // Exit as soon as a collision is detected
+            }
+            x++;
+            if (d > 0) {
+                y--;
+                d += 4 * (x - y) + 10;
+            } else {
+                d += 4 * x + 6;
+            }
+        }
+    }
+
+    bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, const int xEnd, const int yEnd, const int radius) {
         int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
         int dy = -abs(yEnd - yBegin), sy = yBegin < yEnd ? 1 : -1; 
         int error = dx + dy, error2;
 
-        std::vector<cv::Point> line_points; 
+        // std::vector<cv::Point> line_points; 
 
         while (true) {
-            line_points.push_back(cv::Point(xBegin, yBegin)); // Add point to the vector
+            // line_points.push_back(cv::Point(xBegin, yBegin)); // Add point to the vector
 
-            // Check if the point is within the image boundaries and is an obstacle
-            if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
-                if (image.at<uchar>(yBegin, xBegin) != 255) { 
-                    return true;
-                }
+            // // Check if the point is within the image boundaries and is an obstacle
+            // if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
+            //     if (image.at<uchar>(yBegin, xBegin) != 255) { 
+            //         return true;
+            //     }
+            // }
+
+            // Check if the point of the circle centered at (xBegin, yBegin) with radius r intersects an obstacle
+            bool collisionDetected = false;
+
+            _bresenhamCircleCollision(image, xBegin, yBegin, radius, collisionDetected);
+
+            if (collisionDetected) {
+
+                return true;
             }
 
             if (xBegin == xEnd && yBegin == yEnd) break;
@@ -96,7 +178,7 @@ namespace motion_planning{
         return false;
     }
 
-    std::vector<Node*> rrt(const cv::Mat& grid_map, Node* start, Node* goal, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability) {
+    std::vector<Node*> rrt(const cv::Mat& grid_map, Node* start, Node* goal, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability, const int radius) {
 
         QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
         QTree::QuadTree<Node> tree(boundary, start, 4);
@@ -110,7 +192,7 @@ namespace motion_planning{
             Node* nearest_node = tree.nearest_neighbor(sample);
             Node* new_node = steer(nearest_node, *sample, step_size);
 
-            if (check_obstacle_intersection(grid_map, nearest_node->position[0], nearest_node->position[1], new_node->position[0], new_node->position[1])) {
+            if (check_obstacle_intersection(grid_map, nearest_node->position[0], nearest_node->position[1], new_node->position[0], new_node->position[1], radius)) {
                 delete sample;
                 delete new_node;
                 continue;

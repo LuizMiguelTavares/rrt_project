@@ -7,7 +7,6 @@
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include "rrt_simple_source.hpp"
-// #include "rrt.hpp"
 #include <cmath>
 #include <optional>
 #include <vector>
@@ -21,11 +20,13 @@ public:
     RoutePublisher() : last_map_pruning_subscriber_count(0), rrtsuccess(false){
         ros::NodeHandle nh("~");
         double tmp_step_size, tmp_goal_threshold, tmp_bias_probability;
+        float tmp_radius;
 
-        if (nh.getParam("num_nodes", num_nodes) && nh.getParam("step_size", tmp_step_size) && nh.getParam("goal_threshold", tmp_goal_threshold) && nh.getParam("bias_probability", tmp_bias_probability)) {
+        if (nh.getParam("num_nodes", num_nodes) && nh.getParam("step_size", tmp_step_size) && nh.getParam("goal_threshold", tmp_goal_threshold) && nh.getParam("bias_probability", tmp_bias_probability) && nh.getParam("radius", tmp_radius)) {
             step_size = tmp_step_size;
             goal_threshold = tmp_goal_threshold;
             bias_probability = tmp_bias_probability;
+            radius_meter = tmp_radius;
         } else {
             ROS_ERROR("Parameters not provided!");
             ros::shutdown();
@@ -58,13 +59,20 @@ public:
             ROS_ERROR("Empty map received!");
             return;
         }
+
+        if (map.data.empty()){
+            radius_pixel = std::round(radius_meter / msg->info.resolution);
+            ROS_INFO("Radius in pixels: %d", radius_pixel);
+        }
+
         ROS_INFO("Map received!");
         ROS_INFO("Map Metadata: \nResolution: %f\nWidth: %d\nHeight: %d\nOrigin: (%f, %f, %f)", 
                  msg->info.resolution, msg->info.width, msg->info.height, 
                  msg->info.origin.position.x, msg->info.origin.position.y, msg->info.origin.position.z);
 
         map = *msg;
-        pruned_map = pruneMap(map, -3, 3, -3, 3);
+        // pruned_map = pruneMap(map, -3, 3, -3, 3);
+        pruned_map = map;
 
         ROS_INFO("Pruned Map Metadata: \nResolution: %f\nWidth: %d\nHeight: %d\nOrigin: (%f, %f, %f)", 
                  pruned_map.info.resolution, pruned_map.info.width, pruned_map.info.height, 
@@ -92,88 +100,90 @@ public:
                 ros::spinOnce();
                 continue;
             }
+
             // ros::Duration(5.0).sleep();
             // if(!rrtsuccess)
             if(!rrtsuccess){
-            std::lock_guard<std::mutex> lock(map_mutex);
-            cv_map = occupancyGridToCvMat(pruned_map);
-            
+                std::lock_guard<std::mutex> lock(map_mutex);
+                cv_map = occupancyGridToCvMat(pruned_map);
 
-            // // RRT path planning
-            // if(!rrtsuccess){
-            // // add an offset to the goal position
+                // // RRT path planning
+                // if(!rrtsuccess){
+                // // add an offset to the goal position
 
-            // See if the start and goal positions are valid on the pruned map
-            if (start_position[0] < pruned_map.info.origin.position.x || start_position[0] > pruned_map.info.origin.position.x + pruned_map.info.width * pruned_map.info.resolution ||
-                start_position[1] < pruned_map.info.origin.position.y || start_position[1] > pruned_map.info.origin.position.y + pruned_map.info.height * pruned_map.info.resolution) {
-                ROS_ERROR("Start position is outside the map!");
-                continue;
-            }
+                // See if the start and goal positions are valid on the pruned map
+                if (start_position[0] < pruned_map.info.origin.position.x || start_position[0] > pruned_map.info.origin.position.x + pruned_map.info.width * pruned_map.info.resolution ||
+                    start_position[1] < pruned_map.info.origin.position.y || start_position[1] > pruned_map.info.origin.position.y + pruned_map.info.height * pruned_map.info.resolution) {
+                    ROS_ERROR("Start position is outside the map!");
+                    continue;
+                }
 
-            if (goal_position[0] < pruned_map.info.origin.position.x || goal_position[0] > pruned_map.info.origin.position.x + pruned_map.info.width * pruned_map.info.resolution ||
-                goal_position[1] < pruned_map.info.origin.position.y || goal_position[1] > pruned_map.info.origin.position.y + pruned_map.info.height * pruned_map.info.resolution) {
-                ROS_ERROR("Goal position is outside the map!");
-                continue;
-            }
+                if (goal_position[0] < pruned_map.info.origin.position.x || goal_position[0] > pruned_map.info.origin.position.x + pruned_map.info.width * pruned_map.info.resolution ||
+                    goal_position[1] < pruned_map.info.origin.position.y || goal_position[1] > pruned_map.info.origin.position.y + pruned_map.info.height * pruned_map.info.resolution) {
+                    ROS_ERROR("Goal position is outside the map!");
+                    continue;
+                }
 
-            // Choose real position on the map given the start and goal positions and the resolution
-            std::vector<double> start_position_grid = {std::round((start_position[0] - pruned_map.info.origin.position.x) / pruned_map.info.resolution), 
-                                                       std::round(pruned_map.info.height - ((start_position[1] - pruned_map.info.origin.position.y) / pruned_map.info.resolution))};
-
-
-            std::vector<double> goal_position_grid = {std::round((goal_position[0] - pruned_map.info.origin.position.x) / pruned_map.info.resolution),
-                                                      std::round(pruned_map.info.height - ((goal_position[1] - pruned_map.info.origin.position.y) / pruned_map.info.resolution))};
+                // Choose real position on the map given the start and goal positions and the resolution
+                std::vector<double> start_position_grid = {std::round((start_position[0] - pruned_map.info.origin.position.x) / pruned_map.info.resolution), 
+                                                        std::round(pruned_map.info.height - ((start_position[1] - pruned_map.info.origin.position.y) / pruned_map.info.resolution))};
 
 
-            // Plot cv_map
-            // cv::circle(cv_map, cv::Point(start_position_grid[0], pruned_map.info.height - start_position_grid[1] - 1), 3, cv::Scalar(255, 255, 255), -1);
-            // cv::circle(cv_map, cv::Point(goal_position_grid[0], pruned_map.info.height - goal_position_grid[1]), 3, cv::Scalar(255, 255, 255), -1); 
-            // cv::imshow("Map", cv_map);
-            // cv::waitKey(1);
+                std::vector<double> goal_position_grid = {std::round((goal_position[0] - pruned_map.info.origin.position.x) / pruned_map.info.resolution),
+                                                        std::round(pruned_map.info.height - ((goal_position[1] - pruned_map.info.origin.position.y) / pruned_map.info.resolution))};
 
-            std::unique_ptr<motion_planning::Node> start = std::make_unique<motion_planning::Node>(start_position_grid, nullptr);
-            std::unique_ptr<motion_planning::Node> goal = std::make_unique<motion_planning::Node>(goal_position_grid, nullptr);
 
-            std::vector<motion_planning::Node*> nodes = motion_planning::rrt(cv_map, start.get(), goal.get(), num_nodes, step_size, goal_threshold, bias_probability);
+                // Plot cv_map
+                // cv::circle(cv_map, cv::Point(start_position_grid[0], pruned_map.info.height - start_position_grid[1] - 1), 3, cv::Scalar(255, 255, 255), -1);
+                // cv::circle(cv_map, cv::Point(goal_position_grid[0], pruned_map.info.height - goal_position_grid[1]), 3, cv::Scalar(255, 255, 255), -1); 
+                // cv::imshow("Map", cv_map);
+                // cv::waitKey(1);
 
-            // Plot the RRT
-            std::vector<motion_planning::Node*> goal_path;
-            motion_planning::plot_rrt(cv_map, start.get(), goal.get(), false, nodes);
-            if (motion_planning::distance(*nodes.back(), *goal) < goal_threshold) {
-                goal_path = motion_planning::trace_goal_path(nodes[nodes.size() - 2]);
-                motion_planning::plot_rrt(cv_map, start.get(), goal.get(), true, goal_path);
-                rrtsuccess = true;
-            } else {
-                std::cout << "Goal not reached!" << std::endl;
-                continue;
-            }
+                std::unique_ptr<motion_planning::Node> start = std::make_unique<motion_planning::Node>(start_position_grid, nullptr);
+                std::unique_ptr<motion_planning::Node> goal = std::make_unique<motion_planning::Node>(goal_position_grid, nullptr);
 
-            for (auto node : goal_path) {
-                geometry_msgs::PoseStamped point;
-                point.pose.position.x = node->position[0] * pruned_map.info.resolution + pruned_map.info.origin.position.x;
-                point.pose.position.y = (pruned_map.info.height - node->position[1]) * pruned_map.info.resolution + pruned_map.info.origin.position.y;
-                point.pose.position.z = 0;
-                nav_msgs_points.push_back(point);
+                std::vector<motion_planning::Node*> nodes = motion_planning::rrt(cv_map, start.get(), goal.get(), num_nodes, step_size, goal_threshold, bias_probability, radius_pixel);
 
-                geometry_msgs::Point route_point;
-                route_point.x = point.pose.position.x;
-                route_point.y = point.pose.position.y;
-                route_point.z = 0;
-                route_points.push_back(route_point);
-            }
-            geometry_msgs::PoseStamped end;
-            end.pose.position.x = goal_position[0];
-            end.pose.position.y = goal_position[1];
-            end.pose.position.z = 0;
-            nav_msgs_points.push_back(end);
-            nav_msgs_path.poses = nav_msgs_points;
+                // message error to see if is entering
 
-            geometry_msgs::Point goal_point;
-            goal_point.x = goal_position[0];
-            goal_point.y = goal_position[1];
-            goal_point.z = 0;
-            route_points.push_back(goal_point);
-            route.points = route_points;
+                // Plot the RRT
+                std::vector<motion_planning::Node*> goal_path;
+                // motion_planning::plot_rrt(cv_map, start.get(), goal.get(), false, nodes);
+                if (motion_planning::distance(*nodes.back(), *goal) < goal_threshold) {
+                    goal_path = motion_planning::trace_goal_path(nodes[nodes.size() - 2]);
+                    // motion_planning::plot_rrt(cv_map, start.get(), goal.get(), true, goal_path);
+                    rrtsuccess = true;
+                } else {
+                    ROS_ERROR("No path found!");
+                    continue;
+                }
+
+                for (auto node : goal_path) {
+                    geometry_msgs::PoseStamped point;
+                    point.pose.position.x = node->position[0] * pruned_map.info.resolution + pruned_map.info.origin.position.x;
+                    point.pose.position.y = (pruned_map.info.height - node->position[1]) * pruned_map.info.resolution + pruned_map.info.origin.position.y;
+                    point.pose.position.z = 0;
+                    nav_msgs_points.push_back(point);
+
+                    geometry_msgs::Point route_point;
+                    route_point.x = point.pose.position.x;
+                    route_point.y = point.pose.position.y;
+                    route_point.z = 0;
+                    route_points.push_back(route_point);
+                }
+                geometry_msgs::PoseStamped end;
+                end.pose.position.x = goal_position[0];
+                end.pose.position.y = goal_position[1];
+                end.pose.position.z = 0;
+                nav_msgs_points.push_back(end);
+                nav_msgs_path.poses = nav_msgs_points;
+
+                geometry_msgs::Point goal_point;
+                goal_point.x = goal_position[0];
+                goal_point.y = goal_position[1];
+                goal_point.z = 0;
+                route_points.push_back(goal_point);
+                route.points = route_points;
             }
 
             // std::vector<motion_planning::Node*> nodes = motion_planning::rrt(cv_map, start.get(), goal.get(), num_nodes, step_size, goal_threshold, bias_probability);
@@ -199,7 +209,7 @@ public:
             ros::Time current_time = ros::Time::now();
             
             route.header.stamp = current_time;
-            route.header.frame_id = "route";
+            route.header.frame_id = "map";
             pub.publish(route);
 
             nav_msgs_path.header.stamp = current_time;
@@ -253,11 +263,11 @@ public:
             for (unsigned int x = 0; x < grid.info.width; x++) {
                 int i = x + y * grid.info.width; // Original index in the occupancy grid data array
                 if (grid.data[i] == -1) {
-                    mat.at<uchar>(x, grid.info.height - 1 - y) = 127; // Unknown areas as gray
+                    mat.at<uchar>(x, grid.info.height - 1 - y) = 127;
                 } else if (grid.data[i] == 0){
-                    mat.at<uchar>(x, grid.info.height - 1 - y) = 255; // Copy the occupancy data
+                    mat.at<uchar>(x, grid.info.height - 1 - y) = 255; 
                 } else if (grid.data[i] == 100){
-                    mat.at<uchar>(x, grid.info.height - 1 - y) = 0;} // Copy the occupancy data
+                    mat.at<uchar>(x, grid.info.height - 1 - y) = 0;}
 
             }
         }
@@ -296,7 +306,6 @@ public:
         }
     }
 
-
 private:
     geometry_msgs::PoseWithCovarianceStamped pose;
     ros::Subscriber map_subscriber;
@@ -317,6 +326,8 @@ private:
     double goal_threshold;
     double bias_probability;
     bool rrtsuccess;
+    int radius_pixel;
+    float radius_meter;
 
     // test
     ros::Publisher nav_msgs_path_pub;

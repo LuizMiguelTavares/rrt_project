@@ -15,7 +15,6 @@
             <param name="robot_pose_message" value="$(arg new_robot_pose_message)" />
             <param name="robot_control_topic" value="$(arg new_robot_control_topic)" />
             <param name="robot_control_message" value="$(arg new_robot_control_message)" />
-
         </node>
 
         <node pkg="rrt_project" type="rrt_path_node" name="rrt_path_node" output="screen" >
@@ -30,16 +29,22 @@
             <param name="robot_width" value="0.46"/>
             <param name="x_offset" value="-0.142"/>
             <param name="y_offset" value="0.0"/>
+            <param name="robot_pose_topic" value="$(arg new_robot_pose_topic)" />
+            <param name="robot_pose_message" value="$(arg new_robot_pose_message)" />
         </node>
 
         <node pkg="rpic_article" type="obstacle_avoidance_scan_node_pose.py" name="obstacle_avoidance_scan" output="screen">
             <rosparam file="$(find rpic_article)/config/obstacle_avoidance/obstacle_avoidance_scan_node.yaml" command="load" />
             <param name="scan_topic" value="/laser/scan"/>
+            <param name="robot_pose_topic" value="$(arg new_robot_pose_topic)" />
+            <param name="robot_pose_message" value="$(arg new_robot_pose_message)" />
         </node>
-
+<!-- 
         <node pkg="rpic_article" type="plot_2D.py" name="plot_2D" output="screen">
             <rosparam file="$(find rpic_article)/config/obstacle_avoidance/obstacle_avoidance_scan_node.yaml" command="load" />
             <param name="scan_topic" value="/laser/scan"/>
-        </node>
+            <param name="robot_pose_topic" value="$(arg new_robot_pose_topic)" />
+            <param name="robot_pose_message" value="$(arg new_robot_pose_message)" />
+        </node> -->
     </group>
 </launch>
