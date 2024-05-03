@@ -1,0 +1,11 @@
+<launch>
+    <param name="world_frame" value="odom" />
+    <param name="robot_density" value="100"/>
+    <param name="robot_height" value="0.5"/>
+    <param name="robot_width" value="0.46"/>
+    <param name="robot_frame" value="base_link" />
+
+    <node pkg="rrt_project" type="publish_robot_potential_points" name="publish_robot_points" output="screen" />
+
+    <node pkg="rviz" type="rviz" name="rviz" required="true"/>
+</launch>

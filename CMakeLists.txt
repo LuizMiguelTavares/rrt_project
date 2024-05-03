@@ -76,6 +76,9 @@ target_link_libraries(rrt_test ${OpenCV_LIBS} motion_planning_lib)
 add_executable(mapping_node src/nodes/mapping.cpp)
 target_link_libraries(mapping_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
+add_executable(publish_robot_potential_points src/nodes/robot_points.cpp)
+target_link_libraries(publish_robot_potential_points ${catkin_LIBRARIES})
+
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

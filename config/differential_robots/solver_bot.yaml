@@ -1,0 +1,15 @@
+robot_type: 'Solverbot'
+control_frequency: 30
+
+gains:
+  linear: 1
+  angular: 1
+
+line_of_sight_dist: 0.6
+a: 0.15
+
+robot_control_topic: '/md49_drivercommand'
+robot_control_message: 'channelfloat32'
+
+robot_pose_topic: '/vrpn_client_node/S1/pose'
+robot_pose_message: 'PoseStamped' 

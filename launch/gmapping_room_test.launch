@@ -11,12 +11,12 @@
         <param name="ymin" value="-8"/>
         <param name="ymax" value="8"/>
     </node> -->
-
-    <!-- <node pkg="tf" type="static_transform_publisher" name="laser_to_base_link_tf_publisher" 
-        args="0.1 0 0 0 0 0 P1 laser 100" /> -->
+<!-- 
+    <node pkg="tf" type="static_transform_publisher" name="laser_to_base_link_tf_publisher" 
+        args="0.1 0 0 0 0 0 P1 laser 100" />  -->
     
     <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
-        args="0.1 0 0 0.0 0.0 0.0 1.0 base_link laser" />
+        args="0.1 0 0 0 0 -0.98480775 -0.17364818 base_link laser" /> <!-- -20 -180deg in yaw -->
 
     <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
         args="1.0 0 0 0.0 0.0 0.0 1.0 world base_link1" />
