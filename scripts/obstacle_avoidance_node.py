@@ -4,7 +4,7 @@ import rospy
 import tf
 import tf2_ros
 
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import TwistStamped, Point
 from sensor_msgs.msg import LaserScan, PointCloud, ChannelFloat32
 from visualization_msgs.msg import Marker
 
@@ -18,13 +18,17 @@ class ObstacleAvoidanceScan:
         rospy.init_node('obstacle_avoidance_node')
         self.scan_data = None
         self.robot_points = None
+        self.linear_velocity = None
+        self.angular_velocity = None
 
         self.max_obstacle_distance = rospy.get_param('~max_obstacle_distance', None)   
         self.density_gain = rospy.get_param('~density_gain', None)
-        self.observation_radius = rospy.get_param('~observation_radius', None)
+        self.min_observation_radius = rospy.get_param('~min_observation_radius', None)
+        self.observation_radius_gain = rospy.get_param('~observation_radius_gain', None)
         self.min_threshold = rospy.get_param('~min_threshold', None)
         self.cumulative_distance = rospy.get_param('~cumulative_distance', None)
         self.scan_topic = rospy.get_param('~scan_topic', None)
+        velocity_topic = rospy.get_param('~velocity_topic', None)
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -41,6 +45,11 @@ class ObstacleAvoidanceScan:
 
         self.namespace = rospy.get_namespace()
         
+        self.velocity_sub = rospy.Subscriber(velocity_topic, 
+                                             TwistStamped,
+                                             self.velocity_callback,
+                                                queue_size=10)
+         
         self.scan_sub = rospy.Subscriber(self.scan_topic, 
                                             LaserScan, 
                                             self.scan_callback, 
@@ -56,11 +65,16 @@ class ObstacleAvoidanceScan:
                                                     queue_size=10)
 
         self.publish_markers = rospy.Publisher('potential_marker', Marker, queue_size=10)
+        self.publish_observation_radius = rospy.Publisher('observation_radius_marker', Marker, queue_size=10)
         self.publish_bezier = rospy.Publisher('Bezier_points', PointCloud, queue_size=10)
         
         self.rate = rospy.Rate(30)
 
         rospy.loginfo(f"{self.namespace.strip('/')} obstacle avoidance node started")
+        
+    def velocity_callback(self, velocity_data):
+        self.linear_velocity = velocity_data.twist.linear.x
+        self.angular_velocity = velocity_data.twist.angular.z
 
     def scan_callback(self, scan_data):
         self.laser_frame = scan_data.header.frame_id
@@ -269,7 +283,15 @@ class ObstacleAvoidanceScan:
                 continue
             
             robot_points = self.robot_points
-            observation_radius = self.observation_radius
+            observation_radius_gain = self.observation_radius_gain
+            
+            observation_radius = observation_radius_gain * np.sqrt(self.linear_velocity**2 + self.angular_velocity**2)
+            
+            if observation_radius < self.min_observation_radius:
+                observation_radius = self.min_observation_radius
+            
+            self.observation_radius_cylinder_marker(observation_radius)
+            
             min_threshold = self.min_threshold
             obstacle_points, obstacle_idx = self.select_obstacle_points(robot_points, room_points, index, observation_radius, min_threshold)
 
@@ -331,6 +353,35 @@ class ObstacleAvoidanceScan:
 
         # Publish the marker
         self.publish_markers.publish(marker)
+        
+    def observation_radius_cylinder_marker(self, observation_radius):
+        marker = Marker()
+        marker.header.frame_id = self.robot_frame
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "Potential field observation cylinder"
+        
+        marker.id = 1
+        marker.type = Marker.CYLINDER
+        marker.action = Marker.ADD
+        
+        marker.pose.position.x = 0
+        marker.pose.position.y = 0
+        marker.pose.position.z = 0
+        marker.pose.orientation.x = 0
+        marker.pose.orientation.y = 0
+        marker.pose.orientation.z = 0
+        marker.pose.orientation.w = 1
+        
+        marker.scale.x = observation_radius*2
+        marker.scale.y = observation_radius*2
+        marker.scale.z = 0.01
+        
+        marker.color.a = 0.5
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+        
+        self.publish_observation_radius.publish(marker)
 
 def main():
     obs_avoidance = ObstacleAvoidanceScan()
