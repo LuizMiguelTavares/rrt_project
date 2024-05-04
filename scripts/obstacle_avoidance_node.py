@@ -5,7 +5,7 @@ import tf
 import tf2_ros
 
 from geometry_msgs.msg import Point
-from sensor_msgs.msg import LaserScan, PointCloud
+from sensor_msgs.msg import LaserScan, PointCloud, ChannelFloat32
 from visualization_msgs.msg import Marker
 
 from aurora_py.obstacle_avoidance_2d import ObstacleAvoidance
@@ -167,7 +167,10 @@ class ObstacleAvoidanceScan:
             clusters = np.concatenate((clusters[index_of_max_diff + 1:], clusters[:index_of_max_diff + 1]))
 
         cluster_dict = {cluster: obstacle_points[np.where(np.array(clusters) == cluster)] for cluster in set(clusters)}
-
+        
+        bezier_pt_cloud = []
+        bezier_clusters = []
+        
         x_dot, y_dot = 0, 0
         for cluster, points in cluster_dict.items():
             kdtree = KDTree(points)
@@ -186,10 +189,27 @@ class ObstacleAvoidanceScan:
             density = int(density_gain*len(control_points)/smallest_distance**2) + 4
             bezier_points = self._bezier_curve(control_points, density=density)
             
+            aux_bezier_pt_cloud = [Point(x=x, y=y) for x, y in bezier_points]
+            bezier_pt_cloud.extend(aux_bezier_pt_cloud)
+            aux_cluster = [float(cluster)]*len(bezier_points)
+            bezier_clusters.extend(aux_cluster)
+            
             # Pensar na possibilidade de colocar mais pontos do robô e não só o mais próximo
             x_dot_partial, y_dot_partial = self.obs_avoidance.obstacle_avoidance(closest_robot_point, bezier_points)
             x_dot += x_dot_partial
             y_dot += y_dot_partial
+        
+        bezier_points_pc = PointCloud()
+        bezier_points_pc.header.frame_id = self.world_frame
+        bezier_points_pc.header.stamp = rospy.Time.now()
+        bezier_points_pc.points = bezier_pt_cloud
+
+        bezier_clusters_channel = ChannelFloat32()
+        bezier_clusters_channel.name = "cluster_ids"
+        bezier_clusters_channel.values = bezier_clusters
+        bezier_points_pc.channels.append(bezier_clusters_channel)
+        
+        self.publish_bezier.publish(bezier_points_pc)
         return x_dot, y_dot
 
     def _calculate_control_points(self, closest_point, points, cumulative_distance=0.15):
@@ -226,7 +246,6 @@ class ObstacleAvoidanceScan:
             p.x, p.y = point
             bezier_points.points.append(p)
         
-        self.publish_bezier.publish(bezier_points)
         return curve_points
     
     def loop(self):
@@ -268,7 +287,6 @@ class ObstacleAvoidanceScan:
             x_dot, y_dot = self.calculate_potential(robot_points, obstacle_points, clusters, obstacle_idx, cumulative_distance, density_gain)
             
             self.pub_marker(x_dot, y_dot)
-            print(x_dot, y_dot)
 
             potential_msg = Point(x=x_dot, y=y_dot)
             self.potential_publisher.publish(potential_msg)
