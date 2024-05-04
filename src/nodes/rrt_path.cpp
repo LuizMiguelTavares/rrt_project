@@ -6,6 +6,10 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 #include "rrt_simple_source.hpp"
 #include <cmath>
 #include <optional>
@@ -22,6 +26,8 @@ public:
         double tmp_step_size, tmp_goal_threshold, tmp_bias_probability;
         float tmp_radius;
 
+        tf_listener = std::make_unique<tf2_ros::TransformListener>(tf_buffer);
+
         if (nh.getParam("num_nodes", num_nodes) && nh.getParam("step_size", tmp_step_size) && nh.getParam("goal_threshold", tmp_goal_threshold) && nh.getParam("bias_probability", tmp_bias_probability) && nh.getParam("radius", tmp_radius)) {
             step_size = tmp_step_size;
             goal_threshold = tmp_goal_threshold;
@@ -29,6 +35,14 @@ public:
             radius_meter = tmp_radius;
         } else {
             ROS_ERROR("Parameters not provided!");
+            ros::shutdown();
+            return;
+        }
+
+        if (nh.getParam("robot_frame", robot_frame)) {
+            ROS_INFO("Robot frame: %s", robot_frame.c_str());
+        } else {
+            ROS_ERROR("Robot frame not provided!");
             ros::shutdown();
             return;
         }
@@ -41,13 +55,13 @@ public:
             ros::shutdown();
             return;
         }
+
         rate = std::make_unique<ros::Rate>(10);
 
         std::string ns = ros::this_node::getNamespace();
         pub = nh.advertise<obstacle_avoidance_drone_follower::ObjectPoints>(ns + "/route", 10);
         nav_msgs_path_pub = nh.advertise<nav_msgs::Path>(ns + "/path", 10);
         pruned_map_pub = nh.advertise<nav_msgs::OccupancyGrid>(ns + "/pruned_map", 10);
-        pose_subscriber = nh.subscribe("/amcl_pose", 1000, &RoutePublisher::poseCallback, this);
         map_subscriber = nh.subscribe("/map", 10, &RoutePublisher::map_callback, this);
 
         ROS_INFO_STREAM(ns.substr(1) << " route publisher node started!");
@@ -81,24 +95,36 @@ public:
         pruned_map_pub.publish(pruned_map);
     }
 
-    void poseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg) {
-        std::lock_guard<std::mutex> lock(position_mutex);
-        if (start_position.empty() && !std::isnan(msg->pose.pose.position.x) && !std::isnan(msg->pose.pose.position.y)){
-            start_position = {msg->pose.pose.position.x, msg->pose.pose.position.y};
-            ROS_INFO("Initial Position (x: %f, y: %f)", msg->pose.pose.position.x, msg->pose.pose.position.y);
+    void updateStartPositionFromTF(const std::string& map_frame, const std::string& pose_frame) {
+        geometry_msgs::TransformStamped transform_stamped;
+        try {
+            transform_stamped = tf_buffer.lookupTransform(map_frame, pose_frame, ros::Time(0), ros::Duration(1.0));
+            start_position = {transform_stamped.transform.translation.x, transform_stamped.transform.translation.y};
+            ROS_INFO("Updated start position from TF (x: %f, y: %f)", start_position[0], start_position[1]);
+        } catch (tf2::TransformException &ex) {
+            ROS_WARN("%s", ex.what());
         }
-        pose = *msg;
     }
 
     void rrt_route() {
         while (ros::ok()) {
             check_pruning_map_subscribers();
 
-            if (start_position.empty() || map.data.empty()) {
-                ROS_INFO("Waiting for map and initial position...");
+            if (map.data.empty()) {
+                ROS_INFO("RRT_node: Waiting for map...");
                 rate->sleep();
                 ros::spinOnce();
                 continue;
+            }
+
+            if (start_position.empty()) {
+                updateStartPositionFromTF(map.header.frame_id, robot_frame);
+                if (start_position.empty()) {
+                    ROS_INFO("RRT_node: Waiting for initial position...");
+                    rate->sleep();
+                    ros::spinOnce();
+                    continue;
+                }
             }
 
             // ros::Duration(5.0).sleep();
@@ -307,7 +333,6 @@ public:
     }
 
 private:
-    geometry_msgs::PoseWithCovarianceStamped pose;
     ros::Subscriber map_subscriber;
     ros::Subscriber pose_subscriber;
     ros::Publisher pub;
@@ -328,6 +353,11 @@ private:
     bool rrtsuccess;
     int radius_pixel;
     float radius_meter;
+
+    std::string robot_frame;
+
+    tf2_ros::Buffer tf_buffer;
+    std::unique_ptr<tf2_ros::TransformListener> tf_listener;
 
     // test
     ros::Publisher nav_msgs_path_pub;
