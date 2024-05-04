@@ -1,6 +1,5 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Point.h>
-#include <obstacle_avoidance_drone_follower/ObjectPoints.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Point.h>
 #include <nav_msgs/OccupancyGrid.h>
@@ -59,7 +58,6 @@ public:
         rate = std::make_unique<ros::Rate>(10);
 
         std::string ns = ros::this_node::getNamespace();
-        pub = nh.advertise<obstacle_avoidance_drone_follower::ObjectPoints>(ns + "/route", 10);
         nav_msgs_path_pub = nh.advertise<nav_msgs::Path>(ns + "/path", 10);
         pruned_map_pub = nh.advertise<nav_msgs::OccupancyGrid>(ns + "/pruned_map", 10);
         map_subscriber = nh.subscribe("/map", 10, &RoutePublisher::map_callback, this);
@@ -127,15 +125,10 @@ public:
                 }
             }
 
-            // ros::Duration(5.0).sleep();
             // if(!rrtsuccess)
             if(!rrtsuccess){
                 std::lock_guard<std::mutex> lock(map_mutex);
                 cv_map = occupancyGridToCvMat(pruned_map);
-
-                // // RRT path planning
-                // if(!rrtsuccess){
-                // // add an offset to the goal position
 
                 // See if the start and goal positions are valid on the pruned map
                 if (start_position[0] < pruned_map.info.origin.position.x || start_position[0] > pruned_map.info.origin.position.x + pruned_map.info.width * pruned_map.info.resolution ||
@@ -158,21 +151,11 @@ public:
                 std::vector<double> goal_position_grid = {std::round((goal_position[0] - pruned_map.info.origin.position.x) / pruned_map.info.resolution),
                                                         std::round(pruned_map.info.height - ((goal_position[1] - pruned_map.info.origin.position.y) / pruned_map.info.resolution))};
 
-
-                // Plot cv_map
-                // cv::circle(cv_map, cv::Point(start_position_grid[0], pruned_map.info.height - start_position_grid[1] - 1), 3, cv::Scalar(255, 255, 255), -1);
-                // cv::circle(cv_map, cv::Point(goal_position_grid[0], pruned_map.info.height - goal_position_grid[1]), 3, cv::Scalar(255, 255, 255), -1); 
-                // cv::imshow("Map", cv_map);
-                // cv::waitKey(1);
-
                 std::unique_ptr<motion_planning::Node> start = std::make_unique<motion_planning::Node>(start_position_grid, nullptr);
                 std::unique_ptr<motion_planning::Node> goal = std::make_unique<motion_planning::Node>(goal_position_grid, nullptr);
 
                 std::vector<motion_planning::Node*> nodes = motion_planning::rrt(cv_map, start.get(), goal.get(), num_nodes, step_size, goal_threshold, bias_probability, radius_pixel);
 
-                // message error to see if is entering
-
-                // Plot the RRT
                 std::vector<motion_planning::Node*> goal_path;
                 // motion_planning::plot_rrt(cv_map, start.get(), goal.get(), false, nodes);
                 if (motion_planning::distance(*nodes.back(), *goal) < goal_threshold) {
@@ -190,12 +173,6 @@ public:
                     point.pose.position.y = (pruned_map.info.height - node->position[1]) * pruned_map.info.resolution + pruned_map.info.origin.position.y;
                     point.pose.position.z = 0;
                     nav_msgs_points.push_back(point);
-
-                    geometry_msgs::Point route_point;
-                    route_point.x = point.pose.position.x;
-                    route_point.y = point.pose.position.y;
-                    route_point.z = 0;
-                    route_points.push_back(route_point);
                 }
                 geometry_msgs::PoseStamped end;
                 end.pose.position.x = goal_position[0];
@@ -203,13 +180,6 @@ public:
                 end.pose.position.z = 0;
                 nav_msgs_points.push_back(end);
                 nav_msgs_path.poses = nav_msgs_points;
-
-                geometry_msgs::Point goal_point;
-                goal_point.x = goal_position[0];
-                goal_point.y = goal_position[1];
-                goal_point.z = 0;
-                route_points.push_back(goal_point);
-                route.points = route_points;
             }
 
             // std::vector<motion_planning::Node*> nodes = motion_planning::rrt(cv_map, start.get(), goal.get(), num_nodes, step_size, goal_threshold, bias_probability);
@@ -233,10 +203,6 @@ public:
             // }
 
             ros::Time current_time = ros::Time::now();
-            
-            route.header.stamp = current_time;
-            route.header.frame_id = "map";
-            pub.publish(route);
 
             nav_msgs_path.header.stamp = current_time;
             nav_msgs_path.header.frame_id = "map";
@@ -363,9 +329,6 @@ private:
     ros::Publisher nav_msgs_path_pub;
     std::vector<geometry_msgs::PoseStamped> nav_msgs_points;
     nav_msgs::Path nav_msgs_path;
-
-    std::vector<geometry_msgs::Point> route_points;
-    obstacle_avoidance_drone_follower::ObjectPoints route;
 };
 
 int main(int argc, char **argv)
