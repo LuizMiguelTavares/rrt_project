@@ -2,14 +2,17 @@ robot_type: 'Pioneer'
 control_frequency: 30
 
 gains:
-  linear: 1
-  angular: 1
+  linear: 0.3
+  angular: 0.3
 
-line_of_sight_dist: 0.6
 a: 0.15
 
 robot_control_topic: '/RosAria/cmd_vel'
 robot_control_message: 'Twist'
 
-robot_pose_topic: '/vrpn_client_node/P1/pose'
-robot_pose_message: 'PoseStamped'
+angular_velocity_priority_gain: 1.0
+distance_to_change_path_index: 0.5
+min_velocity: 0.2
+max_linear_velocity: 0.5
+world_frame: 'world'
+robot_frame: 'P1'

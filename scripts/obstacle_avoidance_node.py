@@ -46,10 +46,10 @@ class ObstacleAvoidanceScan:
         self.namespace = rospy.get_namespace()
         
         self.velocity_sub = rospy.Subscriber(velocity_topic, 
-                                             TwistStamped,
-                                             self.velocity_callback,
-                                                queue_size=10)
-         
+                                            TwistStamped,
+                                            self.velocity_callback,
+                                            queue_size=10)
+
         self.scan_sub = rospy.Subscriber(self.scan_topic, 
                                             LaserScan, 
                                             self.scan_callback, 

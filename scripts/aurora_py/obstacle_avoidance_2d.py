@@ -4,7 +4,7 @@ from numba import jit
 
 class ObstacleAvoidance:
     def __init__(self, n=None, a=None, b=None, k=None):
-
+        self.J = None
         if n==None or a==None or b==None or k==None:
             raise TypeError("The obstacle detection constants must be declared ")
 
@@ -30,6 +30,7 @@ class ObstacleAvoidance:
             v = self.calculate_V(x_diff, y_diff)
 
             J_ob = self.j_ob(v, x_diff, y_diff)
+            self.J = J_ob
             v_ref = self.k * (-v)
             x_dot_aux, y_dot_aux = np.dot(np.linalg.pinv(J_ob.reshape(-1, 1)), v_ref)[0]
             x_dot+=x_dot_aux
@@ -37,6 +38,9 @@ class ObstacleAvoidance:
 
 
         return x_dot, y_dot
+
+    def get_J(self):
+        return self.J
 
 if __name__ == '__main__':
     pass

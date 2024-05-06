@@ -4,14 +4,20 @@
   <arg name="odom_frame"  default="odom_combined"/> -->
 
   <arg name="scan_topic"  default="/RosAria/scan" />
-  <arg name="base_frame"  default="base_link"/>
-  <arg name="odom_frame"  default="odom"/>
+  <arg name="base_frame"  default=""/>
+  <arg name="odom_frame"  default=""/>
 <!-- 
   <arg name="scan_topic"  default="/RosAria/scan" />
   <arg name="base_frame"  default="P1"/>
   <arg name="odom_frame"  default="world"/> -->
 
   <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <param name="odom_alpha1" value="0.000"/>
+    <param name="odom_alpha2" value="0.000"/>
+    <param name="odom_alpha3" value="0.000"/>
+    <param name="odom_alpha4" value="0.000"/>
+
+
     <param name="base_frame" value="$(arg base_frame)"/>
     <param name="odom_frame" value="$(arg odom_frame)"/>
     <param name="map_update_interval" value="0.01"/>
@@ -36,10 +42,15 @@
     <param name="resampleThreshold" value="0.5"/>
     <param name="particles" value="8"/>
 
-    <param name="xmin" value="-1.0"/>
+    <!-- <param name="xmin" value="-1.0"/>
     <param name="ymin" value="-4"/>
     <param name="xmax" value="5.5"/>
-    <param name="ymax" value="1.0"/>
+    <param name="ymax" value="1.0"/> -->
+        
+    <param name="xmin" value="-2.0"/>
+    <param name="ymin" value="-2.0"/>
+    <param name="xmax" value="3.0"/>
+    <param name="ymax" value="3"/>
 
     <param name="delta" value="0.05"/>
     <param name="llsamplerange" value="0.01"/>

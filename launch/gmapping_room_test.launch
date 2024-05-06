@@ -11,12 +11,12 @@
         <param name="ymin" value="-8"/>
         <param name="ymax" value="8"/>
     </node> -->
-<!-- 
-    <node pkg="tf" type="static_transform_publisher" name="laser_to_base_link_tf_publisher" 
-        args="0.1 0 0 0 0 0 P1 laser 100" />  -->
-    
+
     <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
-        args="0.1 0 0 0 0 -0.98480775 -0.17364818 base_link laser" /> <!-- -20 -180deg in yaw -->
+        args="0.1 0 0 0 0 -0.98480775 -0.17364818 P1 laser" /> <!-- -20 -180deg in yaw -->
+<!-- 
+    <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
+        args="0.1 0 0 0 0 -0.98480775 -0.17364818 base_link laser" /> -->
 
     <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
         args="1.0 0 0 0.0 0.0 0.0 1.0 world base_link1" />
@@ -25,14 +25,17 @@
         args="0.1 0 0 0.0 0.0 0.0 1.0 base_link1 laser" /> -->
 
     <arg name="scan_topic"  default="/RosAria/scan" />
-    <arg name="base_frame"  default="base_link1"/>
+    <arg name="base_frame"  default="P1"/>
     <arg name="odom_frame"  default="world"/>
 
-    <include file="$(find rrt_project)/launch/gmapping_igor.launch" />
+    <include file="$(find rrt_project)/launch/gmapping_igor.launch" >
+        <arg name="scan_topic" value="$(arg scan_topic)"/>
+        <arg name="base_frame" value="$(arg base_frame)"/>
+        <arg name="odom_frame" value="$(arg odom_frame)"/>
         <!-- <param name="scan_topic" value="/RosAria/scan"/>
-        <param name="base_frame" value="base_link1"/>
-        <param name="odom_frame" value="world"/>
-    </include> -->
+        <param name="base_frame" value="P1"/>
+        <param name="odom_frame" value="world"/> -->
+    </include>
 
     <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find rrt_project)/rviz/mapping_real_world.rviz" />
 

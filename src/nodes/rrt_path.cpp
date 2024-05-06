@@ -160,6 +160,8 @@ public:
                 // motion_planning::plot_rrt(cv_map, start.get(), goal.get(), false, nodes);
                 if (motion_planning::distance(*nodes.back(), *goal) < goal_threshold) {
                     goal_path = motion_planning::trace_goal_path(nodes[nodes.size() - 2]);
+                    this->nav_msgs_points = discretizePath(goal_path, 10);
+
                     // motion_planning::plot_rrt(cv_map, start.get(), goal.get(), true, goal_path);
                     rrtsuccess = true;
                 } else {
@@ -167,18 +169,18 @@ public:
                     continue;
                 }
 
-                for (auto node : goal_path) {
-                    geometry_msgs::PoseStamped point;
-                    point.pose.position.x = node->position[0] * pruned_map.info.resolution + pruned_map.info.origin.position.x;
-                    point.pose.position.y = (pruned_map.info.height - node->position[1]) * pruned_map.info.resolution + pruned_map.info.origin.position.y;
-                    point.pose.position.z = 0;
-                    nav_msgs_points.push_back(point);
-                }
-                geometry_msgs::PoseStamped end;
-                end.pose.position.x = goal_position[0];
-                end.pose.position.y = goal_position[1];
-                end.pose.position.z = 0;
-                nav_msgs_points.push_back(end);
+                // for (auto node : goal_path) {
+                //     geometry_msgs::PoseStamped point;
+                //     point.pose.position.x = node->position[0] * pruned_map.info.resolution + pruned_map.info.origin.position.x;
+                //     point.pose.position.y = (pruned_map.info.height - node->position[1]) * pruned_map.info.resolution + pruned_map.info.origin.position.y;
+                //     point.pose.position.z = 0;
+                //     nav_msgs_points.push_back(point);
+                // }
+                // geometry_msgs::PoseStamped end;
+                // end.pose.position.x = goal_position[0];
+                // end.pose.position.y = goal_position[1];
+                // end.pose.position.z = 0;
+                // nav_msgs_points.push_back(end);
                 nav_msgs_path.poses = nav_msgs_points;
             }
 
@@ -296,6 +298,62 @@ public:
             last_map_pruning_subscriber_count = current_count;
             pruned_map_pub.publish(pruned_map);
         }
+    }
+
+    std::vector<std::vector<double>> linspace(const std::vector<double>& start, const std::vector<double>& end, int num_points) {
+        std::vector<std::vector<double>> result;
+        if (num_points < 2) {
+            result.push_back(start);
+            return result;
+        }
+
+        double step_x = (end[0] - start[0]) / (num_points - 1);
+        double step_y = (end[1] - start[1]) / (num_points - 1);
+
+        for (int i = 0; i < num_points; ++i) {
+            std::vector<double> point = {start[0] + step_x * i, start[1] + step_y * i};
+            result.push_back(point);
+        }
+
+        return result;
+    }
+
+    std::vector<geometry_msgs::PoseStamped> discretizePath(const std::vector<motion_planning::Node*>& rrt_nodes, int points_per_segment) {
+        std::vector<geometry_msgs::PoseStamped> discretized_path;
+
+        if (rrt_nodes.empty()) {
+            return discretized_path;
+        }
+
+        for (size_t i = 0; i < rrt_nodes.size() - 1; ++i) {
+            auto start_node = rrt_nodes[i];
+            auto end_node = rrt_nodes[i + 1];
+
+            // Get positions from nodes
+            std::vector<double> start_pos = {start_node->position[0], start_node->position[1]};
+            std::vector<double> end_pos = {end_node->position[0], end_node->position[1]};
+
+            // Generate intermediate points using linspace
+            std::vector<std::vector<double>> interpolated_points = linspace(start_pos, end_pos, points_per_segment);
+
+            for (const auto& point : interpolated_points) {
+                geometry_msgs::PoseStamped pose_stamped;
+                pose_stamped.pose.position.x = point[0] * pruned_map.info.resolution + pruned_map.info.origin.position.x;
+                pose_stamped.pose.position.y = (pruned_map.info.height - point[1]) * pruned_map.info.resolution + pruned_map.info.origin.position.y;
+                pose_stamped.pose.position.z = 0; // assuming 2D navigation
+                discretized_path.push_back(pose_stamped);
+            }
+        }
+
+        // Add the last node to ensure the path reaches the goal
+        auto last_node = rrt_nodes.back();
+        geometry_msgs::PoseStamped goal_pose;
+        goal_pose.pose.position.x = last_node->position[0] * pruned_map.info.resolution + pruned_map.info.origin.position.x;
+        goal_pose.pose.position.y = (pruned_map.info.height - last_node->position[1]) * pruned_map.info.resolution + pruned_map.info.origin.position.y;
+        goal_pose.pose.position.z = 0;
+        discretized_path.push_back(goal_pose);
+
+        return discretized_path;
     }
 
 private:
