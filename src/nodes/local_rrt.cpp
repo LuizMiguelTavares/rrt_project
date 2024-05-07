@@ -64,14 +64,20 @@ public:
                         continue;
                     }
 
-                    QTree::Rectangle boundary(global_map_.info.width/2, global_map_.info.height/2, global_map_.info.width, global_map_.info.height);
+                    QTree::Rectangle boundary((global_map_.info.width*global_map_.info.resolution)/2, (global_map_.info.height*global_map_.info.resolution)/2, global_map_.info.width*global_map_.info.resolution, global_map_.info.height*global_map_.info.resolution);
                     if (global_map_.header.frame_id == path_.header.frame_id) {
                         int index = 0;
+                        // ROS_ERROR("position: %f, %f", global_map_.info.origin.position.x, global_map_.info.origin.position.y);
+                        // ROS_ERROR("width: %d, height: %d", global_map_.info.width, global_map_.info.height);
+                        // ROS_ERROR("resolution: %f", global_map_.info.resolution);
+
                         for (const auto& pose : path_.poses) {
                             // Pose on grig map
                             ROS_ERROR("Pose: %f, %f", pose.pose.position.x, pose.pose.position.y);
-                            double x = (pose.pose.position.x - global_map_.info.origin.position.x) / global_map_.info.resolution;
-                            double y = (pose.pose.position.y - global_map_.info.origin.position.y) / global_map_.info.resolution;
+                            double x = pose.pose.position.x - global_map_.info.origin.position.x;
+                            double y = pose.pose.position.y - global_map_.info.origin.position.y;
+
+                            // ROS_ERROR("Pose: %f, %f", x, y);
 
                             std::vector<double> position = {x, y};
                             motion_planning::Node* node = new motion_planning::Node(position);
@@ -129,20 +135,32 @@ private:
         // ROS_ERROR("Robot position: %f, %f", robot_position[0], robot_position[1]);
 
         // Transforming path to map frame
-        robot_position[0] = (robot_position[0] - global_map_.info.origin.position.x) / global_map_.info.resolution;
-        robot_position[1] = (robot_position[1] - global_map_.info.origin.position.y) / global_map_.info.resolution;
+        // robot_position[0] = (robot_position[0] - global_map_.info.origin.position.x) / global_map_.info.resolution;
+        // robot_position[1] = (robot_position[1] - global_map_.info.origin.position.y) / global_map_.info.resolution;
 
-        motion_planning::Node start(robot_position);
+        // ROS_ERROR("position: %f, %f", global_map_.info.origin.position.x, global_map_.info.origin.position.y);
+        // ROS_ERROR("width: %d, height: %d", global_map_.info.width, global_map_.info.height);
+        // ROS_ERROR("resolution: %f", global_map_.info.resolution);
+
+        std::vector<double> aux_position = {robot_position[0] - global_map_.info.origin.position.x, robot_position[1] - global_map_.info.origin.position.y};
+
+        // ROS_ERROR("AUX robot position: %f, %f", aux_position[0], aux_position[1]);
+
+        motion_planning::Node start(aux_position, nullptr);
         motion_planning::Node* closest_path_point = quad_tree_->nearest_neighbor(&start);
+        ROS_ERROR("Closest path point: %f, %f", closest_path_point->position[0], closest_path_point->position[1]);
+        ROS_ERROR("Closest path point: %d, %d", closest_path_point->x, closest_path_point->y);
 
-        closest_path_point->position[0] = closest_path_point->position[0] * global_map_.info.resolution + global_map_.info.origin.position.x;
-        closest_path_point->position[1] = closest_path_point->position[1] * global_map_.info.resolution + global_map_.info.origin.position.y;
+        std::vector<double> aux_start_position = {closest_path_point->x + global_map_.info.origin.position.x, closest_path_point->y + global_map_.info.origin.position.y}; 
+        // aux_start_position[0] = aux_start_position[0] * global_map_.info.resolution + global_map_.info.origin.position.x;
+        //aux_start_position[1] = aux_start_position[1] * global_map_.info.resolution + global_map_.info.origin.position.y;
 
+        // ROS_ERROR("Closest path point: %f, %f", aux_start_position[0], aux_start_position[1]);
         geometry_msgs::PointStamped last_point_inside_map;
         last_point_inside_map.header.frame_id = global_map_.header.frame_id;
         last_point_inside_map.header.stamp = ros::Time::now();
-        last_point_inside_map.point.x = closest_path_point->position[0];
-        last_point_inside_map.point.y = closest_path_point->position[1];
+        last_point_inside_map.point.x = aux_start_position[0];
+        last_point_inside_map.point.y = aux_start_position[1];
 
         if (!last_point_inside_map.header.frame_id.empty()) {
             last_point_pub_.publish(last_point_inside_map);
