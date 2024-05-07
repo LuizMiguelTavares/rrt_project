@@ -14,8 +14,8 @@ namespace motion_planning{
         int index;
         std::vector<double> position;
         Node* parent;
-        int x;
-        int y;
+        double x;
+        double y;
 
         Node(std::vector<double> pos, Node* par = nullptr) : position(pos), parent(par), x(pos[0]), y(pos[1]) {}
     };
@@ -76,7 +76,7 @@ namespace motion_planning{
     bool isBlack(const cv::Mat& image, int x, int y) {
         if (x >= 0 && x < image.cols && y >= 0 && y < image.rows) {
            
-            return image.at<uchar>(x, y) != 255;
+            return image.at<uchar>(x, y) == 0;
         }
         return false;
     }
@@ -193,6 +193,18 @@ namespace motion_planning{
             Node* nearest_node = tree.nearest_neighbor(sample);
             Node* new_node = steer(nearest_node, *sample, step_size);
 
+            if (new_node->x < 0 || new_node->x >= grid_map.cols || new_node->y < 0 || new_node->y >= grid_map.rows) {
+                delete sample;
+                delete new_node;
+                continue;
+            }
+
+            if (new_node->position[0] < 0 || new_node->position[0] >= grid_map.cols || new_node->position[1] < 0 || new_node->position[1] >= grid_map.rows) {
+                delete sample;
+                delete new_node;
+                continue;
+            }
+
             if (check_obstacle_intersection(grid_map, nearest_node->position[0], nearest_node->position[1], new_node->position[0], new_node->position[1], radius)) {
                 delete sample;
                 delete new_node;
@@ -212,6 +224,39 @@ namespace motion_planning{
         }
         return nodes;
     }
+
+    
+
+    // std::vector<std::shared_ptr<motion_planning::Node>> rrt2(const cv::Mat& grid_map, std::shared_ptr<motion_planning::Node> start, std::shared_ptr<motion_planning::Node> goal, const int num_nodes, const double step_size, const double goal_threshold, const double bias_probability, const int radius) {
+    //     QTree::Rectangle boundary(grid_map.cols / 2, grid_map.rows / 2, grid_map.cols, grid_map.rows);
+    //     QTree::QuadTree2<std::shared_ptr<motion_planning::Node>> tree(boundary, start, 4);
+
+    //     std::vector<std::shared_ptr<motion_planning::Node>> nodes;
+    //     nodes.reserve(num_nodes);
+    //     nodes.push_back(start);
+
+    //     for (int i = 0; i < num_nodes; i++) {
+    //         auto sample = std::shared_ptr<motion_planning::Node>(biased_sample(grid_map, *goal, bias_probability));
+    //         auto nearest_node = tree.nearest_neighbor(sample);
+    //         auto new_node = steer(nearest_node, *sample, step_size);
+
+    //         if (check_obstacle_intersection(grid_map, nearest_node->position[0], nearest_node->position[1], new_node->position[0], new_node->position[1], radius)) {
+    //             continue;
+    //         }
+
+    //         nodes.push_back(new_node);
+    //         tree.insert(new_node);
+
+    //         if (distance(*new_node, *goal) <= goal_threshold) {
+    //             std::cout << "Goal reached!" << std::endl;
+    //             std::cout << nodes.size() << std::endl;
+    //             nodes.push_back(goal);
+    //             break;
+    //         }
+    //     }
+    //     return nodes;
+    // }
+
 
     void plot_rrt(const cv::Mat& map, const Node* start, const Node* end, const bool reached, const std::vector<Node*>& nodes) {
         // Create a white image

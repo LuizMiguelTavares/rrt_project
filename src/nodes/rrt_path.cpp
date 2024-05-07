@@ -172,6 +172,10 @@ public:
                     continue;
                 }
 
+                // for (auto const& node : nodes) {
+                //     delete node;
+                // }
+
                 // for (auto node : goal_path) {
                 //     geometry_msgs::PoseStamped point;
                 //     point.pose.position.x = node->position[0] * pruned_map.info.resolution + pruned_map.info.origin.position.x;
