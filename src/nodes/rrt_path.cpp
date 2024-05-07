@@ -22,10 +22,13 @@ class RoutePublisher
 public:
     RoutePublisher() : last_map_pruning_subscriber_count(0), rrtsuccess(false){
         ros::NodeHandle nh("~");
+        ros::NodeHandle nh_global;
+
         double tmp_step_size, tmp_goal_threshold, tmp_bias_probability;
         float tmp_radius;
 
         tf_listener = std::make_unique<tf2_ros::TransformListener>(tf_buffer);
+        nh.param<std::string>("path_topic", path_topic, "path");
 
         if (nh.getParam("num_nodes", num_nodes) && nh.getParam("step_size", tmp_step_size) && nh.getParam("goal_threshold", tmp_goal_threshold) && nh.getParam("bias_probability", tmp_bias_probability) && nh.getParam("radius", tmp_radius)) {
             step_size = tmp_step_size;
@@ -58,9 +61,9 @@ public:
         rate = std::make_unique<ros::Rate>(10);
 
         std::string ns = ros::this_node::getNamespace();
-        nav_msgs_path_pub = nh.advertise<nav_msgs::Path>(ns + "/path", 10);
-        pruned_map_pub = nh.advertise<nav_msgs::OccupancyGrid>(ns + "/pruned_map", 10);
-        map_subscriber = nh.subscribe("/map", 10, &RoutePublisher::map_callback, this);
+        nav_msgs_path_pub = nh_global.advertise<nav_msgs::Path>(path_topic, 10);
+        pruned_map_pub = nh_global.advertise<nav_msgs::OccupancyGrid>("pruned_map", 10);
+        map_subscriber = nh_global.subscribe("/map", 10, &RoutePublisher::map_callback, this);
 
         ROS_INFO_STREAM(ns.substr(1) << " route publisher node started!");
     }
@@ -207,7 +210,8 @@ public:
             ros::Time current_time = ros::Time::now();
 
             nav_msgs_path.header.stamp = current_time;
-            nav_msgs_path.header.frame_id = "map";
+            nav_msgs_path.header.seq = 0;
+            nav_msgs_path.header.frame_id = map.header.frame_id;
             nav_msgs_path_pub.publish(nav_msgs_path);
             rate->sleep();
         }
@@ -322,7 +326,7 @@ public:
         std::vector<geometry_msgs::PoseStamped> discretized_path;
 
         if (rrt_nodes.empty()) {
-            return discretized_path;
+            return discretized_path;    
         }
 
         for (size_t i = 0; i < rrt_nodes.size() - 1; ++i) {
@@ -340,7 +344,11 @@ public:
                 geometry_msgs::PoseStamped pose_stamped;
                 pose_stamped.pose.position.x = point[0] * pruned_map.info.resolution + pruned_map.info.origin.position.x;
                 pose_stamped.pose.position.y = (pruned_map.info.height - point[1]) * pruned_map.info.resolution + pruned_map.info.origin.position.y;
-                pose_stamped.pose.position.z = 0; // assuming 2D navigation
+                pose_stamped.pose.position.z = 0;
+                pose_stamped.pose.orientation.w = 1.0;
+                pose_stamped.header.frame_id = map.header.frame_id;
+                pose_stamped.header.stamp = ros::Time::now();
+
                 discretized_path.push_back(pose_stamped);
             }
         }
@@ -377,6 +385,7 @@ private:
     bool rrtsuccess;
     int radius_pixel;
     float radius_meter;
+    std::string path_topic;
 
     std::string robot_frame;
 

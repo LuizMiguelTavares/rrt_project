@@ -10,9 +10,12 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf2_ros
+  tf
   sensor_msgs
   obstacle_avoidance_drone_follower 
   nav_msgs
+  geometry_msgs
+  map_msgs
 )
 
 find_package(OpenCV REQUIRED)
@@ -84,6 +87,9 @@ target_link_libraries(velocity_publisher ${catkin_LIBRARIES})
 
 add_executable(local_map src/nodes/local_map.cpp)
 target_link_libraries(local_map ${catkin_LIBRARIES})
+
+add_executable(local_rrt src/nodes/local_rrt.cpp)
+target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib2)
 
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 ## Rename C++ executable without prefix

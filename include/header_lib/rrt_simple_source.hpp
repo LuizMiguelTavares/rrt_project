@@ -11,6 +11,7 @@
 namespace motion_planning{
     class Node {
     public:
+        int index;
         std::vector<double> position;
         Node* parent;
         int x;

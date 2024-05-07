@@ -1,0 +1,40 @@
+<launch>
+    <arg name="x_goal" default="5.5" />
+    <arg name="y_goal" default="5.5" />
+    <arg name="gui" default="false" />
+    <arg name="world_frame" default="map" />
+    <arg name="robot_frame" default="base_link" />
+    <arg name="local_map_topic" default="/local_map" />
+    <arg name="laser_topic" default="/laser/scan" />
+    <arg name="path_topic" default="/rrt_path" />
+
+    <!-- <include file="$(find rrt_project)/launch/robot_and_map_setup.launch">
+        <arg name="paused" value="false" />
+        <arg name="use_sim_time" value="true" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="headless" value="false" />
+        <arg name="debug" value="false" />
+    </include> -->
+
+    <node pkg="rrt_project" type="local_map" name="local_map">
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="laser_topic" value="$(arg laser_topic)" />
+        <param name="grid_topic" value="$(arg local_map_topic)" />
+        <param name="rate" value="10.0" />
+    </node>
+
+    <node pkg="rrt_project" type="local_rrt" name="local_rrt">
+        <param name="local_map_topic" value="$(arg local_map_topic)" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="rate" value="10.0" />
+    </node>
+
+    <node pkg="rrt_project" type="rrt_path_node" name="rrt_path_node" output="screen" >
+        <rosparam file="$(find rrt_project)/simulation_config/rrt.yaml" command="load" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="x_goal" value="$(arg x_goal)" />
+        <param name="y_goal" value="$(arg y_goal)" />
+    </node>
+
+</launch>

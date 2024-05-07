@@ -1,0 +1,8 @@
+# Request
+nav_msgs/OccupancyGrid map
+geometry_msgs/Point start
+geometry_msgs/Point goal
+# Response
+nav_msgs/Path path
+bool success
+string message
