@@ -24,6 +24,8 @@ public:
         grid_.info.origin.position.x = -resolution_ * width_ / 2;
         grid_.info.origin.position.y = -resolution_ * height_ / 2;
         grid_.info.origin.orientation.w = 1.0;
+
+        empty_grid_ = grid_;
         
         grid_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>(grid_topic_, 50);
         laser_sub_ = nh_.subscribe(laser_topic_, 50, &LocalOccupancyGrid::laserCallback, this);
@@ -33,7 +35,6 @@ public:
         ros::Rate rate(rate_);
         while (ros::ok()) {
             ros::spinOnce();
-            grid_.header.stamp = ros::Time::now();
             grid_pub_.publish(grid_);
             rate.sleep();
         }
@@ -44,6 +45,7 @@ private:
     ros::Publisher grid_pub_;
     ros::Subscriber laser_sub_;
     nav_msgs::OccupancyGrid grid_;
+    nav_msgs::OccupancyGrid empty_grid_;
     tf2_ros::Buffer tf2_buffer_;
     tf2_ros::TransformListener tf2_listener_;
     std::string grid_topic_;
@@ -74,10 +76,11 @@ private:
     }
 
     void laserCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
-        // Adjust the frame ID of the grid to the incoming laser scan frame
+        // Reset the grid
+        grid_ = empty_grid_;
         grid_.header.frame_id = scan->header.frame_id;
+        grid_.header.stamp = ros::Time::now();
 
-        // Origin of the laser in the grid
         int origin_x = width_ / 2;
         int origin_y = height_ / 2;
 
@@ -88,10 +91,7 @@ private:
                 int end_x = origin_x + (int)(range * cos(angle) / resolution_);
                 int end_y = origin_y + (int)(range * sin(angle) / resolution_);
 
-                // Mark the path of the laser beam as free
                 bresenhamLine(origin_x, origin_y, end_x, end_y, 0);
-
-                // Mark the endpoint of the laser beam as occupied
                 markCell(end_x, end_y, 100);
             }
         }
