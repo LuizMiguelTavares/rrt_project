@@ -1,30 +1,163 @@
+#pragma once
+
+#include <vector>
+#include <memory>
+#include <cmath>
+#include <stdexcept>
+#include <algorithm>
+#include <iostream>
+
+namespace QTree {
+    class Point {
+    public:
+        float x, y;
+
+        Point() : empty(true) {}
+        Point(float x, float y) : x(x), y(y), empty(false) {}
+
+        float sqDistanceFrom(const Point& other) const {
+            if (this->is_empty()) {
+                throw std::runtime_error("Cannot calculate square distance from empty point");
+            }
+
+            if (other.is_empty()) {
+                throw std::runtime_error("Cannot calculate square distance to empty point");
+            }
+
+            float dx = other.x - this->x;
+            float dy = other.y - this->y;
+            return dx * dx + dy * dy;
+        }
+
+        float distanceFrom(const Point& other) const {
+            if (this->is_empty()) {
+                throw std::runtime_error("Cannot calculate distance from empty point");
+            }
+
+            if (other.is_empty()) {
+                throw std::runtime_error("Cannot calculate distance to empty point");
+            }
+            return std::sqrt(this->sqDistanceFrom(other));
+        }
+
+        bool is_empty() const {
+            return empty;
+        }
+
+        void set_values(float x, float y) {
+            this->x = x;
+            this->y = y;
+            empty = false;
+        }
+    
+    private:
+        bool empty;
+    };
+
+    class Rectangle {
+    public:
+        Rectangle() : empty(true) {
+            left = x - w / 2;
+            right = x + w / 2;
+            top = y - h / 2;
+            bottom = y + h / 2;
+        }
+
+        Rectangle(float x, float y, float w, float h) : x(x), y(y), w(w), h(h), empty(false) {
+            left = x - w / 2;
+            right = x + w / 2;
+            top = y - h / 2;
+            bottom = y + h / 2;
+        }
+
+        bool contains(const Point& point) const {
+            if (this->is_empty()) {
+                throw std::runtime_error("Rectangle is empty");
+            }
+
+            return (left <= point.x && point.x <= right &&
+                    top <= point.y && point.y <= bottom);
+        }
+
+        bool intersects(const Rectangle& range) const {
+            if (this->is_empty()) {
+                throw std::runtime_error("Rectangle is empty");
+            }
+
+            if (range.is_empty()) {
+                throw std::runtime_error("Input range is empty in intersects()");
+            }
+
+            return !(right < range.left || range.right < left ||
+                    bottom < range.top || range.bottom < top);
+        }
+
+        void set_values(float x, float y, float w, float h) {
+            this->x = x;
+            this->y = y;
+            this->w = w;
+            this->h = h;
+            left = x - w / 2;
+            right = x + w / 2;
+            top = y - h / 2;
+            bottom = y + h / 2;
+            empty = false;
+        }
+
+        bool is_empty() const {
+            return empty;
+        }
+
+    private:
+        bool empty;
+        float x, y, w, h;
+        float left, right, top, bottom;
+        Point top_left, top_right, bottom_left, bottom_right;
+    };
 
     template<typename Node>
-    class QuadTree2 {
+    class QuadTree {
     public:
-        QuadTree2(const Rectangle& boundary, std::shared_ptr<Node> start, const int capacity = DEFAULT_CAPACITY)
-                : boundary(boundary), capacity(capacity), divided(false), depth(0), parent(nullptr), position("root") {
+        QuadTree(const int capacity = DEFAULT_CAPACITY, const int max_depth = DEFAULT_MAX_DEPTH, int reserve_size = 0) 
+                : parent(nullptr), divided(false), depth(0), position("root"), capacity(capacity), max_depth(max_depth), empty(true) {
                     if (capacity < 1) {
-                        throw std::range_error("capacity must be greater than 0");
+                        throw std::range_error("Capacity must be greater than 0");
                     }
 
-                    this->nodes.reserve(5000);
-                    this->insert(start);
+                    if (reserve_size > 0) {
+                        this->nodes.reserve(reserve_size);
+                    }
                 }
 
-        static std::unique_ptr<QuadTree2> Create(const Rectangle& boundary, const int capacity, const int depth, const QuadTree2* parent, const std::string& position) {
-            return std::unique_ptr<QuadTree2>(new QuadTree2(boundary, capacity, depth, parent, position));
+        QuadTree(const Rectangle& boundary, const int capacity = DEFAULT_CAPACITY, const int max_depth = DEFAULT_MAX_DEPTH, int reserve_size = 0)
+                : parent(nullptr), divided(false), depth(0), position("root"), capacity(capacity), max_depth(max_depth), boundary(boundary), empty(true) {
+                    if (capacity < 1) {
+                        throw std::range_error("Capacity must be greater than 0");
+                    }
+                    if (reserve_size > 0) {
+                        this->nodes.reserve(reserve_size);
+                    }
+                }
+        
+        void set_boundary(const Rectangle& boundary) {
+            if (boundary.is_empty()) {
+                throw std::runtime_error("Can't set empty boundary");
+            }
+
+            this->boundary = boundary;
         }
 
         bool insert(std::shared_ptr<Node> node) {
             Point point(node->x, node->y);
 
             if (!boundary.contains(point)) {
-                assert(parent != nullptr && "Node is out of bounds of the QuadTree2");
+                if (parent == nullptr) {
+                    throw std::runtime_error("Node is out of bounds of the QuadTree"); 
+                }
                 return false;
             }
 
-            if (this->nodes.size() < capacity || depth == MAX_DEPTH) {
+            if (this->nodes.size() < capacity || depth == max_depth) {
                 this->nodes.push_back(node);
                 return true;
             }
@@ -42,132 +175,73 @@
             return false;
         }
 
-        std::shared_ptr<Node> nearest_neighbor(const std::shared_ptr<Node>& node) {
-            // Assert that the node is within the boundary of the QuadTree2
-            assert(this->boundary.contains(Point(node->x, node->y)) && "Can't find nearest neighbor for a node outside the boundary of the QuadTree2");
+        // std::shared_ptr<Node> nearest_neighbor(const std::shared_ptr<Node> node) {
+
+        //     assert(this->boundary.contains(Point(node->x, node->y)) && "Can't find nearest neighbor for a node outside the boundary of the QuadTree");
             
-            Point point(node->x, node->y);
-            QuadTree2* current_quadtree2 = find_quadtree2(this, point);
+        //     Point point(node->x, node->y);
+        //     QuadTree* current_quadtree = find_quadtree(this, point);
 
-            std::shared_ptr<Node> current_closest_node = nullptr;
-            float distance = find_parent_distance(current_quadtree2, point, current_closest_node);
+        //     Node* current_closest_node = nullptr;
+        //     float distance = find_parent_distance(current_quadtree, point, current_closest_node);
 
-            std::vector<std::shared_ptr<Node>> nodes;
+        //     std::vector<Node*> nodes;
 
-            std::shared_ptr<Node> possible_nearest_node;
+        //     Node* possible_nearest_node;
 
-            if(distance == 0){
-                nodes = this->nodes;
-                possible_nearest_node = nodes[0];
-            } else {
-                possible_nearest_node = current_closest_node;
-                Rectangle range = Rectangle(point.x, point.y, std::sqrt(distance)*2, std::sqrt(distance)*2);
-                query(range, nodes);
-            }
+        //     if(distance == 0){
+        //         nodes = this->nodes;
+        //         possible_nearest_node = nodes[0];
+        //     } else {
+        //         possible_nearest_node = current_closest_node;
+        //         Rectangle range = Rectangle(point.x, point.y, std::sqrt(distance)*2, std::sqrt(distance)*2);
+        //         query(range, nodes);
+        //     }
 
-            std::shared_ptr<Node> nearest_node  = possible_nearest_node;
+        //     Node* nearest_node  = possible_nearest_node;
 
-            // Iterate over the nodes and find the nearest one to the given point
-            for (const auto& p : nodes) {
-                Point p_point(p->x, p->y);
-                if (p_point.sqDistanceFrom(point) <= distance) {
-                    distance = p_point.sqDistanceFrom(point);
-                    nearest_node = p;
-                }
-            }
-            return nearest_node;
-        }
+        //     // Iterate over the nodes and find the nearest one to the given point
+        //     for (const auto& p : nodes) {
+        //         Point p_point(p->x, p->y);
+        //         if (p_point.sqDistanceFrom(point) <= distance) {
+        //             distance = p_point.sqDistanceFrom(point);
+        //             nearest_node = p;
+        //         }
+        //     }
+        //     return nearest_node;
+        // }
 
-        void query(const Rectangle& range, std::vector<std::shared_ptr<Node>>& found) const {
-            if (!boundary.intersects(range)) {
-                return;
-            }
 
-            for (const auto& node : this->nodes) {
-                Point point(node->x, node->y);
-                if (range.contains(point)) {
-                    found.push_back(node);
-                }
-            }
-
-            if (divided) {
-                this->northeast->query(range, found);
-                this->northwest->query(range, found);
-                this->southeast->query(range, found);
-                this->southwest->query(range, found);
-            }
-
-            return;
-        }
-
+    private:
+        bool empty;
         static const int DEFAULT_CAPACITY = 4;
-        static const int MAX_DEPTH = 8;
-        const Rectangle boundary;
+        static const int DEFAULT_MAX_DEPTH = 8;
+        Rectangle boundary;
         const int capacity;
         std::vector<std::shared_ptr<Node>> nodes;
         bool divided;
-        std::unique_ptr<QuadTree2> northeast, northwest, southeast, southwest;
-        const QuadTree2 *parent;
+        std::shared_ptr<QuadTree> northeast, northwest, southeast, southwest;
+        std::shared_ptr<QuadTree> parent;
         const std::string position;
         const int depth;
+        const int max_depth;
 
-    private:
-        QuadTree2(const Rectangle& boundary, const int capacity, const int depth, const QuadTree2 *parent, const std::string& position)
-            : boundary(boundary), capacity(capacity), divided(false), depth(depth), parent(parent), position(position) {
-                this->nodes.reserve(5000);
-            }
-
-        void subdivide() {
-            float x = boundary.x;
-            float y = boundary.y;
-            float w = boundary.w / 2.0;
-            float h = boundary.h / 2.0;
-
-            Rectangle neRect(x + w / 2, y - h / 2, w, h);
-            Rectangle nwRect(x - w / 2, y - h / 2, w, h);
-            Rectangle seRect(x + w / 2, y + h / 2, w, h);
-            Rectangle swRect(x - w / 2, y + h / 2, w, h);
-
-            this->northeast = QuadTree2::Create(neRect, capacity, depth + 1, this, "northeast");
-            this->northwest = QuadTree2::Create(nwRect, capacity, depth + 1, this, "northwest");
-            this->southeast = QuadTree2::Create(seRect, capacity, depth + 1, this, "southeast");
-            this->southwest = QuadTree2::Create(swRect, capacity, depth + 1, this, "southwest");
-
-            divided = true;
-        }
-
-        QuadTree2* find_quadtree2(QuadTree2* quad_tree, const Point& point) const {
+        std::shared_ptr<QuadTree> find_quadtree(std::shared_ptr<QuadTree> quad_tree, const Point& point) const {
+            // Assumes that the point is within the boundary of the quad_tree
             if (quad_tree->divided) {
                 if (quad_tree->northeast->boundary.contains(point)) {
-                    return find_quadtree2(quad_tree->northeast.get(), point);
+                    return find_quadtree(quad_tree->northeast, point);
                 } else if (quad_tree->northwest->boundary.contains(point)) {
-                    return find_quadtree2(quad_tree->northwest.get(), point);
+                    return find_quadtree(quad_tree->northwest, point);
                 } else if (quad_tree->southeast->boundary.contains(point)) {
-                    return find_quadtree2(quad_tree->southeast.get(), point);
+                    return find_quadtree(quad_tree->southeast, point);
                 } else if (quad_tree->southwest->boundary.contains(point)) {
-                    return find_quadtree2(quad_tree->southwest.get(), point);
+                    return find_quadtree(quad_tree->southwest, point);
                 }
             }
             return quad_tree;
         }
 
-        float find_parent_distance(const QuadTree2* quadtree2, const Point& point, std::shared_ptr<Node>& current_closest_node) const {
-            if (quadtree2->parent == nullptr) {
-                return 0; // Code to calculate all the distances because there are not much points
-                        // Mostly shouldn't happen
-            }
-
-            if (quadtree2->nodes.size() > 0) {
-                current_closest_node = quadtree2->nodes[0];
-                Point p(quadtree2->nodes[0]->x, quadtree2->nodes[0]->y);
-                return p.sqDistanceFrom(point);
-            } else {
-                return recursive_search_for_distance(quadtree2, point, current_closest_node);
-            }
-        }
-
-        float recursive_search_for_distance(const QuadTree2* quadtree2, const Point& point, std::shared_ptr<Node>& current_closest_node) const {
-            // Add logic to handle position-based node search from parent
-            return 0; // Placeholder to maintain structure; implement based on specific criteria
-        }
+        
     };
+} // namespace QTree

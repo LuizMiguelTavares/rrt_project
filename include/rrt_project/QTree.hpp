@@ -156,7 +156,7 @@ namespace QTree {
                 query(range, nodes);
             }
 
-             Node* nearest_node  = possible_nearest_node;
+            Node* nearest_node  = possible_nearest_node;
 
             // Iterate over the nodes and find the nearest one to the given point
             for (const auto& p : nodes) {
