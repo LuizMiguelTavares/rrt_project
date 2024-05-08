@@ -1,0 +1,11 @@
+<launch>
+    <arg name="local_map_topic" default="/local_map" />
+    <arg name="path_topic" default="/rrt_path" />
+
+    <node pkg="rrt_project" type="local_rrt" name="local_rrt">
+    <rosparam file="$(find rrt_project)/simulation_config/local_rrt.yaml" command="load" />
+        <param name="local_map_topic" value="$(arg local_map_topic)" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="rate" value="10.0" />
+    </node>
+</launch>

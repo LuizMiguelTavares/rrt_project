@@ -41,6 +41,10 @@ add_library(motion_planning_lib
   src/rrt.cpp
 )
 
+add_library(image_transformation
+  src/image_transformation.cpp
+)
+
 # Specify libraries to link a library or executable target against
 target_link_libraries(motion_planning_lib
   ${OpenCV_LIBS}
@@ -90,6 +94,15 @@ target_link_libraries(local_map ${catkin_LIBRARIES})
 
 add_executable(local_rrt src/nodes/local_rrt.cpp)
 target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib2)
+
+add_executable(test_refactor src/nodes/test_refactor.cpp)
+target_link_libraries(test_refactor ${catkin_LIBRARIES} motion_planning_lib2 ${OpenCV_LIBS})
+
+add_executable(test_rrt_ptr src/test_rrt_ptr.cpp)
+target_link_libraries(test_rrt_ptr ${catkin_LIBRARIES} motion_planning_lib2 image_transformation ${OpenCV_LIBS})
+
+add_executable(minimal_local_rrt src/nodes/minimal_local_rrt.cpp)
+target_link_libraries(minimal_local_rrt ${catkin_LIBRARIES} motion_planning_lib2 ${OpenCV_LIBS})
 
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 ## Rename C++ executable without prefix

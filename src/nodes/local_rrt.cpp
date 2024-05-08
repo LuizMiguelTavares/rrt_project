@@ -9,8 +9,8 @@
 #include <vector>
 #include <opencv2/core.hpp>
 
+#include "rrt_simple_ptr.hpp"
 
-#include "rrt_simple_source.hpp"
 
 class MapPathSubscriber {
 public:
@@ -104,12 +104,13 @@ public:
                             double y = pose.pose.position.y - global_map_.info.origin.position.y;
 
                             // ROS_ERROR("Pose: %f, %f", x, y);
-
-                            std::vector<double> position = {x, y};
-                            motion_planning::Node* node = new motion_planning::Node(position);
+                            std::shared_ptr<motion_planning::Node> node = std::make_shared<motion_planning::Node>(x, y, nullptr);
                             node->index = index;
                             if (!quad_tree_initialized_){
-                                quad_tree_ = std::make_unique<QTree::QuadTree<motion_planning::Node>>(boundary, node, 4);
+                                ROS_ERROR("Inserting node");
+                                quad_tree_ = std::make_shared<QTree::QuadTree<motion_planning::Node>>(boundary);
+                                quad_tree_->insert(node);
+                                ROS_ERROR("Quad tree initialized"); 
                                 quad_tree_initialized_ = true;
                             } else {
                                 quad_tree_->insert(node);
@@ -211,12 +212,12 @@ private:
 
     void generateLocalRRT() {
         updatePositionFromTF(global_map_.header.frame_id, map_frame_id_);
-        std::vector<double> aux_position = {robot_position[0] - global_map_.info.origin.position.x, robot_position[1] - global_map_.info.origin.position.y};
 
-        motion_planning::Node start(aux_position, nullptr);
-        motion_planning::Node* closest_path_point = quad_tree_->nearest_neighbor(&start);
+        float robot_x = robot_position[0] - global_map_.info.origin.position.x;
+        float robot_y = robot_position[1] - global_map_.info.origin.position.y;
+        std::shared_ptr<motion_planning::Node> robot_position = std::make_shared<motion_planning::Node>(robot_x, robot_y, nullptr);
 
-        std::vector<double> aux_start_position = {closest_path_point->x + global_map_.info.origin.position.x, closest_path_point->y + global_map_.info.origin.position.y}; 
+        std::shared_ptr<motion_planning::Node> closest_path_point = quad_tree_->nearest_neighbor(robot_position);
 
         geometry_msgs::PointStamped last_point_inside_map;
         geometry_msgs::PointStamped last_point_inside_map_local_frame;
@@ -282,6 +283,10 @@ private:
             return;
         }
 
+        last_point_inside_map.header.stamp = ros::Time::now();
+        last_point_inside_map.header.frame_id = path_.header.frame_id;
+        last_point_pub_.publish(last_point_inside_map);
+
         if (!is_rrt_completed_){
             // Convert last known valid pose to node
             double x_start = std::round(map_.info.width/2);
@@ -304,146 +309,45 @@ private:
                 return;
             }
 
-            // ROS_ERROR("x_start: %f, y_start: %f", x_start, y_start);
-            // ROS_ERROR("x_goal: %f, y_goal: %f", x_goal, y_goal);
-
-            std::vector<double> start_pos = {x_start, y_start};
-
-            x_goal = 30;
-            y_goal = 30;
-            std::vector<double> goal_pos = {x_goal, y_goal};
-
-            // std::unique_ptr<motion_planning::Node> start_node = std::make_unique<motion_planning::Node>(start_pos, nullptr);
-            // std::unique_ptr<motion_planning::Node> goal_node = std::make_unique<motion_planning::Node>(goal_pos, nullptr);
-
-            motion_planning::Node* start_node = new motion_planning::Node(start_pos, nullptr);
-            motion_planning::Node* goal_node = new motion_planning::Node(goal_pos, nullptr);
-
-            std::vector<motion_planning::Node*> nodes = motion_planning::rrt(local_map, start_node, goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_pixel_);
-
-            std::vector<motion_planning::Node*> goal_path;
-            if (motion_planning::distance(*nodes.back(), *goal_node) < goal_threshold_) {
-                goal_path = motion_planning::trace_goal_path(nodes[nodes.size() - 2]);
-                // this->nav_msgs_points = discretizePath(goal_path, 10);
-            } else {
-                ROS_ERROR("No path found!");
-                return;
-            }
-
+            std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
+            std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
+            // ROS_ERROR("Cheguei no RRT");
+            std::vector<std::shared_ptr<motion_planning::Node>> nodes;
+            nodes = run_rrt(start_node, goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_pixel_);
+            // ROS_ERROR("Sai do RRT");
             if (nodes.empty()) {
                 ROS_ERROR("No path found from RRT within the local map.");
                 return;
+            }
+
+            std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
+            if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
+                ROS_ERROR("No local path found!");
+                return;
+            } else {
+                goal_path = motion_planning::trace_goal_path(nodes.back());
             }
 
             // Convert the path from nodes to a ROS path message
             nav_msgs::Path ros_path = convertNodesToPath(goal_path, map_);
             path_pub_.publish(ros_path);
 
-            // for (auto const& node : nodes) {
-            //         delete node;
-            //     }
             // is_rrt_completed_ = true;
         }
-
-        last_point_inside_map.header.stamp = ros::Time::now();
-        last_point_inside_map.header.frame_id = path_.header.frame_id;
-        last_point_pub_.publish(last_point_inside_map);
     }
 
-// void generateLocalRRT() {
-//     updatePositionFromTF(global_map_.header.frame_id, map_frame_id_);
-//     std::vector<double> aux_position = {robot_position[0] - global_map_.info.origin.position.x, robot_position[1] - global_map_.info.origin.position.y};
 
-//     motion_planning::Node start(aux_position, nullptr);
-//     motion_planning::Node* closest_path_point = quad_tree_->nearest_neighbor(&start);
+    std::vector<std::shared_ptr<motion_planning::Node>> run_rrt(std::shared_ptr<motion_planning::Node> start, std::shared_ptr<motion_planning::Node> end, int num_nodes, double step_size, double goal_threshold, double bias_probability, int radius_pixel){
+        cv::Mat local_map = occupancyGridToCvMat(map_);
+        if (local_map.empty()) {
+            ROS_ERROR("Local map is empty");
+            return {};
+        }
 
-//     geometry_msgs::PointStamped last_point_inside_map;
-//     bool last_point_valid = false;
+        return motion_planning::rrt(local_map, start, end, num_nodes, step_size, goal_threshold, bias_probability, radius_pixel);
+    }
 
-//     cv::Mat local_map = occupancyGridToCvMat(map_);
-//     bool obstacle_encountered = false;
-//     geometry_msgs::PoseStamped last_local_pose;
-//     bool last_local_pose_valid = false;
-
-//     for (int i = closest_path_point->index; i < path_.poses.size(); i++) {
-//         geometry_msgs::PoseStamped pose;
-//         pose.header = path_.header;
-//         pose.pose = path_.poses[i].pose;
-
-//         geometry_msgs::PoseStamped pose_map_frame;
-//         if (transformPoseToMapFrame(pose, pose_map_frame)) {
-//             if (isInMap(pose_map_frame.pose.position)) {
-//                 if (!last_local_pose_valid) {
-//                     last_local_pose = pose_map_frame;
-//                     last_local_pose_valid = true;
-//                 } else {
-//                     if (!obstacle_encountered) {
-//                         int x_old = static_cast<int>((last_local_pose.pose.position.x - map_.info.origin.position.x) / map_.info.resolution);
-//                         int y_old = static_cast<int>((last_local_pose.pose.position.y - map_.info.origin.position.y) / map_.info.resolution);
-//                         int x_new = static_cast<int>((pose_map_frame.pose.position.x - map_.info.origin.position.x) / map_.info.resolution);
-//                         int y_new = static_cast<int>((pose_map_frame.pose.position.y - map_.info.origin.position.y) / map_.info.resolution);
-
-//                         y_old = map_.info.height - y_old;
-//                         y_new = map_.info.height - y_new;
-
-//                         obstacle_encountered = motion_planning::check_obstacle_intersection(local_map, x_old, y_old, x_new, y_new, radius_);
-//                         last_local_pose = pose_map_frame;
-//                     }
-//                 }
-//                 last_point_inside_map.point = pose.pose.position;
-//                 last_point_valid = true;
-//             } else {
-//                 break;
-//             }
-//         }
-//     }
-
-//     if (!last_point_valid) {
-//         ROS_ERROR("%s: No global path point inside the local map.", ros::this_node::getName().c_str());
-//         return;
-//     }
-
-//     if (obstacle_encountered) {
-//         ROS_ERROR("%s: Obstacle encountered in the local map.", ros::this_node::getName().c_str());
-//         return;
-//     }
-
-//     // Convert last known valid pose to node
-//     double x_start = std::round(map_.info.width/2);
-//     double y_start = std::round(map_.info.height/2);
-
-//     double x_goal = std::round((last_point_inside_map.point.x - map_.info.origin.position.x) / map_.info.resolution);
-//     double y_goal = std::round((last_point_inside_map.point.y - map_.info.origin.position.y) / map_.info.resolution);
-//     y_goal = map_.info.height - y_goal;
-
-//     std::vector<double> start_pos = {x_start, y_start};
-//     std::vector<double> goal_pos = {x_goal, y_goal};
-
-//     // motion_planning::Node start_node(start_pos, nullptr);
-//     // motion_planning::Node goal_node(goal_pos, nullptr);
-
-//     std::unique_ptr<motion_planning::Node> start_node = std::make_unique<motion_planning::Node>(start_pos, nullptr);
-//     std::unique_ptr<motion_planning::Node> goal_node = std::make_unique<motion_planning::Node>(goal_pos, nullptr);
-
-//     // std::vector<motion_planning::Node*> nodes = motion_planning::rrt(local_map, start_node.get(), goal_node.get(), num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_pixel_);
-
-//     // std::vector<motion_planning::Node*> nodes = motion_planning::rrt(local_map, &start_node, &goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_);
-
-//     // if (nodes.empty()) {
-//     //     ROS_ERROR("No path found from RRT within the local map.");
-//     //     return;
-//     // }
-
-//     last_point_inside_map.header.stamp = ros::Time::now();
-//     last_point_inside_map.header.frame_id = path_.header.frame_id;
-//     last_point_pub_.publish(last_point_inside_map);
-
-//     // Convert the path from nodes to a ROS path message
-//     // nav_msgs::Path ros_path = convertNodesToPath(nodes, map_.header.frame_id);
-//     // path_pub_.publish(ros_path);
-//     }
-
-    nav_msgs::Path convertNodesToPath(const std::vector<motion_planning::Node*>& nodes, const nav_msgs::OccupancyGrid map) {
+    nav_msgs::Path convertNodesToPath(const std::vector<std::shared_ptr<motion_planning::Node>> nodes, const nav_msgs::OccupancyGrid map) {
         nav_msgs::Path path;
         path.header.frame_id = map.header.frame_id;
         path.header.stamp = ros::Time::now();
@@ -456,10 +360,10 @@ private:
             pose_stamped.header.stamp = ros::Time::now();
             
             // Assuming your node stores positions in map coordinates
-            pose_stamped.pose.position.x = node->position[0]*map.info.resolution + map.info.origin.position.x; // Node position x
+            pose_stamped.pose.position.x = node->x*map.info.resolution + map.info.origin.position.x; // Node position x
 
             //y position flipped
-            pose_stamped.pose.position.y = (map.info.height - node->position[1])*map.info.resolution + map.info.origin.position.y; // Node position y
+            pose_stamped.pose.position.y = (map.info.height - node->y)*map.info.resolution + map.info.origin.position.y; // Node position y
             pose_stamped.pose.position.z = 0; // Assume z is 0 for 2D navigation
 
             // Default orientation (no rotation)
@@ -473,7 +377,6 @@ private:
 
         return path;
     }
-
 
     cv::Mat Debug_image;
     int rate_;
@@ -499,7 +402,7 @@ private:
     nav_msgs::OccupancyGrid map_;
     nav_msgs::OccupancyGrid global_map_;
     nav_msgs::Path path_;
-    std::unique_ptr<QTree::QuadTree<motion_planning::Node>> quad_tree_;
+    std::shared_ptr<QTree::QuadTree<motion_planning::Node>> quad_tree_;
     bool quad_tree_initialized_;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
