@@ -29,6 +29,10 @@ namespace motion_planning{
     std::shared_ptr<Node> steer(std::shared_ptr<Node> nearest, const Node& sample, const float step_size)
     {
         float dist = distance(*nearest, sample);
+        if (dist == 0) {
+            return nearest;
+        }
+
         float x = nearest->x + step_size * (sample.x - nearest->x) / dist;
         float y = nearest->y + step_size * (sample.y - nearest->y) / dist;
         return std::make_shared<Node>(x, y, nearest);
@@ -42,25 +46,29 @@ namespace motion_planning{
             return std::make_shared<Node>(goal.x, goal.y);
         }
 
-        std::vector<float> random_position;
-
-        // Generate random float coordinates
-        float rand_x = distribution(generator) * map.rows;
-        float rand_y = distribution(generator) * map.cols;
+        float rand_x = distribution(generator) * (map.rows - 1);
+        float rand_y = distribution(generator) * (map.cols - 1);
         
-        // Convert to integer coordinates
         int rand_x_int = static_cast<int>(rand_x);
         int rand_y_int = static_cast<int>(rand_y);
 
-        random_position.push_back(rand_x_int);
-        random_position.push_back(rand_y_int);
+        if (rand_x_int < 0) {
+            rand_x_int = 0;
+        } else if (rand_x_int >= map.rows) {
+            rand_x_int = map.rows - 1;
+        }
+
+        if (rand_y_int < 0) {
+            rand_y_int = 0;
+        } else if (rand_y_int >= map.cols) {
+            rand_y_int = map.cols - 1;
+        }
 
         return std::make_shared<Node>(rand_x_int, rand_y_int);
     }
 
     bool isBlack(const cv::Mat& image, int x, int y) {
         if (x >= 0 && x < image.cols && y >= 0 && y < image.rows) {
-           
             return image.at<uchar>(x, y) == 0;
         }
         return false;
@@ -135,22 +143,53 @@ namespace motion_planning{
         nodes.push_back(start);
 
         for (int i = 0; i < num_nodes; i++) {
+            std::cout << "Going to sample" << std::endl;
             std::shared_ptr<Node> sample = biased_sample(grid_map, *goal, bias_probability);
+            std::cout << "Sampled Node at :" << sample->x << ", " << sample->y << std::endl;
+
+            std::cout << "Going to nearest node" << std::endl;
             std::shared_ptr<Node> nearest_node = tree->nearest_neighbor(sample);
+            std::cout << "Nearest Node at :" << nearest_node->x << ", " << nearest_node->y << std::endl;
+
+            std::cout << "Going to steer" << std::endl;
             std::shared_ptr<Node> new_node = steer(nearest_node, *sample, step_size);
+
+            if (new_node == nearest_node) {
+                std::cout << "New node is the same as nearest node" << std::endl;
+                continue;
+            }
+            std::cout << "Steered Node at :" << new_node->x << ", " << new_node->y << std::endl;
+
+            std::cout << "Going to check boundaries" << std::endl;
 
             if (new_node->x < 0 || new_node->x >= grid_map.cols || new_node->y < 0 || new_node->y >= grid_map.rows) {
                 std::cerr << "Error: New node is outside the boundaries of the map." << std::endl;
                 std::vector<std::shared_ptr<Node>> error_node;
                 return error_node;
             }
-
+            
+            std::cout << "Going to check obstacle intersection" << std::endl;
             if (check_obstacle_intersection(grid_map, nearest_node->x, nearest_node->y, new_node->x, new_node->y, radius)) {
+                std::cout << "Obstacle detected" << std::endl;
+                std::vector<std::shared_ptr<Node>> error_node;
+                return error_node;
                 continue;
             }
+            std::cout << "No obstacle detected" << std::endl;
+            std::cout << "Going to insert node" << std::endl;
 
             try {
-                tree->insert(new_node);
+
+                if (tree->insert(new_node)){
+                    std::cout << "Node inserted at :" << new_node->x << ", " << new_node->y << "\n" <<std::endl;
+                    nodes.push_back(new_node);
+                } else {
+                    std::cerr << "Failed to insert node into QuadTree" << std::endl;
+                    std::cerr << "Node: (" << new_node->x << ", " << new_node->y << ")" << std::endl;
+                    std::cerr << "Baudaries: (" << boundary.x << ", " << boundary.y << ")" << std::endl;
+                    std::cerr << "Iteration: " << i << std::endl;
+                }
+                
             } catch (const std::runtime_error& e) {
                 std::cerr << "Failed to insert node into QuadTree: " << e.what() << std::endl;
                 std::cerr << "Node: (" << new_node->x << ", " << new_node->y << ")" << std::endl;
@@ -159,8 +198,6 @@ namespace motion_planning{
                 std::vector<std::shared_ptr<Node>> error_node;
                 return error_node;
             }
-
-            nodes.push_back(new_node);
 
             if (distance(*new_node, *goal) <= goal_threshold) {
                 std::cout << "Goal reached!" << std::endl;

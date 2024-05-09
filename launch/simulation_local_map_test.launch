@@ -23,12 +23,12 @@
         <param name="rate" value="10.0" />
     </node>
 
-    <!-- <node pkg="rrt_project" type="local_rrt" name="local_rrt">
+    <node pkg="rrt_project" type="local_rrt" name="local_rrt" output="log">
     <rosparam file="$(find rrt_project)/simulation_config/local_rrt.yaml" command="load" />
         <param name="local_map_topic" value="$(arg local_map_topic)" />
         <param name="path_topic" value="$(arg path_topic)" />
         <param name="rate" value="10.0" />
-    </node> -->
+    </node>
 
     <node pkg="rrt_project" type="rrt_path_node" name="rrt_path_node" output="screen" >
         <rosparam file="$(find rrt_project)/simulation_config/rrt.yaml" command="load" />

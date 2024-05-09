@@ -53,7 +53,8 @@ public:
             ROS_WARN("Received empty occupancy grid map.");
             return;
         }
-
+        
+        ROS_ERROR("Received occupancy grid map.");
         if (map_.data.empty()){
             ROS_INFO("Received occupancy grid map.");
 
@@ -201,10 +202,10 @@ private:
         // Transpose and flip to correct orientation
         cv::Mat rotated;
         cv::rotate(mat, rotated, cv::ROTATE_90_CLOCKWISE);
-        cv::flip(rotated, rotated, 1);
+        // cv::flip(rotated, rotated, 1);
 
         //New debug
-        // cv::flip(rotated, rotated, 0);
+        cv::flip(rotated, rotated, 0);
 
         Debug_image = rotated.clone();
         return rotated;
@@ -336,7 +337,6 @@ private:
         }
     }
 
-
     std::vector<std::shared_ptr<motion_planning::Node>> run_rrt(std::shared_ptr<motion_planning::Node> start, std::shared_ptr<motion_planning::Node> end, int num_nodes, double step_size, double goal_threshold, double bias_probability, int radius_pixel){
         cv::Mat local_map = occupancyGridToCvMat(map_);
         if (local_map.empty()) {
@@ -358,15 +358,12 @@ private:
             geometry_msgs::PoseStamped pose_stamped;
             pose_stamped.header.frame_id = map.header.frame_id;
             pose_stamped.header.stamp = ros::Time::now();
-            
-            // Assuming your node stores positions in map coordinates
-            pose_stamped.pose.position.x = node->x*map.info.resolution + map.info.origin.position.x; // Node position x
 
-            //y position flipped
-            pose_stamped.pose.position.y = (map.info.height - node->y)*map.info.resolution + map.info.origin.position.y; // Node position y
-            pose_stamped.pose.position.z = 0; // Assume z is 0 for 2D navigation
+            pose_stamped.pose.position.x = node->x*map.info.resolution + map.info.origin.position.x;
 
-            // Default orientation (no rotation)
+            pose_stamped.pose.position.y = (map.info.height - node->y)*map.info.resolution + map.info.origin.position.y;
+            pose_stamped.pose.position.z = 0;
+
             pose_stamped.pose.orientation.x = 0.0;
             pose_stamped.pose.orientation.y = 0.0;
             pose_stamped.pose.orientation.z = 0.0;

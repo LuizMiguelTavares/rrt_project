@@ -28,7 +28,7 @@ int main() {
 
     auto start_time = std::chrono::high_resolution_clock::now();
     std::vector<std::shared_ptr<motion_planning::Node>> nodes;
-    for(int i=0;i<10;i++){
+    for(int i=0;i<1000;i++){
         nodes = motion_planning::rrt(grid_map, start, goal, num_nodes, step_size, goal_threshold, bias_probability, radius);
 
         // Calculate time taken

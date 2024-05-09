@@ -160,6 +160,8 @@ namespace QTree {
         bool insert(std::shared_ptr<Node> node) {
             Point point(node->x, node->y);
 
+            // std::cout << "Inserting node at (" << point.x << ", " << point.y << ")" << std::endl;
+
             if (!boundary.contains(point)) {
                 if (parent == nullptr) {
                     // throw std::runtime_error("Node is out of bounds of the QuadTree"); 
