@@ -10,6 +10,7 @@
 #include <omp.h>
 #include <thread>
 #include <memory>
+#include <chrono>
 
 namespace motion_planning{
     class Node {
@@ -24,6 +25,10 @@ namespace motion_planning{
 
     float distance(const Node& node1, const Node& node2){
         return std::sqrt(std::pow(node1.x - node2.x, 2) + std::pow(node1.y - node2.y, 2));
+    }
+
+    float sq_distance(const Node& node1, const Node& node2){
+        return std::pow(node1.x - node2.x, 2) + std::pow(node1.y - node2.y, 2);
     }
 
     std::shared_ptr<Node> steer(std::shared_ptr<Node> nearest, const Node& sample, const float step_size)
@@ -116,19 +121,34 @@ namespace motion_planning{
     }
 
     std::vector<std::shared_ptr<Node>> rrt(const cv::Mat& grid_map, std::shared_ptr<Node> start, std::shared_ptr<Node> goal, const int num_nodes, const float step_size, const float goal_threshold, const float bias_probability, const int radius) {
-
         QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
         std::shared_ptr<QTree::QuadTree<Node>> tree = std::make_shared<QTree::QuadTree<Node>>(boundary, 4);
 
-        std::vector<std::shared_ptr<Node>> nodes;
+        const bool debug = false;
+        const bool time_debug = false;
+        const float sq_distance_threshold = goal_threshold * goal_threshold;
 
-        if (start->x < 0 || start->x >= grid_map.cols || start->y < 0 || start->y >= grid_map.rows) {
-            std::cerr << "Error: Start node is outside the boundaries of the map." << std::endl;
+        if (time_debug) {
+            std::cout << "Time Debugging Enabled" << std::endl;
+        }
+        std::chrono::steady_clock::time_point startFullTime = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point startTime;
+        std::vector<std::shared_ptr<Node>> nodes;
+        
+        if (debug){
+            std::cout << "Starting RRT" << std::endl;
+            std::cout << "Grid Map Size: " << grid_map.cols << ", " << grid_map.rows << std::endl;
+            std::cout << "Start Node at :" << start->x << ", " << start->y << std::endl;
+            std::cout << "Goal Node at :" << goal->x << ", " << goal->y << std::endl;
+        }
+
+        if (std::isnan(start->x) || std::isnan(start->y) || std::isnan(goal->x) || std::isnan(goal->y)) {
+            std::cerr << "Error: Start or goal node is NaN." << std::endl;
             return nodes;
         }
 
-        if (goal->x < 0 || goal->x >= grid_map.cols || goal->y < 0 || goal->y >= grid_map.rows) {
-            std::cerr << "Error: Goal node is outside the boundaries of the map." << std::endl;
+        if (start->x < 0 || start->x >= grid_map.cols || start->y < 0 || start->y >= grid_map.rows) {
+            std::cerr << "Error: Start node is outside the boundaries of the map." << std::endl;
             return nodes;
         }
 
@@ -143,45 +163,88 @@ namespace motion_planning{
         nodes.push_back(start);
 
         for (int i = 0; i < num_nodes; i++) {
-            std::cout << "Going to sample" << std::endl;
-            std::shared_ptr<Node> sample = biased_sample(grid_map, *goal, bias_probability);
-            std::cout << "Sampled Node at :" << sample->x << ", " << sample->y << std::endl;
+            if (time_debug) {
+                startTime = std::chrono::steady_clock::now();
+            }
+            
+            if (debug){
+                std::cout << "Iteration: " << i << std::endl;
+                std::cout << "Going to sample" << std::endl;
+            }
 
-            std::cout << "Going to nearest node" << std::endl;
+                std::shared_ptr<Node> sample = biased_sample(grid_map, *goal, bias_probability);
+
+            if (debug){
+                std::cout << "Sampled Node at :" << sample->x << ", " << sample->y << std::endl;
+            }
+
+            if(sample->x < 0 || sample->x >= grid_map.cols || sample->y < 0 || sample->y >= grid_map.rows) {
+                std::cerr << "Error: Sample node is outside the boundaries of the map." << std::endl;
+                std::vector<std::shared_ptr<Node>> error_node;
+                continue;
+                return error_node;
+            }
+
+            if (std::isnan(sample->x) || std::isnan(sample->y)) {
+                std::cerr << "Error: Sample node is NaN." << std::endl;
+                std::vector<std::shared_ptr<Node>> error_node;
+                continue;
+                return error_node;
+            }
+
+            if (debug){
+                std::cout << "Going to nearest node" << std::endl;
+            }
             std::shared_ptr<Node> nearest_node = tree->nearest_neighbor(sample);
-            std::cout << "Nearest Node at :" << nearest_node->x << ", " << nearest_node->y << std::endl;
+            if (debug){
+                std::cout << "Nearest Node at :" << nearest_node->x << ", " << nearest_node->y << std::endl;
+            }
 
-            std::cout << "Going to steer" << std::endl;
+            if (std::isnan(nearest_node->x) || std::isnan(nearest_node->y)) {
+                std::cerr << "Error: Nearest node is NaN." << std::endl;
+                std::vector<std::shared_ptr<Node>> error_node;
+                continue;
+                return error_node;
+            }
+
+            if (debug){
+                std::cout << "Going to steer" << std::endl;
+            }
+
             std::shared_ptr<Node> new_node = steer(nearest_node, *sample, step_size);
 
             if (new_node == nearest_node) {
                 std::cout << "New node is the same as nearest node" << std::endl;
                 continue;
             }
-            std::cout << "Steered Node at :" << new_node->x << ", " << new_node->y << std::endl;
 
-            std::cout << "Going to check boundaries" << std::endl;
+            if (debug){
+                std::cout << "Steered Node at :" << new_node->x << ", " << new_node->y << std::endl;
+                std::cout << "Going to check boundaries" << std::endl;
+            }
 
             if (new_node->x < 0 || new_node->x >= grid_map.cols || new_node->y < 0 || new_node->y >= grid_map.rows) {
                 std::cerr << "Error: New node is outside the boundaries of the map." << std::endl;
                 std::vector<std::shared_ptr<Node>> error_node;
                 return error_node;
             }
-            
-            std::cout << "Going to check obstacle intersection" << std::endl;
+            if (debug){
+                std::cout << "Going to check obstacle intersection" << std::endl;
+            }
             if (check_obstacle_intersection(grid_map, nearest_node->x, nearest_node->y, new_node->x, new_node->y, radius)) {
                 std::cout << "Obstacle detected" << std::endl;
-                std::vector<std::shared_ptr<Node>> error_node;
-                return error_node;
                 continue;
             }
-            std::cout << "No obstacle detected" << std::endl;
-            std::cout << "Going to insert node" << std::endl;
+
+            if (debug){
+                std::cout << "No obstacle detected" << std::endl;
+                std::cout << "Going to insert node" << std::endl;
+            }
 
             try {
-
                 if (tree->insert(new_node)){
-                    std::cout << "Node inserted at :" << new_node->x << ", " << new_node->y << "\n" <<std::endl;
+                    if (debug){
+                    std::cout << "Node inserted at :" << new_node->x << ", " << new_node->y << "\n" <<std::endl;}
                     nodes.push_back(new_node);
                 } else {
                     std::cerr << "Failed to insert node into QuadTree" << std::endl;
@@ -199,12 +262,23 @@ namespace motion_planning{
                 return error_node;
             }
 
-            if (distance(*new_node, *goal) <= goal_threshold) {
+            float sq_distance_ = sq_distance(*new_node, *goal);
+
+            if (sq_distance_ <= sq_distance_threshold) {
                 std::cout << "Goal reached!" << std::endl;
                 std::cout << nodes.size() << std::endl;
                 goal->parent = new_node;
                 nodes.push_back(goal);
                 break;
+            }
+
+            if (time_debug) {
+                std::chrono::steady_clock::time_point endTime = std::chrono::steady_clock::now();
+                std::chrono::duration<double> elapsedTime = endTime - startTime;
+                std::cout << "Elapsed time: " << elapsedTime.count() << " seconds" << std::endl;
+
+                std::chrono::duration<double> fullElapsedTime = endTime - startFullTime;
+                std::cout << "Full Elapsed time: " << fullElapsedTime.count() << " seconds\n" << std::endl;   
             }
         }
         return nodes;

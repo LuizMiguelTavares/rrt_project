@@ -49,6 +49,7 @@ public:
     }
 
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg) {
+        std::lock_guard<std::mutex> lock(local_map_mutex);
         if (msg->data.empty()) {
             ROS_WARN("Received empty occupancy grid map.");
             return;
@@ -158,6 +159,7 @@ private:
     }
 
     bool isInMap(const geometry_msgs::Point& point) {
+        std::lock_guard<std::mutex> lock(local_map_mutex);
         if (map_.data.empty()){
             ROS_WARN("Occupancy grid map is not yet available.");
             return false;
@@ -182,6 +184,7 @@ private:
     }
 
     cv::Mat occupancyGridToCvMat(const nav_msgs::OccupancyGrid& grid) {
+        std::lock_guard<std::mutex> lock(local_map_mutex);
         // Create a cv::Mat with the same dimensions as the occupancy grid, but flipped dimensions
         cv::Mat mat(grid.info.width, grid.info.height, CV_8UC1);
 
@@ -202,10 +205,10 @@ private:
         // Transpose and flip to correct orientation
         cv::Mat rotated;
         cv::rotate(mat, rotated, cv::ROTATE_90_CLOCKWISE);
-        // cv::flip(rotated, rotated, 1);
+        cv::flip(rotated, rotated, 1);
 
         //New debug
-        cv::flip(rotated, rotated, 0);
+        // cv::flip(rotated, rotated, 0);
 
         Debug_image = rotated.clone();
         return rotated;
@@ -375,6 +378,7 @@ private:
         return path;
     }
 
+    std::mutex local_map_mutex;
     cv::Mat Debug_image;
     int rate_;
     std::string local_map_topic_;
