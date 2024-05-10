@@ -54,8 +54,6 @@ public:
             ROS_WARN("Received empty occupancy grid map.");
             return;
         }
-        
-        ROS_ERROR("Received occupancy grid map.");
         if (map_.data.empty()){
             ROS_INFO("Received occupancy grid map.");
 
@@ -279,6 +277,9 @@ private:
 
         if (!last_point_valid) {
             ROS_ERROR("%s: No global path point inside the local map.", ros::this_node::getName().c_str());
+            last_point_inside_map.header.stamp = ros::Time::now();
+            last_point_inside_map.header.frame_id = path_.header.frame_id;
+            last_point_pub_.publish(last_point_inside_map);
             return;
         }
 
@@ -291,53 +292,50 @@ private:
         last_point_inside_map.header.frame_id = path_.header.frame_id;
         last_point_pub_.publish(last_point_inside_map);
 
-        if (!is_rrt_completed_){
-            // Convert last known valid pose to node
-            double x_start = std::round(map_.info.width/2);
-            double y_start = std::round(map_.info.height/2);
+        // Convert last known valid pose to node
+        double x_start = std::round(map_.info.width/2);
+        double y_start = std::round(map_.info.height/2);
 
-            double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
-            double y_goal = std::round((last_point_inside_map_local_frame.point.y - map_.info.origin.position.y) / map_.info.resolution);
-            y_goal = map_.info.height - y_goal;
+        double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
+        double y_goal = std::round((last_point_inside_map_local_frame.point.y - map_.info.origin.position.y) / map_.info.resolution);
+        y_goal = map_.info.height - y_goal;
 
-            ROS_ERROR("x_start: %f, y_start: %f", x_start, y_start);
-            ROS_ERROR("x_goal: %f, y_goal: %f", x_goal, y_goal);
+        // ROS_ERROR("x_start: %f, y_start: %f", x_start, y_start);
+        // ROS_ERROR("x_goal: %f, y_goal: %f", x_goal, y_goal);
 
-            ROS_ERROR("map width: %d, map height: %d", map_.info.width, map_.info.height);
-            
-            if (x_goal == map_.info.width) x_goal = map_.info.width - 1;
-            if (y_goal == map_.info.height) y_goal = map_.info.height - 1;
+        // ROS_ERROR("map width: %d, map height: %d", map_.info.width, map_.info.height);
+        
+        if (x_goal == map_.info.width) x_goal = map_.info.width - 1;
+        if (y_goal == map_.info.height) y_goal = map_.info.height - 1;
 
-            if (x_goal < 0 || x_goal >= map_.info.width || y_goal < 0 || y_goal >= map_.info.height) {
-                ROS_ERROR("%s: Goal point outside the local map.", ros::this_node::getName().c_str());
-                return;
-            }
-
-            std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
-            std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
-            // ROS_ERROR("Cheguei no RRT");
-            std::vector<std::shared_ptr<motion_planning::Node>> nodes;
-            nodes = run_rrt(start_node, goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_pixel_);
-            // ROS_ERROR("Sai do RRT");
-            if (nodes.empty()) {
-                ROS_ERROR("No path found from RRT within the local map.");
-                return;
-            }
-
-            std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
-            if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
-                ROS_ERROR("No local path found!");
-                return;
-            } else {
-                goal_path = motion_planning::trace_goal_path(nodes.back());
-            }
-
-            // Convert the path from nodes to a ROS path message
-            nav_msgs::Path ros_path = convertNodesToPath(goal_path, map_);
-            path_pub_.publish(ros_path);
-
-            // is_rrt_completed_ = true;
+        if (x_goal < 0 || x_goal >= map_.info.width || y_goal < 0 || y_goal >= map_.info.height) {
+            ROS_ERROR("%s: Goal point outside the local map.", ros::this_node::getName().c_str());
+            return;
         }
+
+        std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
+        std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
+        // ROS_ERROR("Cheguei no RRT");
+        std::vector<std::shared_ptr<motion_planning::Node>> nodes;
+        nodes = run_rrt(start_node, goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_pixel_);
+        // ROS_ERROR("Sai do RRT");
+        if (nodes.empty()) {
+            ROS_ERROR("No path found from RRT within the local map.");
+            return;
+        }
+
+        std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
+        if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
+            ROS_ERROR("No local path found!");
+            return;
+        } else {
+            goal_path = motion_planning::trace_goal_path(nodes.back());
+        }
+
+        // Convert the path from nodes to a ROS path message
+        nav_msgs::Path ros_path = convertNodesToPath(goal_path, map_);
+        path_pub_.publish(ros_path);
+
     }
 
     std::vector<std::shared_ptr<motion_planning::Node>> run_rrt(std::shared_ptr<motion_planning::Node> start, std::shared_ptr<motion_planning::Node> end, int num_nodes, double step_size, double goal_threshold, double bias_probability, int radius_pixel){
