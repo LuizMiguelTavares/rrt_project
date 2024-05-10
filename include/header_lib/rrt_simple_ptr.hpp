@@ -34,7 +34,7 @@ namespace motion_planning{
     std::shared_ptr<Node> steer(std::shared_ptr<Node> nearest, const Node& sample, const float step_size)
     {
         float dist = distance(*nearest, sample);
-        if (dist == 0) {
+        if (dist < 0.001) {
             return nearest;
         }
 
