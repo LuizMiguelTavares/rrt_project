@@ -44,6 +44,8 @@ public:
         last_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("last_point_inside_map", 10);
         first_and_last_point_pub_ = nh.advertise<sensor_msgs::PointCloud>("first_and_last_cluster_points", 10);
         path_pub_ = nh.advertise<nav_msgs::Path>("local_path", 10);
+
+        debug_local_points_pub_ = nh.advertise<sensor_msgs::PointCloud>("debug_local_points", 10);
         
         ros::service::waitForService("/updated_map");
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/updated_map");
@@ -58,7 +60,6 @@ public:
         nav_msgs::GetMap srv;
         if (static_map_client_.call(srv)) {
             global_map_ = srv.response.map;
-            map_frame_id_ = srv.response.map.header.frame_id;
             ROS_INFO("Successfully called /static_map service");
             return true;
         } else {
@@ -76,9 +77,36 @@ public:
         return points;
     }
 
+    sensor_msgs::PointCloud convertMapToPointCloud(const nav_msgs::OccupancyGrid& map) {
+        sensor_msgs::PointCloud cloud;
+        cloud.header = map.header;
+
+        // Iterate through the map data
+        for (int i = 0; i < map.info.width; ++i)
+        {
+            for (int j = 0; j < map.info.height; ++j)
+            {
+                int index = i + j * map.info.width;
+                if (map.data[index] == 100)
+                {
+                    geometry_msgs::Point32 point;
+                    point.x = i * map.info.resolution + map.info.origin.position.x;
+                    point.y = j * map.info.resolution + map.info.origin.position.y;
+                    point.z = 0;
+                    cloud.points.push_back(point);
+                }
+            }
+        }
+
+        return cloud;
+    }
+
     bool requestClusterization() {
         std::lock_guard<std::mutex> lock(local_map_mutex);
         rrt_project::ClusterObstacles srv;
+        sensor_msgs::PointCloud local_points = convertMapToPointCloud(map_);
+        debug_local_points_pub_.publish(local_points);
+
         srv.request.obstacle_points = PointCloud2Vector(local_points_);
         srv.request.max_obstacle_distance = radius_*2;
 
@@ -100,7 +128,7 @@ public:
             ROS_INFO("Successfully updated map.");
             return true;
         } else {
-            ROS_ERROR("Failed to call service /update_map");
+            ROS_ERROR("Failed to call /update_map service");
             return false;
         }
     }
@@ -325,8 +353,8 @@ private:
         }
 
         if (obstacle_encountered) {
-            ROS_ERROR("%s: Obstacle encountered in the local map.", ros::this_node::getName().c_str());
-            ROS_INFO("Requesting clusterization...");
+            // ROS_ERROR("%s: Obstacle encountered in the local map.", ros::this_node::getName().c_str());
+            // ROS_INFO("Requesting clusterization...");
 
             bool clusterization_successful = false;
             try {
@@ -334,7 +362,7 @@ private:
                 if (clusterization_successful) {
                     std::lock_guard<std::mutex> lock(local_map_mutex);
                     local_points_cluster_ = local_points_;
-                    ROS_ERROR("Plotting size of local_points_: %zu", local_points_.points.size());
+                    // ROS_ERROR("Plotting size of local_points_: %zu", local_points_.points.size());
                     if (local_points_cluster_.channels.empty()) {
                         local_points_cluster_.channels.resize(1);  
                     }
@@ -391,12 +419,12 @@ private:
                                 first_point_not_found = false;
                                 index_cluster_left = i;
                                 first_point = aux_points[i];
-                                ROS_ERROR("First point: %f, %f", first_point.x, first_point.y);
+                                // ROS_ERROR("First point: %f, %f", first_point.x, first_point.y);
                             } 
                             if ((aux_indices[i + 1] != aux_indices[index_point]) || (i == aux_indices.size() - 2)) {
                                 index_cluster_right = i;
                                 last_point = aux_points[i];
-                                ROS_ERROR("Last point: %f, %f", last_point.x, last_point.y);
+                                // ROS_ERROR("Last point: %f, %f", last_point.x, last_point.y);
                                 break;
                             }
                         }
@@ -430,7 +458,7 @@ private:
                 first_and_last_cluster_points.points.push_back(first_point);
                 first_and_last_cluster_points.points.push_back(last_point);
                 first_and_last_cluster_points.header.stamp = ros::Time::now();
-                first_and_last_cluster_points.header.frame_id = map_frame_id_;
+                first_and_last_cluster_points.header.frame_id = map_.header.frame_id;
 
                 first_and_last_point_pub_.publish(first_and_last_cluster_points);
             }
@@ -473,7 +501,7 @@ private:
 
         std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
         if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
-            ROS_ERROR("No local path found!");
+            // ROS_ERROR("No local path found!");
             return;
         } else {
             goal_path = motion_planning::trace_goal_path(nodes.back());
@@ -567,6 +595,7 @@ private:
     ros::Subscriber local_points_sub_;
     ros::Publisher local_points_pub_;
     ros::Publisher first_and_last_point_pub_;
+    ros::Publisher debug_local_points_pub_;
     ros::Subscriber path_sub_;
     ros::Publisher last_point_pub_;
     ros::Publisher path_pub_;
@@ -577,6 +606,7 @@ private:
 
     nav_msgs::OccupancyGrid map_;
     sensor_msgs::PointCloud local_points_;
+    sensor_msgs::PointCloud debug_local_points_;
     sensor_msgs::PointCloud local_points_cluster_;
     sensor_msgs::PointCloud first_and_last_cluster_points;
     nav_msgs::OccupancyGrid global_map_;

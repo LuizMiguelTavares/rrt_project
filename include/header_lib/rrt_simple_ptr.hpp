@@ -214,7 +214,9 @@ namespace motion_planning{
             std::shared_ptr<Node> new_node = steer(nearest_node, *sample, step_size);
 
             if (new_node == nearest_node) {
-                std::cout << "New node is the same as nearest node" << std::endl;
+                if (debug){
+                    std::cout << "New node is the same as nearest node" << std::endl;
+                }
                 continue;
             }
 
@@ -266,8 +268,10 @@ namespace motion_planning{
             float sq_distance_ = sq_distance(*new_node, *goal);
 
             if (sq_distance_ <= sq_distance_threshold) {
-                std::cout << "Goal reached!" << std::endl;
-                std::cout << nodes.size() << std::endl;
+                if (debug) {
+                    std::cout << "Goal reached!" << std::endl;
+                    std::cout << nodes.size() << std::endl;
+                }
                 goal->parent = new_node;
                 nodes.push_back(goal);
                 break;

@@ -33,7 +33,7 @@ class ObstacleClusterizer:
             clusters = self.clusterize_obstacles(obstacle_points, req.max_obstacle_distance)
             response = ClusterObstaclesResponse()
             response.clusters = clusters.tolist()
-            rospy.logerr("Cluster_size: %s", len(response.clusters))
+            # rospy.logerr("Cluster_size: %s", len(response.clusters))
             return response
         except Exception as e:
             rospy.logerr("Failed to cluster obstacles: %s", e)
