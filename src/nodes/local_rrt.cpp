@@ -2,12 +2,20 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Path.h>
 #include <nav_msgs/GetMap.h>
+#include <nav_msgs/SetMap.h>
+#include <sensor_msgs/PointCloud.h>
+#include "rrt_project/ClusterObstacles.h"
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <geometry_msgs/Point32.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <vector>
 #include <opencv2/core.hpp>
+#include <cmath>
+#include <limits>
+#include <set>
 
 #include "rrt_simple_ptr.hpp"
 
@@ -19,6 +27,7 @@ public:
         ros::NodeHandle private_nh("~");
 
         this->getParamOrThrow(private_nh, "local_map_topic", local_map_topic_);
+        private_nh.param<std::string>("local_points_topic", local_points_topic_, "local_points");
         this->getParamOrThrow(private_nh, "path_topic", path_topic_);
         this->getParamOrThrow(private_nh, "rate", rate_);
         this->getParamOrThrow(private_nh, "num_nodes", num_nodes_);
@@ -28,11 +37,21 @@ public:
         this->getParamOrThrow(private_nh, "radius", radius_);
 
         local_map_sub_ = nh.subscribe(local_map_topic_, 1, &MapPathSubscriber::mapCallback, this);
+        local_points_sub_ = nh.subscribe(local_points_topic_, 1, &MapPathSubscriber::localPointsCallback, this);
         path_sub_ = nh.subscribe(path_topic_, 1, &MapPathSubscriber::pathCallback, this);
 
+        local_points_pub_ = nh.advertise<sensor_msgs::PointCloud>("local_points_cluster", 10);
         last_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("last_point_inside_map", 10);
+        first_and_last_point_pub_ = nh.advertise<sensor_msgs::PointCloud>("first_and_last_cluster_points", 10);
         path_pub_ = nh.advertise<nav_msgs::Path>("local_path", 10);
-        static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/static_map");
+        
+        ros::service::waitForService("/updated_map");
+        static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/updated_map");
+        
+        ros::service::waitForService("/update_map");
+        update_map_client = nh.serviceClient<nav_msgs::SetMap>("/update_map");
+
+        cluster_client_ = nh.serviceClient<rrt_project::ClusterObstacles>("/cluster_obstacles");
     }
 
     bool fetchStaticMap() {
@@ -44,6 +63,44 @@ public:
             return true;
         } else {
             ROS_ERROR("Failed to call /static_map service");
+            return false;
+        }
+    }
+
+    std::vector<double> PointCloud2Vector(const sensor_msgs::PointCloud& cloud) {
+        std::vector<double> points;
+        for (const auto& point : cloud.points) {
+            points.push_back(static_cast<double>(point.x));
+            points.push_back(static_cast<double>(point.y));
+        }
+        return points;
+    }
+
+    bool requestClusterization() {
+        std::lock_guard<std::mutex> lock(local_map_mutex);
+        rrt_project::ClusterObstacles srv;
+        srv.request.obstacle_points = PointCloud2Vector(local_points_);
+        srv.request.max_obstacle_distance = radius_*2;
+
+        if (cluster_client_.call(srv)) {
+            ROS_INFO("Successfully called /cluster_map service");
+            cluster_indices_ = srv.response.clusters;
+            return true;
+        } else {
+            ROS_ERROR("Failed to call /cluster_map service");
+            return false;
+        }
+    }
+
+    bool updateMap() {
+        nav_msgs::SetMap srv;
+        srv.request.map = this->map_;
+        srv.request.initial_pose = geometry_msgs::PoseWithCovarianceStamped();
+        if (update_map_client.call(srv)) {
+            ROS_INFO("Successfully updated map.");
+            return true;
+        } else {
+            ROS_ERROR("Failed to call service /update_map");
             return false;
         }
     }
@@ -62,6 +119,11 @@ public:
         }
         map_ = *msg;
         map_frame_id_ = msg->header.frame_id;
+    }
+
+    void localPointsCallback(const sensor_msgs::PointCloud::ConstPtr& msg) {
+        std::lock_guard<std::mutex> lock(local_map_mutex);
+        local_points_ = *msg;
     }
 
     void pathCallback(const nav_msgs::Path::ConstPtr& msg) {
@@ -93,24 +155,15 @@ public:
                     QTree::Rectangle boundary((global_map_.info.width*global_map_.info.resolution)/2, (global_map_.info.height*global_map_.info.resolution)/2, global_map_.info.width*global_map_.info.resolution, global_map_.info.height*global_map_.info.resolution);
                     if (global_map_.header.frame_id == path_.header.frame_id) {
                         int index = 0;
-                        // ROS_ERROR("position: %f, %f", global_map_.info.origin.position.x, global_map_.info.origin.position.y);
-                        // ROS_ERROR("width: %d, height: %d", global_map_.info.width, global_map_.info.height);
-                        // ROS_ERROR("resolution: %f", global_map_.info.resolution);
-
                         for (const auto& pose : path_.poses) {
-                            // Pose on grig map
-                            // ROS_ERROR("Pose: %f, %f", pose.pose.position.x, pose.pose.position.y);
                             double x = pose.pose.position.x - global_map_.info.origin.position.x;
                             double y = pose.pose.position.y - global_map_.info.origin.position.y;
 
-                            // ROS_ERROR("Pose: %f, %f", x, y);
                             std::shared_ptr<motion_planning::Node> node = std::make_shared<motion_planning::Node>(x, y, nullptr);
                             node->index = index;
                             if (!quad_tree_initialized_){
-                                ROS_ERROR("Inserting node");
                                 quad_tree_ = std::make_shared<QTree::QuadTree<motion_planning::Node>>(boundary);
                                 quad_tree_->insert(node);
-                                ROS_ERROR("Quad tree initialized"); 
                                 quad_tree_initialized_ = true;
                             } else {
                                 quad_tree_->insert(node);
@@ -244,19 +297,12 @@ private:
                         last_local_pose_valid = true;
                     } else {
                         if (!obstacle_encountered) {
-                            // Check for obstacle intersection
-                            // Convert the points to local map coordinates (pixels)
                             int x_old = static_cast<int>((last_local_pose.pose.position.x - map_.info.origin.position.x) / map_.info.resolution);
                             int y_old = static_cast<int>((last_local_pose.pose.position.y - map_.info.origin.position.y) / map_.info.resolution);
                             int x_new = static_cast<int>((pose_map_frame.pose.position.x - map_.info.origin.position.x) / map_.info.resolution);
                             int y_new = static_cast<int>((pose_map_frame.pose.position.y - map_.info.origin.position.y) / map_.info.resolution);
-
                             y_old = map_.info.height - y_old;
                             y_new = map_.info.height - y_new;
-                            // ROS_ERROR("x: %d, y: %d", x_new, y_new);
-
-                            // Plot x_old on the Debug_image
-                            // cv::circle(Debug_image, cv::Point(x_old, y_old), 0.5, cv::Scalar(0), -1, CV_8UC1);
                             obstacle_encountered = motion_planning::check_obstacle_intersection(local_map, x_old, y_old, x_new, y_new, radius_);
                             last_local_pose = pose_map_frame;
                         }
@@ -269,11 +315,6 @@ private:
                 }
             }
         }
-        
-        // cv::Mat resized;
-        // cv::resize(Debug_image, resized, cv::Size(300, 300));
-        // cv::imshow("Local Map", resized);
-        // cv::waitKey(1);
 
         if (!last_point_valid) {
             ROS_ERROR("%s: No global path point inside the local map.", ros::this_node::getName().c_str());
@@ -285,25 +326,133 @@ private:
 
         if (obstacle_encountered) {
             ROS_ERROR("%s: Obstacle encountered in the local map.", ros::this_node::getName().c_str());
-            return;
+            ROS_INFO("Requesting clusterization...");
+
+            bool clusterization_successful = false;
+            try {
+                clusterization_successful = requestClusterization();
+                if (clusterization_successful) {
+                    std::lock_guard<std::mutex> lock(local_map_mutex);
+                    local_points_cluster_ = local_points_;
+                    ROS_ERROR("Plotting size of local_points_: %zu", local_points_.points.size());
+                    if (local_points_cluster_.channels.empty()) {
+                        local_points_cluster_.channels.resize(1);  
+                    }
+                    local_points_cluster_.channels[0].values = cluster_indices_;
+                    local_points_cluster_.channels[0].name = "intensity";
+                    ROS_INFO("Clusterization request successful.");
+                } else {
+                    ROS_ERROR("Failed to request clusterization.");
+                }
+            } catch (const std::exception& e) {
+                ROS_ERROR("Exception caught: %s", e.what());
+                return;
+            }
+
+            // Find cluster of the obstacle
+            if (clusterization_successful){
+                updateMap();
+                fetchStaticMap();
+                std::set<float> uniqueElements(cluster_indices_.begin(), cluster_indices_.end());
+
+                int index_point = findClosestPointIndex(local_points_cluster_.points, last_local_pose.pose.position.x, last_local_pose.pose.position.y);
+                local_points_cluster_.channels[0].values[index_point] = 0;
+                
+                int index_cluster_left;
+                int index_cluster_right;
+                geometry_msgs::Point32 first_point;
+                geometry_msgs::Point32 last_point;
+
+                if (uniqueElements.size() > 1) {
+                    std::vector<float> aux_indices;
+                    aux_indices.reserve(cluster_indices_.size());
+                    aux_indices = cluster_indices_;
+
+                    std::vector<geometry_msgs::Point32> aux_points;
+                    aux_points.reserve(local_points_cluster_.points.size());
+                    aux_points = local_points_cluster_.points;
+
+                    while ((aux_indices[0] == aux_indices.back()) && (aux_indices[0] == cluster_indices_[index_point]))
+                    {
+                        float aux = aux_indices.back();
+                        geometry_msgs::Point32 obs_aux = aux_points.back();
+
+                        aux_indices.pop_back();
+                        aux_points.pop_back();
+
+                        aux_indices.insert(aux_indices.begin(), aux);
+                        aux_points.insert(aux_points.begin(), obs_aux); 
+                    }
+                    
+                    bool first_point_not_found = true;
+                    for (int i = 0; i < aux_indices.size() - 1; i++){
+                        if (aux_indices[i] == aux_indices[index_point]){
+                            if (first_point_not_found) {
+                                first_point_not_found = false;
+                                index_cluster_left = i;
+                                first_point = aux_points[i];
+                                ROS_ERROR("First point: %f, %f", first_point.x, first_point.y);
+                            } 
+                            if ((aux_indices[i + 1] != aux_indices[index_point]) || (i == aux_indices.size() - 2)) {
+                                index_cluster_right = i;
+                                last_point = aux_points[i];
+                                ROS_ERROR("Last point: %f, %f", last_point.x, last_point.y);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (uniqueElements.size() == 1){
+                    float biggest_distance = 0;
+                    for (int i = 0; i < cluster_indices_.size() -1; i++){
+                        float distance = sqDistance(local_points_cluster_.points[i].x, local_points_cluster_.points[i].y, local_points_cluster_.points[i+1].x, local_points_cluster_.points[i+1].y);
+                        if (distance > biggest_distance){
+                            biggest_distance = distance;
+                            index_cluster_left = i;
+                            index_cluster_right = i+1;
+                            first_point = local_points_cluster_.points[index_cluster_left];
+                            last_point = local_points_cluster_.points[index_cluster_right];
+                        }
+                    }
+
+                    float distance = sqDistance(local_points_cluster_.points[0].x, local_points_cluster_.points[0].y, local_points_cluster_.points.back().x, local_points_cluster_.points.back().y);
+                    if (distance > biggest_distance){
+                        biggest_distance = distance;
+                        index_cluster_left = 0;
+                        index_cluster_right = local_points_cluster_.points.size() - 1;
+                        first_point = local_points_cluster_.points[index_cluster_left];
+                        last_point = local_points_cluster_.points[index_cluster_right];
+                    }
+                }
+
+                first_and_last_cluster_points.points.clear();
+                first_and_last_cluster_points.points.push_back(first_point);
+                first_and_last_cluster_points.points.push_back(last_point);
+                first_and_last_cluster_points.header.stamp = ros::Time::now();
+                first_and_last_cluster_points.header.frame_id = map_frame_id_;
+
+                first_and_last_point_pub_.publish(first_and_last_cluster_points);
+            }
+
+        } else {
+            local_points_cluster_.points.clear();
+            local_points_cluster_.channels.clear();
         }
 
         last_point_inside_map.header.stamp = ros::Time::now();
         last_point_inside_map.header.frame_id = path_.header.frame_id;
         last_point_pub_.publish(last_point_inside_map);
 
-        // Convert last known valid pose to node
+        local_points_cluster_.header.stamp = ros::Time::now();
+        local_points_pub_.publish(local_points_cluster_);
+
         double x_start = std::round(map_.info.width/2);
         double y_start = std::round(map_.info.height/2);
 
         double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
         double y_goal = std::round((last_point_inside_map_local_frame.point.y - map_.info.origin.position.y) / map_.info.resolution);
         y_goal = map_.info.height - y_goal;
-
-        // ROS_ERROR("x_start: %f, y_start: %f", x_start, y_start);
-        // ROS_ERROR("x_goal: %f, y_goal: %f", x_goal, y_goal);
-
-        // ROS_ERROR("map width: %d, map height: %d", map_.info.width, map_.info.height);
         
         if (x_goal == map_.info.width) x_goal = map_.info.width - 1;
         if (y_goal == map_.info.height) y_goal = map_.info.height - 1;
@@ -312,13 +461,11 @@ private:
             ROS_ERROR("%s: Goal point outside the local map.", ros::this_node::getName().c_str());
             return;
         }
-
         std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
         std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
-        // ROS_ERROR("Cheguei no RRT");
         std::vector<std::shared_ptr<motion_planning::Node>> nodes;
         nodes = run_rrt(start_node, goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_pixel_);
-        // ROS_ERROR("Sai do RRT");
+
         if (nodes.empty()) {
             ROS_ERROR("No path found from RRT within the local map.");
             return;
@@ -354,8 +501,7 @@ private:
         path.header.stamp = ros::Time::now();
 
         for (auto node : nodes) {
-            if (node == nullptr) continue; // Skip null nodes
-
+            if (node == nullptr) continue; 
             geometry_msgs::PoseStamped pose_stamped;
             pose_stamped.header.frame_id = map.header.frame_id;
             pose_stamped.header.stamp = ros::Time::now();
@@ -376,10 +522,35 @@ private:
         return path;
     }
 
+    double distance(double x1, double y1, double x2, double y2) {
+        return sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+    }
+
+    double sqDistance(double x1, double y1, double x2, double y2) {
+        return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
+    }
+
+    int findClosestPointIndex(const std::vector<geometry_msgs::Point32>& points, double x, double y) {
+
+        int closestIndex = 0;
+        double minDistance = std::numeric_limits<double>::max();
+
+        for (int i = 0; i < points.size(); i++) {
+            double dist = distance(x, y, points[i].x, points[i].y);
+            if (dist < minDistance) {
+                minDistance = dist;
+                closestIndex = i;
+            }
+        }
+
+        return closestIndex;
+    }
+
     std::mutex local_map_mutex;
     cv::Mat Debug_image;
     int rate_;
     std::string local_map_topic_;
+    std::string local_points_topic_;
     std::string path_topic_;
     int path_number_;
     std::string map_frame_id_;
@@ -393,12 +564,21 @@ private:
     bool is_rrt_completed_;
 
     ros::Subscriber local_map_sub_;
+    ros::Subscriber local_points_sub_;
+    ros::Publisher local_points_pub_;
+    ros::Publisher first_and_last_point_pub_;
     ros::Subscriber path_sub_;
     ros::Publisher last_point_pub_;
     ros::Publisher path_pub_;
     ros::ServiceClient static_map_client_;
+    ros::ServiceClient update_map_client;
+    ros::ServiceClient cluster_client_;
+    std::vector<float> cluster_indices_;
 
     nav_msgs::OccupancyGrid map_;
+    sensor_msgs::PointCloud local_points_;
+    sensor_msgs::PointCloud local_points_cluster_;
+    sensor_msgs::PointCloud first_and_last_cluster_points;
     nav_msgs::OccupancyGrid global_map_;
     nav_msgs::Path path_;
     std::shared_ptr<QTree::QuadTree<motion_planning::Node>> quad_tree_;

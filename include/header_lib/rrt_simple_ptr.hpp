@@ -232,7 +232,8 @@ namespace motion_planning{
                 std::cout << "Going to check obstacle intersection" << std::endl;
             }
             if (check_obstacle_intersection(grid_map, nearest_node->x, nearest_node->y, new_node->x, new_node->y, radius)) {
-                std::cout << "Obstacle detected" << std::endl;
+                if (debug){
+                std::cout << "Obstacle detected" << std::endl;}
                 continue;
             }
 

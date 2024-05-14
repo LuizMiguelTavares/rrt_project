@@ -4,6 +4,9 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <geometry_msgs/Point32.h>
+#include <sensor_msgs/PointCloud.h>
+#include <vector>
 
 class LocalOccupancyGrid {
 public:
@@ -12,6 +15,7 @@ public:
 
         private_nh.param<std::string>("laser_topic", laser_topic_, "/RosAria/scan");
         private_nh.param<std::string>("grid_topic", grid_topic_, "local_grid");
+        private_nh.param<std::string>("local_points_topic", local_points_topic_, "local_points");
         private_nh.param("rate", rate_, 10);
         private_nh.param("resolution", resolution_, 0.05);
         private_nh.param("width", width_, 40);
@@ -28,7 +32,8 @@ public:
         empty_grid_ = grid_;
         
         grid_pub_ = nh_.advertise<nav_msgs::OccupancyGrid>(grid_topic_, 50);
-        laser_sub_ = nh_.subscribe(laser_topic_, 50, &LocalOccupancyGrid::laserCallback, this);
+        local_points_pub_ = nh_.advertise<sensor_msgs::PointCloud>(local_points_topic_, 50);
+        laser_sub_ = nh_.subscribe(laser_topic_, 1, &LocalOccupancyGrid::laserCallback, this);
     }
 
     void run() {
@@ -36,6 +41,7 @@ public:
         while (ros::ok()) {
             ros::spinOnce();
             grid_pub_.publish(grid_);
+            local_points_pub_.publish(local_points_);
             rate.sleep();
         }
     }
@@ -43,20 +49,27 @@ public:
 private:
     ros::NodeHandle nh_;
     ros::Publisher grid_pub_;
+    ros::Publisher local_points_pub_;
     ros::Subscriber laser_sub_;
     nav_msgs::OccupancyGrid grid_;
     nav_msgs::OccupancyGrid empty_grid_;
     tf2_ros::Buffer tf2_buffer_;
     tf2_ros::TransformListener tf2_listener_;
     std::string grid_topic_;
+    std::string local_points_topic_;
     std::string laser_topic_;
     double resolution_;
     int rate_;
     int width_;
     int height_;
+    sensor_msgs::PointCloud local_points_;
+
+    bool is_in_map(int x, int y) {
+        return x >= 0 && x < width_ && y >= 0 && y < height_;
+    }
 
     void markCell(int x, int y, int value) {
-        if (x >= 0 && x < width_ && y >= 0 && y < height_) {
+        if (is_in_map(x, y)) {
             grid_.data[y * width_ + x] = value;
         }
     }
@@ -81,6 +94,9 @@ private:
         grid_.header.frame_id = scan->header.frame_id;
         grid_.header.stamp = ros::Time::now();
 
+        std::vector<geometry_msgs::Point32> points_;
+        points_.reserve(scan->ranges.size());
+
         int origin_x = width_ / 2;
         int origin_y = height_ / 2;
 
@@ -93,8 +109,18 @@ private:
 
                 bresenhamLine(origin_x, origin_y, end_x, end_y, 0);
                 markCell(end_x, end_y, 100);
+                if (is_in_map(end_x, end_y)) {
+                    
+                    geometry_msgs::Point32 point;
+                    point.x = (end_x - origin_x)*resolution_;
+                    point.y = (end_y - origin_y)*resolution_;
+                    points_.push_back(point);
+                }
             }
         }
+        local_points_.header.frame_id = scan->header.frame_id;
+        local_points_.header.stamp = ros::Time::now();
+        local_points_.points = points_;
     }
 };
 

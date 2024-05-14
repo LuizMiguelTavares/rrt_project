@@ -16,6 +16,19 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   geometry_msgs
   map_msgs
+  message_generation
+)
+
+add_service_files(
+  FILES
+  AddTwoInts.srv
+  ClusterObstacles.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
 )
 
 find_package(OpenCV REQUIRED)
@@ -105,6 +118,13 @@ add_executable(minimal_local_rrt src/nodes/minimal_local_rrt.cpp)
 target_link_libraries(minimal_local_rrt ${catkin_LIBRARIES} motion_planning_lib2 ${OpenCV_LIBS})
 
 add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+# # find_package(MLPACK REQUIRED)
+# find_package(Armadillo REQUIRED)
+
+# include_directories(${ARMADILLO_INCLUDE_DIRS})
+# add_executable(ClusterVisualization test/hierarchical_clustering.cpp)
+# target_link_libraries(ClusterVisualization ${OpenCV_LIBS} ${MLPACK_LIBRARIES} ${ARMADILLO_LIBRARIES})
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
