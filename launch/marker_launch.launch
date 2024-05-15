@@ -1,7 +1,0 @@
-<launch>
-    <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
-        args="0.1 0 0 0 0 -0.98480775 -0.17364818 world base_link" /> <!-- -20 -180deg in yaw -->
-
-    <node pkg="rrt_project" type="marker_test.py" name="marker" output="screen" />
-    <node pkg="rviz" type="rviz" name="rviz" required="true"/>
-</launch>

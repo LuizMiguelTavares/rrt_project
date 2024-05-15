@@ -1,1 +1,0 @@
-/home/dev_container/catkin_ws/src/rrt_project/devel/.private/catkin_tools_prebuild/local_setup.bash
