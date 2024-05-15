@@ -29,6 +29,15 @@ class ObstacleAvoidanceScan:
         self.cumulative_distance = rospy.get_param('~cumulative_distance', None)
         self.scan_topic = rospy.get_param('~scan_topic', None)
         velocity_topic = rospy.get_param('~velocity_topic', None)
+        
+        rospy.loginfo("max_obstacle_distance: {}".format(self.max_obstacle_distance))
+        rospy.loginfo("density_gain: {}".format(self.density_gain))
+        rospy.loginfo("min_observation_radius: {}".format(self.min_observation_radius))
+        rospy.loginfo("observation_radius_gain: {}".format(self.observation_radius_gain))
+        rospy.loginfo("min_threshold: {}".format(self.min_threshold))
+        rospy.loginfo("cumulative_distance: {}".format(self.cumulative_distance))
+        rospy.loginfo("scan_topic: {}".format(self.scan_topic))
+        rospy.loginfo("velocity_topic: {}".format(velocity_topic))
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -82,42 +91,16 @@ class ObstacleAvoidanceScan:
         self.num_laser_points = len(scan_data.ranges)
     
     def sub_robot_points(self, robot_points_data):
-        self.robot_points = np.array([[p.x, p.y] for p in robot_points_data.points])
+        self.robot_points = np.array([[p.x, p.y] for p in robot_points_data.points], dtype=float)
 
-    # def calculate_cartesian_coordinates(self, scan_data, robot_position, robot_orientation):
-    #     current_angle = scan_data.angle_min
-    #     x = []
-    #     y = []
-    #     index = []
-
-    #     rotation_matrix = tf.quaternion_matrix(robot_orientation)
-
-    #     for idx, r in enumerate(scan_data.ranges):
-    #         if r < scan_data.range_min or r > scan_data.range_max:
-    #             current_angle += scan_data.angle_increment
-    #             continue
-    #         local_x = r * np.cos(current_angle)
-    #         local_y = r * np.sin(current_angle)
-
-    #         point_in_world = np.dot(rotation_matrix, [-local_x, -local_y, 0, 1])[:3]
-    #         world_x = point_in_world[0] + robot_position[0]
-    #         world_y = point_in_world[1] + robot_position[1]
-            
-    #         x.append(world_x)
-    #         y.append(world_y)
-    #         index.append(idx)
-            
-    #         current_angle += scan_data.angle_increment
-    #     return np.array([x, y]).T, index
-    
     def calculate_cartesian_coordinates(self, scan_data):
         points_world = []
         index = []
         try:
             trans = self.tf_buffer.lookup_transform(self.world_frame, self.laser_frame, rospy.Time(0))
-            translation = np.array([trans.transform.translation.x, trans.transform.translation.y, trans.transform.translation.z])
+            translation = np.array([trans.transform.translation.x, trans.transform.translation.y, trans.transform.translation.z], dtype=float)
             quaternion = [trans.transform.rotation.x, trans.transform.rotation.y, trans.transform.rotation.z, trans.transform.rotation.w]
-            rotation_matrix = tf.transformations.quaternion_matrix(quaternion)
+            rotation_matrix = tf.transformations.quaternion_matrix(quaternion).astype(float)
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
             rospy.logerr('Failed to get transform: {}'.format(e))
             return None, None
@@ -127,7 +110,7 @@ class ObstacleAvoidanceScan:
             if scan_data.range_min < distance < scan_data.range_max:
                 local_x = distance * np.cos(current_angle)
                 local_y = distance * np.sin(current_angle)
-                local_point = np.array([local_x, local_y, 0, 1])
+                local_point = np.array([local_x, local_y, 0, 1], dtype=float)
 
                 world_point = np.dot(rotation_matrix, local_point)[:3] + translation
 
@@ -166,7 +149,7 @@ class ObstacleAvoidanceScan:
                 aux, obs_aux = clusters.pop(-1), obstacle_points.pop(-1)
                 clusters.insert(0, aux)
                 obstacle_points.insert(0, obs_aux)
-            obstacle_points = np.array(obstacle_points)
+            obstacle_points = np.array(obstacle_points, dtype=float)
         elif np.any(obstacle_idx > (self.num_laser_points-self.num_laser_points/4)) and np.any(obstacle_idx < self.num_laser_points/4) and len(set(clusters))==1:
             max_diff = 0
             index_of_max_diff = -1
@@ -196,8 +179,8 @@ class ObstacleAvoidanceScan:
                     closest_index = index
                     closest_robot_point = robot_point
 
-            x_p = np.array([points[0][0], points[closest_index][0], points[-1][0]]) 
-            y_p = np.array([points[0][1], points[closest_index][1], points[-1][1]]) 
+            x_p = np.array([points[0][0], points[closest_index][0], points[-1][0]], dtype=float) 
+            y_p = np.array([points[0][1], points[closest_index][1], points[-1][1]], dtype=float) 
 
             control_points = self._calculate_control_points(points[closest_index], points, cumulative_distance=cumulative_distance)
             density = int(density_gain*len(control_points)/smallest_distance**2) + 4
@@ -239,14 +222,14 @@ class ObstacleAvoidanceScan:
                 control_points.append(point)
                 
                 cum_dist = 0
-        control_points = np.array(control_points)
+        control_points = np.array(control_points, dtype=float)
         return control_points
     
     def _bezier_curve(self, control_points, density):
-        control_points = np.array(control_points)
+        control_points = np.array(control_points, dtype=float)  # Ensure control points are float type
         t_values = np.linspace(0, 1, density)
- 
-        curve_points = np.zeros((density, 2))
+
+        curve_points = np.zeros((density, 2), dtype=float)  # Initialize curve_points as float type
         n = len(control_points) - 1
         for i, point in enumerate(control_points):
             curve_points += np.outer(np.power(1 - t_values, n - i) * np.power(t_values, i) * 
@@ -261,6 +244,7 @@ class ObstacleAvoidanceScan:
             bezier_points.points.append(p)
         
         return curve_points
+
     
     def loop(self):
         while not rospy.is_shutdown():

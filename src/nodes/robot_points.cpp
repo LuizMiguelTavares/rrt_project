@@ -8,6 +8,7 @@
 class RobotPointsPublisher {
 private:
     ros::NodeHandle nh_;
+    ros::NodeHandle private_nh_;
     ros::Publisher pub_;
     tf2_ros::Buffer tfBuffer_;
     tf2_ros::TransformListener tfListener_;
@@ -17,12 +18,12 @@ private:
     std::string world_frame_, robot_frame_;
 
 public:
-    RobotPointsPublisher() : tfListener_(tfBuffer_) {
-        nh_.param("robot_density", robot_density_, 100);
-        nh_.param("robot_height", robot_height_, 1.0);
-        nh_.param("robot_width", robot_width_, 1.0);
-        nh_.param("world_frame", world_frame_, std::string("world"));
-        nh_.param("robot_frame", robot_frame_, std::string("robot_base"));
+    RobotPointsPublisher() : tfListener_(tfBuffer_), private_nh_("~") {
+        private_nh_.param("robot_density", robot_density_, 100);
+        private_nh_.param("robot_height", robot_height_, 1.0);
+        private_nh_.param("robot_width", robot_width_, 1.0);
+        private_nh_.param("world_frame", world_frame_, std::string("world"));
+        private_nh_.param("robot_frame", robot_frame_, std::string("robot_base"));
         pub_ = nh_.advertise<sensor_msgs::PointCloud>("points", 10);
 
         ROS_INFO_STREAM("robot_points_publisher: Using world frame: " << world_frame_ << " and robot frame: " << robot_frame_ << "\n");

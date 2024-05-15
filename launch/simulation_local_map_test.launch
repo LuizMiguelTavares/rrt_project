@@ -8,6 +8,10 @@
     <arg name="laser_topic" default="/laser/scan" />
     <arg name="path_topic" default="/rrt_path" />
 
+    <arg name="robot_density" default="100" />
+    <arg name="robot_height" default="0.53" />
+    <arg name="robot_width" default="0.46" />
+
     <node pkg="rpic_article" type="emergency_button.py" name="emergency_button" output="screen" required="true"/>
 
     <!-- <include file="$(find rrt_project)/launch/robot_and_map_setup.launch">
@@ -50,7 +54,31 @@
         <param name="y_goal" value="$(arg y_goal)" />
     </node>
 
+    <!-- Control and potential nodes -->
     <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
-            <rosparam file="$(find rrt_project)/config/differential_robots/pioneer_simulation.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/differential_robots/pioneer_simulation.yaml" command="load" />
+    </node>
+
+    <node name="P1_velocity_calculation" pkg="rrt_project" type="velocity_publisher" output="screen">
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="rate" value="20" />
+        <param name="velocity_topic" value="velocity" />
+    </node>
+
+    <node pkg="rrt_project" type="publish_robot_potential_points" name="publish_robot_points" output="screen" >
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="robot_density" value="$(arg robot_density)" />
+        <param name="robot_height" value="$(arg robot_height)" />
+        <param name="robot_width" value="$(arg robot_width)" />
+    </node>
+
+    <node pkg="rrt_project" type="obstacle_avoidance_node.py" name="obstacle_avoidance_node" output="screen">
+        <rosparam file="$(find rrt_project)/config/obstacle_avoidance/obstacle_avoidance_scan_node_simulation.yaml" command="load" />
+        <param name="scan_topic" value="$(arg laser_topic)"/>
+        <param name="robot_frame" value="$(arg robot_frame)"/>
+        <param name="world_frame" value="$(arg world_frame)"/>
+        <param name="velocity_topic" value="velocity"/>
     </node>
 </launch>

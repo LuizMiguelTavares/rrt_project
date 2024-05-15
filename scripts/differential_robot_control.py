@@ -24,6 +24,7 @@ class DifferentialController:
         self.btn_emergencia_is_on = False
         self.robot_path_is_on = False
         self.path_index = 0
+        self.route = []
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -93,10 +94,6 @@ class DifferentialController:
 
         rospy.loginfo(f'{rospy.get_name()} started!')
 
-    # def route_callback(self, route_data):
-    #     self.robot_path_is_on = True
-    #     self.route = [[p.pose.position.x, p.pose.position.y] for p in route_data.poses]
-
     def potential_callback(self, potential_data):
         self.x_dot = potential_data.x
         self.y_dot = potential_data.y
@@ -128,30 +125,6 @@ class DifferentialController:
 
         # Update the internal route representation with the transformed route
         self.route = transformed_route
-
-    # def velocity_callback(self, velocity_msg):
-    #     self.velocity_msg = velocity_msg
-
-    # def get_global_velocity(self):
-    #     velocity_msg = self.velocity_msg
-
-    #     try:
-    #         # Check for the latest available transformation
-    #         trans = self.tf_buffer.lookup_transform(self.world_frame,
-    #                                                 velocity_msg.header.frame_id,
-    #                                                 rospy.Time(0),
-    #                                                 rospy.Duration(1.0))
-
-    #         # Transform the velocity to the world frame
-    #         transformed_velocity = tf2_geometry_msgs.do_transform_twist(velocity_msg, trans)
-
-    #         self.x_dot_world = transformed_velocity.twist.linear.x
-    #         self.y_dot_world = transformed_velocity.twist.linear.y
-    #         return self.x_dot_world, self.y_dot_world
-
-    #     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
-    #         rospy.logerr("TF2 error: %s", e)
-    #         return None, None
 
     def emergency_button_callback(self, emergency):
         self.btn_emergencia_is_on = True
@@ -206,21 +179,19 @@ class DifferentialController:
             yaw = tf.transformations.euler_from_quaternion(quaternion)[2]
             robot_pose = np.array([translation[0], translation[1], yaw])
 
-            # print(robot_pose)
-
             route = self.route
+
+            if self.path_index >= len(route):
+                rospy.loginfo('Path completed or index out of range')
+                self.publisher.publish(self.stop_msg)
+                self.rate.sleep()
+                continue
 
             x_desired = route[self.path_index][0]
             y_desired = route[self.path_index][1]
 
             x_dot_route = route[self.path_index][0] - robot_pose[0]
             y_dot_route = route[self.path_index][1] - robot_pose[1]
-
-            # x_desired = 1.62
-            # y_desired = 0.5
-            
-            # x_dot_route = x_desired - robot_pose[0]
-            # y_dot_route = y_desired - robot_pose[1]
             
             distance = np.sqrt((x_dot_route)**2 + (y_dot_route)**2)
             x_dot_route = x_dot_route/distance
@@ -233,12 +204,9 @@ class DifferentialController:
             point.point.y = y_desired
             point.point.z = self.z_route
             self.publish_which_route_point.publish(point)
+
             if distance < self.distance_to_change_path_index:
-                # rospy.loginfo('Path completed')
-                # self.publisher.publish(self.stop_msg)
-                # self.rate.sleep()
-                # continue
-                if self.path_index == len(route):
+                if self.path_index >= len(route) - 1:
                     rospy.loginfo('Path completed')
                     self.publisher.publish(self.stop_msg)
                     self.rate.sleep()
@@ -250,17 +218,13 @@ class DifferentialController:
             x_dot_desired = np.array([x_dot_route, y_dot_route]) * self.min_velocity
             X_dot_desired = X_potential + x_dot_desired
 
-            # print(closest_point, desired_point)
-            desired = [        x_desired, y_desired,
-                        X_dot_desired[0], X_dot_desired[1]]
+            desired = [x_desired, y_desired, X_dot_desired[0], X_dot_desired[1]]
 
             gains = self.pgains
             a = self.a
 
             if self.robot_type == 'Solverbot':
                 right_wheel, left_wheel = self.differential_robot_controller(robot_pose, desired, gains=gains, a=a)
-                # right_wheel = Float32(data=right_wheel)
-                # left_wheel = Float32(data=left_wheel)
                 message = [right_wheel, left_wheel]
                 ctrl_msg = ChannelFloat32(values=message)
 
@@ -277,10 +241,8 @@ class DifferentialController:
                 ctrl_msg.angular.x = 0.0
                 ctrl_msg.angular.y = 0.0
                 ctrl_msg.angular.z = reference_angular_velocity
-                # rospy.loginfo('Linear Velocity: ' + str(reference_linear_velocity) + ', Angular Velocity: ' + str(reference_angular_velocity))
 
             self.publisher.publish(ctrl_msg)
-            # rospy.loginfo(ctrl_msg)
             self.rate.sleep()
 
 def main():
