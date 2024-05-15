@@ -105,6 +105,9 @@ target_link_libraries(velocity_publisher ${catkin_LIBRARIES})
 add_executable(local_map src/nodes/local_map.cpp)
 target_link_libraries(local_map ${catkin_LIBRARIES})
 
+add_executable(merge_local_map src/nodes/merge_local_map.cpp)
+target_link_libraries(merge_local_map ${catkin_LIBRARIES})
+
 add_executable(local_rrt src/nodes/local_rrt.cpp)
 target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib2)
 

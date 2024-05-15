@@ -8,6 +8,8 @@
     <arg name="laser_topic" default="/laser/scan" />
     <arg name="path_topic" default="/rrt_path" />
 
+    <node pkg="rpic_article" type="emergency_button.py" name="emergency_button" output="screen" required="true"/>
+
     <!-- <include file="$(find rrt_project)/launch/robot_and_map_setup.launch">
         <arg name="paused" value="false" />
         <arg name="use_sim_time" value="true" />
@@ -17,13 +19,17 @@
     </include> -->
 
     <node pkg="rrt_project" type="map_server.py" name="map_server_node"/>
+    <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
 
     <!-- Max rate is over 1000hz with this specs -->
     <node pkg="rrt_project" type="local_map" name="local_map">
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="laser_topic" value="$(arg laser_topic)" />
         <param name="grid_topic" value="$(arg local_map_topic)" />
-        <param name="rate" value="10.0" />
+        <param name="rate" value="100.0" />
+        <param name="resolution" value="0.05" />
+        <param name="width" value="80" />
+        <param name="height" value="80" />
     </node>
 
     <node pkg="rrt_project" type="cluster_service.py" name="cluster_service" />
@@ -33,7 +39,7 @@
     <rosparam file="$(find rrt_project)/simulation_config/local_rrt.yaml" command="load" />
         <param name="local_map_topic" value="$(arg local_map_topic)" />
         <param name="path_topic" value="$(arg path_topic)" />
-        <param name="rate" value="1.0" />
+        <param name="rate" value="1000.0" />
     </node>
 
     <node pkg="rrt_project" type="rrt_path_node" name="rrt_path_node" output="screen" >
@@ -42,5 +48,9 @@
         <param name="path_topic" value="$(arg path_topic)" />
         <param name="x_goal" value="$(arg x_goal)" />
         <param name="y_goal" value="$(arg y_goal)" />
+    </node>
+
+    <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
+            <rosparam file="$(find rrt_project)/config/differential_robots/pioneer_simulation.yaml" command="load" />
     </node>
 </launch>

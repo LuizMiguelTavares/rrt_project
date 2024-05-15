@@ -16,6 +16,7 @@
 #include <cmath>
 #include <limits>
 #include <set>
+#include <sensor_msgs/LaserScan.h>
 
 #include "rrt_simple_ptr.hpp"
 
@@ -40,12 +41,8 @@ public:
         local_points_sub_ = nh.subscribe(local_points_topic_, 1, &MapPathSubscriber::localPointsCallback, this);
         path_sub_ = nh.subscribe(path_topic_, 1, &MapPathSubscriber::pathCallback, this);
 
-        local_points_pub_ = nh.advertise<sensor_msgs::PointCloud>("local_points_cluster", 10);
         last_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("last_point_inside_map", 10);
-        first_and_last_point_pub_ = nh.advertise<sensor_msgs::PointCloud>("first_and_last_cluster_points", 10);
         path_pub_ = nh.advertise<nav_msgs::Path>("local_path", 10);
-
-        debug_local_points_pub_ = nh.advertise<sensor_msgs::PointCloud>("debug_local_points", 10);
         
         ros::service::waitForService("/updated_map");
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/updated_map");
@@ -53,14 +50,25 @@ public:
         ros::service::waitForService("/update_map");
         update_map_client = nh.serviceClient<nav_msgs::SetMap>("/update_map");
 
-        cluster_client_ = nh.serviceClient<rrt_project::ClusterObstacles>("/cluster_obstacles");
+        ros::service::waitForService("/merged_map");
+        merged_map_client = nh.serviceClient<nav_msgs::GetMap>("/merged_map");
+
+        private_nh.param<std::string>("laser_scan_topic", laser_scan_topic_, "/laser/scan");
+        laser_scan_sub_ = nh.subscribe(laser_scan_topic_, 1, &MapPathSubscriber::laserScanCallback, this);
+
+        laser_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("laser_point", 10);
+        merged_map_pub_ = nh.advertise<nav_msgs::OccupancyGrid>("/merged_map", 10);
+    }
+
+    void laserScanCallback(const sensor_msgs::LaserScan::ConstPtr& msg) {
+        latest_laser_scan_ = msg;
     }
 
     bool fetchStaticMap() {
         nav_msgs::GetMap srv;
         if (static_map_client_.call(srv)) {
             global_map_ = srv.response.map;
-            ROS_INFO("Successfully called /static_map service");
+            // ROS_INFO("Successfully called /static_map service");
             return true;
         } else {
             ROS_ERROR("Failed to call /static_map service");
@@ -77,58 +85,27 @@ public:
         return points;
     }
 
-    sensor_msgs::PointCloud convertMapToPointCloud(const nav_msgs::OccupancyGrid& map) {
-        sensor_msgs::PointCloud cloud;
-        cloud.header = map.header;
-
-        // Iterate through the map data
-        for (int i = 0; i < map.info.width; ++i)
-        {
-            for (int j = 0; j < map.info.height; ++j)
-            {
-                int index = i + j * map.info.width;
-                if (map.data[index] == 100)
-                {
-                    geometry_msgs::Point32 point;
-                    point.x = i * map.info.resolution + map.info.origin.position.x;
-                    point.y = j * map.info.resolution + map.info.origin.position.y;
-                    point.z = 0;
-                    cloud.points.push_back(point);
-                }
-            }
-        }
-
-        return cloud;
-    }
-
-    bool requestClusterization() {
-        std::lock_guard<std::mutex> lock(local_map_mutex);
-        rrt_project::ClusterObstacles srv;
-        sensor_msgs::PointCloud local_points = convertMapToPointCloud(map_);
-        debug_local_points_pub_.publish(local_points);
-
-        srv.request.obstacle_points = PointCloud2Vector(local_points_);
-        srv.request.max_obstacle_distance = radius_*2;
-
-        if (cluster_client_.call(srv)) {
-            ROS_INFO("Successfully called /cluster_map service");
-            cluster_indices_ = srv.response.clusters;
-            return true;
-        } else {
-            ROS_ERROR("Failed to call /cluster_map service");
-            return false;
-        }
-    }
-
     bool updateMap() {
         nav_msgs::SetMap srv;
         srv.request.map = this->map_;
         srv.request.initial_pose = geometry_msgs::PoseWithCovarianceStamped();
         if (update_map_client.call(srv)) {
-            ROS_INFO("Successfully updated map.");
+            // ROS_INFO("Successfully updated map.");
             return true;
         } else {
             ROS_ERROR("Failed to call /update_map service");
+            return false;
+        }
+    }
+
+    bool mergeMaps() {
+        nav_msgs::GetMap srv;
+        if (merged_map_client.call(srv)) {
+            merged_map_ = srv.response.map;
+            // ROS_INFO("Successfully called /merged_map service");
+            return true;
+        } else {
+            ROS_ERROR("Failed to call /merged_map service");
             return false;
         }
     }
@@ -286,10 +263,6 @@ private:
         cv::rotate(mat, rotated, cv::ROTATE_90_CLOCKWISE);
         cv::flip(rotated, rotated, 1);
 
-        //New debug
-        // cv::flip(rotated, rotated, 0);
-
-        Debug_image = rotated.clone();
         return rotated;
     }
 
@@ -298,8 +271,8 @@ private:
 
         float robot_x = robot_position[0] - global_map_.info.origin.position.x;
         float robot_y = robot_position[1] - global_map_.info.origin.position.y;
-        std::shared_ptr<motion_planning::Node> robot_position = std::make_shared<motion_planning::Node>(robot_x, robot_y, nullptr);
 
+        std::shared_ptr<motion_planning::Node> robot_position = std::make_shared<motion_planning::Node>(robot_x, robot_y, nullptr);
         std::shared_ptr<motion_planning::Node> closest_path_point = quad_tree_->nearest_neighbor(robot_position);
 
         geometry_msgs::PointStamped last_point_inside_map;
@@ -323,18 +296,8 @@ private:
                     if (!last_local_pose_valid) {
                         last_local_pose = pose_map_frame;
                         last_local_pose_valid = true;
-                    } else {
-                        if (!obstacle_encountered) {
-                            int x_old = static_cast<int>((last_local_pose.pose.position.x - map_.info.origin.position.x) / map_.info.resolution);
-                            int y_old = static_cast<int>((last_local_pose.pose.position.y - map_.info.origin.position.y) / map_.info.resolution);
-                            int x_new = static_cast<int>((pose_map_frame.pose.position.x - map_.info.origin.position.x) / map_.info.resolution);
-                            int y_new = static_cast<int>((pose_map_frame.pose.position.y - map_.info.origin.position.y) / map_.info.resolution);
-                            y_old = map_.info.height - y_old;
-                            y_new = map_.info.height - y_new;
-                            obstacle_encountered = motion_planning::check_obstacle_intersection(local_map, x_old, y_old, x_new, y_new, radius_);
-                            last_local_pose = pose_map_frame;
-                        }
                     }
+
                     last_point_inside_map.point = pose.pose.position;
                     last_point_inside_map_local_frame.point = pose_map_frame.pose.position;
                     last_point_valid = true;
@@ -344,7 +307,7 @@ private:
             }
         }
 
-        if (!last_point_valid) {
+        if (!last_point_valid) { // Generate a new global path
             ROS_ERROR("%s: No global path point inside the local map.", ros::this_node::getName().c_str());
             last_point_inside_map.header.stamp = ros::Time::now();
             last_point_inside_map.header.frame_id = path_.header.frame_id;
@@ -352,134 +315,17 @@ private:
             return;
         }
 
-        if (obstacle_encountered) {
-            // ROS_ERROR("%s: Obstacle encountered in the local map.", ros::this_node::getName().c_str());
-            // ROS_INFO("Requesting clusterization...");
-
-            bool clusterization_successful = false;
-            try {
-                clusterization_successful = requestClusterization();
-                if (clusterization_successful) {
-                    std::lock_guard<std::mutex> lock(local_map_mutex);
-                    local_points_cluster_ = local_points_;
-                    // ROS_ERROR("Plotting size of local_points_: %zu", local_points_.points.size());
-                    if (local_points_cluster_.channels.empty()) {
-                        local_points_cluster_.channels.resize(1);  
-                    }
-                    local_points_cluster_.channels[0].values = cluster_indices_;
-                    local_points_cluster_.channels[0].name = "intensity";
-                    ROS_INFO("Clusterization request successful.");
-                } else {
-                    ROS_ERROR("Failed to request clusterization.");
-                }
-            } catch (const std::exception& e) {
-                ROS_ERROR("Exception caught: %s", e.what());
-                return;
-            }
-
-            // Find cluster of the obstacle
-            if (clusterization_successful){
-                updateMap();
-                fetchStaticMap();
-                std::set<float> uniqueElements(cluster_indices_.begin(), cluster_indices_.end());
-
-                int index_point = findClosestPointIndex(local_points_cluster_.points, last_local_pose.pose.position.x, last_local_pose.pose.position.y);
-                local_points_cluster_.channels[0].values[index_point] = 0;
-                
-                int index_cluster_left;
-                int index_cluster_right;
-                geometry_msgs::Point32 first_point;
-                geometry_msgs::Point32 last_point;
-
-                if (uniqueElements.size() > 1) {
-                    std::vector<float> aux_indices;
-                    aux_indices.reserve(cluster_indices_.size());
-                    aux_indices = cluster_indices_;
-
-                    std::vector<geometry_msgs::Point32> aux_points;
-                    aux_points.reserve(local_points_cluster_.points.size());
-                    aux_points = local_points_cluster_.points;
-
-                    while ((aux_indices[0] == aux_indices.back()) && (aux_indices[0] == cluster_indices_[index_point]))
-                    {
-                        float aux = aux_indices.back();
-                        geometry_msgs::Point32 obs_aux = aux_points.back();
-
-                        aux_indices.pop_back();
-                        aux_points.pop_back();
-
-                        aux_indices.insert(aux_indices.begin(), aux);
-                        aux_points.insert(aux_points.begin(), obs_aux); 
-                    }
-                    
-                    bool first_point_not_found = true;
-                    for (int i = 0; i < aux_indices.size() - 1; i++){
-                        if (aux_indices[i] == aux_indices[index_point]){
-                            if (first_point_not_found) {
-                                first_point_not_found = false;
-                                index_cluster_left = i;
-                                first_point = aux_points[i];
-                                // ROS_ERROR("First point: %f, %f", first_point.x, first_point.y);
-                            } 
-                            if ((aux_indices[i + 1] != aux_indices[index_point]) || (i == aux_indices.size() - 2)) {
-                                index_cluster_right = i;
-                                last_point = aux_points[i];
-                                // ROS_ERROR("Last point: %f, %f", last_point.x, last_point.y);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (uniqueElements.size() == 1){
-                    float biggest_distance = 0;
-                    for (int i = 0; i < cluster_indices_.size() -1; i++){
-                        float distance = sqDistance(local_points_cluster_.points[i].x, local_points_cluster_.points[i].y, local_points_cluster_.points[i+1].x, local_points_cluster_.points[i+1].y);
-                        if (distance > biggest_distance){
-                            biggest_distance = distance;
-                            index_cluster_left = i;
-                            index_cluster_right = i+1;
-                            first_point = local_points_cluster_.points[index_cluster_left];
-                            last_point = local_points_cluster_.points[index_cluster_right];
-                        }
-                    }
-
-                    float distance = sqDistance(local_points_cluster_.points[0].x, local_points_cluster_.points[0].y, local_points_cluster_.points.back().x, local_points_cluster_.points.back().y);
-                    if (distance > biggest_distance){
-                        biggest_distance = distance;
-                        index_cluster_left = 0;
-                        index_cluster_right = local_points_cluster_.points.size() - 1;
-                        first_point = local_points_cluster_.points[index_cluster_left];
-                        last_point = local_points_cluster_.points[index_cluster_right];
-                    }
-                }
-
-                first_and_last_cluster_points.points.clear();
-                first_and_last_cluster_points.points.push_back(first_point);
-                first_and_last_cluster_points.points.push_back(last_point);
-                first_and_last_cluster_points.header.stamp = ros::Time::now();
-                first_and_last_cluster_points.header.frame_id = map_.header.frame_id;
-
-                first_and_last_point_pub_.publish(first_and_last_cluster_points);
-            }
-
-        } else {
-            local_points_cluster_.points.clear();
-            local_points_cluster_.channels.clear();
-        }
-
         last_point_inside_map.header.stamp = ros::Time::now();
         last_point_inside_map.header.frame_id = path_.header.frame_id;
         last_point_pub_.publish(last_point_inside_map);
 
-        local_points_cluster_.header.stamp = ros::Time::now();
-        local_points_pub_.publish(local_points_cluster_);
-
+        // local RRT
         double x_start = std::round(map_.info.width/2);
         double y_start = std::round(map_.info.height/2);
 
         double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
         double y_goal = std::round((last_point_inside_map_local_frame.point.y - map_.info.origin.position.y) / map_.info.resolution);
+
         y_goal = map_.info.height - y_goal;
         
         if (x_goal == map_.info.width) x_goal = map_.info.width - 1;
@@ -489,6 +335,25 @@ private:
             ROS_ERROR("%s: Goal point outside the local map.", ros::this_node::getName().c_str());
             return;
         }
+
+        // See if there is an obstacle between the robot and the goal to update global map
+        // Calculate the angle from the robot to the goal
+        double angle_to_goal = calculateAngleToGoal(last_point_inside_map_local_frame.point);
+
+        // Find the closest laser index corresponding to this angle
+        int closest_laser_index = findClosestLaserIndex(angle_to_goal);
+
+        bool obstacle_detected = laserCollidesWithObstacle(closest_laser_index, last_point_inside_map_local_frame);
+        if (obstacle_detected) {
+            // ROS_WARN("Obstacle detected between robot and goal. Updating global map.");
+            // Update the global map
+            
+            publishLaserPoint(closest_laser_index);
+        } else {
+            geometry_msgs::PoseStamped laser_point;
+            laser_point_pub_.publish(laser_point);
+        }
+
         std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
         std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
         std::vector<std::shared_ptr<motion_planning::Node>> nodes;
@@ -501,7 +366,17 @@ private:
 
         std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
         if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
-            // ROS_ERROR("No local path found!");
+            ROS_ERROR("No local path found!");
+            if (obstacle_detected){
+                if (!fetchStaticMap() || global_map_.data.empty()) {
+                    ROS_WARN("Global map is not yet available.");
+                    return;
+                }
+
+                // Update the global map
+                updateMap();
+                fetchStaticMap();
+            }
             return;
         } else {
             goal_path = motion_planning::trace_goal_path(nodes.back());
@@ -510,11 +385,12 @@ private:
         // Convert the path from nodes to a ROS path message
         nav_msgs::Path ros_path = convertNodesToPath(goal_path, map_);
         path_pub_.publish(ros_path);
-
     }
 
     std::vector<std::shared_ptr<motion_planning::Node>> run_rrt(std::shared_ptr<motion_planning::Node> start, std::shared_ptr<motion_planning::Node> end, int num_nodes, double step_size, double goal_threshold, double bias_probability, int radius_pixel){
-        cv::Mat local_map = occupancyGridToCvMat(map_);
+        mergeMaps();
+        merged_map_pub_.publish(merged_map_);
+        cv::Mat local_map = occupancyGridToCvMat(merged_map_);
         if (local_map.empty()) {
             ROS_ERROR("Local map is empty");
             return {};
@@ -550,32 +426,99 @@ private:
         return path;
     }
 
-    double distance(double x1, double y1, double x2, double y2) {
-        return sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
-    }
-
-    double sqDistance(double x1, double y1, double x2, double y2) {
-        return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
-    }
-
-    int findClosestPointIndex(const std::vector<geometry_msgs::Point32>& points, double x, double y) {
-
-        int closestIndex = 0;
-        double minDistance = std::numeric_limits<double>::max();
-
-        for (int i = 0; i < points.size(); i++) {
-            double dist = distance(x, y, points[i].x, points[i].y);
-            if (dist < minDistance) {
-                minDistance = dist;
-                closestIndex = i;
-            }
+    int findClosestLaserIndex(double angle) {
+        if (!latest_laser_scan_) {
+            ROS_WARN("Laser scan data not yet available.");
+            return -1;
         }
 
-        return closestIndex;
+        double laser_min_angle = latest_laser_scan_->angle_min;
+        double laser_max_angle = latest_laser_scan_->angle_max;
+        int num_laser_points = latest_laser_scan_->ranges.size();
+        double laser_angle_increment = latest_laser_scan_->angle_increment;
+
+        // Normalize the angle to be within [laser_min_angle, laser_max_angle]
+        while (angle < laser_min_angle) {
+            angle += 2 * M_PI;
+        }
+        while (angle > laser_max_angle) {
+            angle -= 2 * M_PI;
+        }
+
+        // Ensure the angle is within the bounds of the laser scan angles
+        if (angle < laser_min_angle) {
+            angle = laser_min_angle;
+        } else if (angle > laser_max_angle) {
+            angle = laser_max_angle;
+        }
+
+        int closest_index = std::round((angle - laser_min_angle) / laser_angle_increment);
+
+        // Ensure the index is within valid bounds
+        if (closest_index < 0) {
+            closest_index = 0;
+        } else if (closest_index >= num_laser_points) {
+            closest_index = num_laser_points - 1;
+        }
+
+        return closest_index;
+    }
+
+    void publishLaserPoint(int index) {
+        if (!latest_laser_scan_ || index < 0 || index >= latest_laser_scan_->ranges.size()) {
+            ROS_WARN("Invalid laser scan data or index.");
+            return;
+        }
+
+        geometry_msgs::PointStamped laser_point;
+        laser_point.header.frame_id = latest_laser_scan_->header.frame_id;
+        laser_point.header.stamp = ros::Time::now();
+
+        double range = latest_laser_scan_->ranges[index];
+        if (std::isinf(range) || std::isnan(range)) {
+            // ROS_WARN("Invalid range value at index %d: %f", index, range);
+            return;
+        }
+
+        double angle = latest_laser_scan_->angle_min + index * latest_laser_scan_->angle_increment;
+
+        laser_point.point.x = range * cos(angle);
+        laser_point.point.y = range * sin(angle);
+        laser_point.point.z = 0.0;
+
+        ROS_INFO("Laser point: (%f, %f)", laser_point.point.x, laser_point.point.y);
+
+        laser_point_pub_.publish(laser_point);
+    }
+
+    double calculateAngleToGoal(const geometry_msgs::Point& goal_point) {
+        // Assuming the goal_point is already in the laser frame
+        double angle_to_goal = std::atan2(goal_point.y, goal_point.x);
+        return angle_to_goal;
+    }
+
+    bool laserCollidesWithObstacle(int index, const geometry_msgs::PointStamped last_point_inside_map_local_frame) {
+        if (!latest_laser_scan_ || index < 0 || index >= latest_laser_scan_->ranges.size()) {
+            ROS_WARN("Invalid laser scan data or index.");
+            return false;
+        }
+
+        double range = latest_laser_scan_->ranges[index];
+        if (std::isinf(range) || std::isnan(range)) {
+            // ROS_WARN("Invalid range value at index %d: %f", index, range);
+            return false;
+        }
+
+        double point_distance = std::sqrt(std::pow(last_point_inside_map_local_frame.point.x, 2) + std::pow(last_point_inside_map_local_frame.point.y, 2));
+
+        if (range < point_distance) {
+            return true;
+        }
+
+        return false;
     }
 
     std::mutex local_map_mutex;
-    cv::Mat Debug_image;
     int rate_;
     std::string local_map_topic_;
     std::string local_points_topic_;
@@ -593,28 +536,29 @@ private:
 
     ros::Subscriber local_map_sub_;
     ros::Subscriber local_points_sub_;
-    ros::Publisher local_points_pub_;
-    ros::Publisher first_and_last_point_pub_;
-    ros::Publisher debug_local_points_pub_;
     ros::Subscriber path_sub_;
     ros::Publisher last_point_pub_;
     ros::Publisher path_pub_;
     ros::ServiceClient static_map_client_;
     ros::ServiceClient update_map_client;
-    ros::ServiceClient cluster_client_;
-    std::vector<float> cluster_indices_;
+    ros::ServiceClient merged_map_client;
 
     nav_msgs::OccupancyGrid map_;
+    nav_msgs::OccupancyGrid merged_map_;
     sensor_msgs::PointCloud local_points_;
-    sensor_msgs::PointCloud debug_local_points_;
     sensor_msgs::PointCloud local_points_cluster_;
-    sensor_msgs::PointCloud first_and_last_cluster_points;
     nav_msgs::OccupancyGrid global_map_;
     nav_msgs::Path path_;
     std::shared_ptr<QTree::QuadTree<motion_planning::Node>> quad_tree_;
     bool quad_tree_initialized_;
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
+
+    ros::Publisher laser_point_pub_;
+    ros::Publisher merged_map_pub_;
+    ros::Subscriber laser_scan_sub_;
+    sensor_msgs::LaserScan::ConstPtr latest_laser_scan_;
+    std::string laser_scan_topic_;
 };
 
 int main(int argc, char** argv) {

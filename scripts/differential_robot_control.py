@@ -40,9 +40,9 @@ class DifferentialController:
         robot_control_topic = rospy.get_param('~robot_control_topic', None)
         robot_control_message = rospy.get_param('~robot_control_message', None)
         self.rate = rospy.Rate(rospy.get_param('~control_frequency', 30))
+        self.path_topic = rospy.get_param('~path_topic', "path")
         # velocity_topic = rospy.get_param('~velocity_topic', None)
         
-
         self.pgains = [gains['linear'], gains['angular']]
         self.a = rospy.get_param('~a', 0.15)
 
@@ -60,7 +60,7 @@ class DifferentialController:
         self.publisher = rospy.Publisher(robot_control_topic, message_types[robot_control_message], queue_size=10)
         self.publish_which_route_point = rospy.Publisher('which_route_point', PointStamped, queue_size=10)
 
-        self.path_subscriber = rospy.Subscriber(f"path",
+        self.path_subscriber = rospy.Subscriber(self.path_topic,
                                                 Path,
                                                 self.route_callback)
 
