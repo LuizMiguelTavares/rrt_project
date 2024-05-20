@@ -154,6 +154,9 @@ public:
                 std::vector<double> goal_position_grid = {std::round((goal_position[0] - pruned_map.info.origin.position.x) / pruned_map.info.resolution),
                                                         std::round(pruned_map.info.height - ((goal_position[1] - pruned_map.info.origin.position.y) / pruned_map.info.resolution))};
 
+                ROS_INFO("Start position: (%f, %f)", start_position_grid[0], start_position_grid[1]);
+                ROS_INFO("Goal position: (%f, %f)", goal_position_grid[0], goal_position_grid[1]);
+
                 std::unique_ptr<motion_planning::Node> start = std::make_unique<motion_planning::Node>(start_position_grid, nullptr);
                 std::unique_ptr<motion_planning::Node> goal = std::make_unique<motion_planning::Node>(goal_position_grid, nullptr);
 
