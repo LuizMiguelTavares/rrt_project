@@ -1,0 +1,51 @@
+<launch>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_laser_tf_publisher"
+    args="0.1 0 0 0 0 -0.98480775 -0.17364818 P1 laser" /> <!-- -20 -180deg in yaw -->
+
+    <!-- Old tranformation with map using odometry -->
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_world_tf_publisher" 
+    args="-1.31144779 1.18 0.29090403 -0.000115597 0.003501224 -0.000026968 0.999993864 world map" /> -->
+
+    <!-- Static transformation from world to map -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="static_transform_world_to_map" 
+    args="-1.4166396141052246 1.1629546880722046 0.2935587763786316 -0.0004821104521397501 -0.0018562889890745282 0.002135741990059614 -0.9999958872795105 world map"/>
+
+    <!-- Odom map -->
+    <!-- <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/new_odom_map_latest/map.yaml" /> -->
+
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/real_map2/real_map.yaml" />
+
+    <!-- Optitrack map -->
+    <!-- <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/optitrack_map/optitrack_map.yaml" /> -->
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project.rviz" required="false" />
+<!-- 
+    <node name="teleop" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen" >
+        <remap from="cmd_vel" to="$(arg cmd_vel_topic)"/>
+    </node> -->
+
+    <!-- Odom map -->
+    <!-- <arg name="x_goal" default="3" />
+    <arg name="y_goal" default="0" /> -->
+
+    <!-- Optitrack map -->
+    <arg name="x_goal" default="1.6" />
+    <arg name="y_goal" default="0.7" />
+
+    <!-- start -> x = -1.35
+    start -> y = 1.18 -->
+
+    <arg name="world_frame" default="world" />
+    <arg name="robot_frame" default="P1" />
+    <arg name="laser_topic" default="/RosAria/scan" />
+    <arg name="path_topic" default="/rrt_path" />
+
+    <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen" >
+        <rosparam file="$(find rrt_project)/simulation_config/rrt.yaml" command="load" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="x_goal" value="$(arg x_goal)" />
+        <param name="y_goal" value="$(arg y_goal)" />
+    </node>
+</launch>

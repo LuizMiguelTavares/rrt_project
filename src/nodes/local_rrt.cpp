@@ -20,7 +20,6 @@
 
 #include "rrt_simple_ptr.hpp"
 
-
 class MapPathSubscriber {
 public:
     MapPathSubscriber() : tf_listener_(tf_buffer_), quad_tree_initialized_(false), is_rrt_completed_(false) {
@@ -43,7 +42,8 @@ public:
 
         last_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("last_point_inside_map", 10);
         path_pub_ = nh.advertise<nav_msgs::Path>("local_path", 10);
-        
+        traveled_path_pub_ = nh.advertise<nav_msgs::Path>("traveled_path", 10); // Publisher for the traveled path
+
         ros::service::waitForService("/updated_map");
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/updated_map");
         
@@ -181,6 +181,7 @@ public:
                     }
                 }
                 generateLocalRRT();
+                updateTraveledPath();
             }
             rate.sleep();
         }
@@ -232,7 +233,7 @@ private:
     void updatePositionFromTF(const std::string& global_map_frame, const std::string& local_map_frame) {
         geometry_msgs::TransformStamped transform_stamped;
         try {
-            transform_stamped = tf_buffer_.lookupTransform(global_map_frame, local_map_frame, ros::Time(0), ros::Duration(1.0));
+            transform_stamped = tf_buffer_.lookupTransform(global_map_frame, local_map_frame, ros::Time(0));
             robot_position = {transform_stamped.transform.translation.x, transform_stamped.transform.translation.y};
         } catch (tf2::TransformException &ex) {
             ROS_WARN("%s", ex.what());
@@ -518,6 +519,25 @@ private:
         return false;
     }
 
+    void updateTraveledPath() {
+        geometry_msgs::PoseStamped current_pose;
+        current_pose.header.frame_id = global_map_.header.frame_id;
+        current_pose.header.stamp = ros::Time::now();
+        current_pose.pose.position.x = robot_position[0];
+        current_pose.pose.position.y = robot_position[1];
+        current_pose.pose.position.z = 0;
+
+        current_pose.pose.orientation.x = 0.0;
+        current_pose.pose.orientation.y = 0.0;
+        current_pose.pose.orientation.z = 0.0;
+        current_pose.pose.orientation.w = 1.0;
+
+        traveled_path_.poses.push_back(current_pose);
+        traveled_path_.header.frame_id = global_map_.header.frame_id;
+        traveled_path_.header.stamp = ros::Time::now();
+        traveled_path_pub_.publish(traveled_path_);
+    }
+
     std::mutex local_map_mutex;
     int rate_;
     std::string local_map_topic_;
@@ -539,6 +559,7 @@ private:
     ros::Subscriber path_sub_;
     ros::Publisher last_point_pub_;
     ros::Publisher path_pub_;
+    ros::Publisher traveled_path_pub_; // Publisher for the traveled path
     ros::ServiceClient static_map_client_;
     ros::ServiceClient update_map_client;
     ros::ServiceClient merged_map_client;
@@ -549,6 +570,7 @@ private:
     sensor_msgs::PointCloud local_points_cluster_;
     nav_msgs::OccupancyGrid global_map_;
     nav_msgs::Path path_;
+    nav_msgs::Path traveled_path_; // Path to store the traveled path
     std::shared_ptr<QTree::QuadTree<motion_planning::Node>> quad_tree_;
     bool quad_tree_initialized_;
     tf2_ros::Buffer tf_buffer_;
