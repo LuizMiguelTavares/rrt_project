@@ -14,7 +14,7 @@
 
 class MapPathSubscriber {
 public:
-    MapPathSubscriber() : tf_listener_(tf_buffer_) {
+    MapPathSubscriber() : tf_listener_(tf_buffer_), found_path_(false) {
         ros::NodeHandle nh;
         ros::NodeHandle private_nh("~");
 
@@ -54,7 +54,11 @@ public:
         while (ros::ok()) {
             ros::spinOnce();
             if (!map_.data.empty()) {
-                generateRRT();
+                if (!found_path_) {
+                    generateRRT();
+                } else {
+                    path_pub_.publish(ros_path_);
+                }
             } else {
                 if (fetchStaticMap()) {
                     ROS_INFO("Successfully fetched the static map.");
@@ -170,10 +174,10 @@ private:
             return;
         } else {
             goal_path = motion_planning::trace_goal_path(nodes.back());
+            found_path_ = true;
         }
 
-        nav_msgs::Path ros_path = convertNodesToPath(goal_path, map_);
-        path_pub_.publish(ros_path);
+        ros_path_ = convertNodesToPath(goal_path, map_);
     }
 
     nav_msgs::Path convertNodesToPath(const std::vector<std::shared_ptr<motion_planning::Node>> nodes, const nav_msgs::OccupancyGrid map) {
@@ -202,6 +206,8 @@ private:
         return path;
     }
 
+    bool found_path_;
+    nav_msgs::Path ros_path_;
     std::mutex local_map_mutex;
     int rate_;
     std::string path_topic_;
