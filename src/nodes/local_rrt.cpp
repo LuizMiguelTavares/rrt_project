@@ -4,20 +4,15 @@
 #include <nav_msgs/GetMap.h>
 #include <nav_msgs/SetMap.h>
 #include <sensor_msgs/PointCloud.h>
-#include "rrt_project/ClusterObstacles.h"
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PointStamped.h>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <geometry_msgs/Point32.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <vector>
 #include <opencv2/core.hpp>
 #include <cmath>
-#include <limits>
-#include <set>
+#include <mutex>
 #include <sensor_msgs/LaserScan.h>
-
 #include "rrt_simple_ptr.hpp"
 
 class MapPathSubscriber {
@@ -27,7 +22,6 @@ public:
         ros::NodeHandle private_nh("~");
 
         this->getParamOrThrow(private_nh, "local_map_topic", local_map_topic_);
-        private_nh.param<std::string>("local_points_topic", local_points_topic_, "local_points");
         this->getParamOrThrow(private_nh, "path_topic", path_topic_);
         this->getParamOrThrow(private_nh, "rate", rate_);
         this->getParamOrThrow(private_nh, "num_nodes", num_nodes_);
@@ -36,16 +30,16 @@ public:
         this->getParamOrThrow(private_nh, "bias_probability", bias_probability_);
         this->getParamOrThrow(private_nh, "radius", radius_);
 
-        local_map_sub_ = nh.subscribe(local_map_topic_, 1, &MapPathSubscriber::mapCallback, this);
-        local_points_sub_ = nh.subscribe(local_points_topic_, 1, &MapPathSubscriber::localPointsCallback, this);
         path_sub_ = nh.subscribe(path_topic_, 1, &MapPathSubscriber::pathCallback, this);
+        local_map_sub_ = nh.subscribe(local_map_topic_, 1, &MapPathSubscriber::mapCallback, this);
 
         last_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("last_point_inside_map", 10);
         path_pub_ = nh.advertise<nav_msgs::Path>("local_path", 10);
-        traveled_path_pub_ = nh.advertise<nav_msgs::Path>("traveled_path", 10); // Publisher for the traveled path
+        traveled_path_pub_ = nh.advertise<nav_msgs::Path>("traveled_path", 10);
 
         ros::service::waitForService("/updated_map");
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/updated_map");
+        fetchStaticMap();
         
         ros::service::waitForService("/update_map");
         update_map_client = nh.serviceClient<nav_msgs::SetMap>("/update_map");
@@ -68,44 +62,10 @@ public:
         nav_msgs::GetMap srv;
         if (static_map_client_.call(srv)) {
             global_map_ = srv.response.map;
-            // ROS_INFO("Successfully called /static_map service");
+            ROS_INFO("LocalMap: Successfully called /static_map service");
             return true;
         } else {
-            ROS_ERROR("Failed to call /static_map service");
-            return false;
-        }
-    }
-
-    std::vector<double> PointCloud2Vector(const sensor_msgs::PointCloud& cloud) {
-        std::vector<double> points;
-        for (const auto& point : cloud.points) {
-            points.push_back(static_cast<double>(point.x));
-            points.push_back(static_cast<double>(point.y));
-        }
-        return points;
-    }
-
-    bool updateMap() {
-        nav_msgs::SetMap srv;
-        srv.request.map = this->map_;
-        srv.request.initial_pose = geometry_msgs::PoseWithCovarianceStamped();
-        if (update_map_client.call(srv)) {
-            // ROS_INFO("Successfully updated map.");
-            return true;
-        } else {
-            ROS_ERROR("Failed to call /update_map service");
-            return false;
-        }
-    }
-
-    bool mergeMaps() {
-        nav_msgs::GetMap srv;
-        if (merged_map_client.call(srv)) {
-            merged_map_ = srv.response.map;
-            // ROS_INFO("Successfully called /merged_map service");
-            return true;
-        } else {
-            ROS_ERROR("Failed to call /merged_map service");
+            ROS_ERROR("LocalMap: Failed to call /static_map service");
             return false;
         }
     }
@@ -126,9 +86,29 @@ public:
         map_frame_id_ = msg->header.frame_id;
     }
 
-    void localPointsCallback(const sensor_msgs::PointCloud::ConstPtr& msg) {
-        std::lock_guard<std::mutex> lock(local_map_mutex);
-        local_points_ = *msg;
+    bool updateMap() {
+        nav_msgs::SetMap srv;
+        srv.request.map = this->map_;
+        srv.request.initial_pose = geometry_msgs::PoseWithCovarianceStamped();
+        if (update_map_client.call(srv)) {
+            ROS_INFO("LocalMap: Successfully updated map.");
+            return true;
+        } else {
+            ROS_ERROR("LocalMap: Failed to call /update_map service");
+            return false;
+        }
+    }
+
+    bool mergeMaps() {
+        nav_msgs::GetMap srv;
+        if (merged_map_client.call(srv)) {
+            merged_map_ = srv.response.map;
+            // ROS_INFO("Successfully called /merged_map service");
+            return true;
+        } else {
+            ROS_ERROR("Failed to call /merged_map service");
+            return false;
+        }
     }
 
     void pathCallback(const nav_msgs::Path::ConstPtr& msg) {
@@ -182,6 +162,8 @@ public:
                 }
                 generateLocalRRT();
                 updateTraveledPath();
+            } else {
+                ROS_WARN("Occupancy grid map or path is not yet available.");
             }
             rate.sleep();
         }
@@ -540,11 +522,10 @@ private:
 
     std::mutex local_map_mutex;
     int rate_;
-    std::string local_map_topic_;
-    std::string local_points_topic_;
     std::string path_topic_;
     int path_number_;
     std::string map_frame_id_;
+    std::string local_map_topic_;
     int num_nodes_;
     double step_size_;
     double goal_threshold_;
@@ -555,22 +536,19 @@ private:
     bool is_rrt_completed_;
 
     ros::Subscriber local_map_sub_;
-    ros::Subscriber local_points_sub_;
     ros::Subscriber path_sub_;
     ros::Publisher last_point_pub_;
     ros::Publisher path_pub_;
-    ros::Publisher traveled_path_pub_; // Publisher for the traveled path
+    ros::Publisher traveled_path_pub_;
     ros::ServiceClient static_map_client_;
     ros::ServiceClient update_map_client;
     ros::ServiceClient merged_map_client;
 
     nav_msgs::OccupancyGrid map_;
     nav_msgs::OccupancyGrid merged_map_;
-    sensor_msgs::PointCloud local_points_;
-    sensor_msgs::PointCloud local_points_cluster_;
     nav_msgs::OccupancyGrid global_map_;
     nav_msgs::Path path_;
-    nav_msgs::Path traveled_path_; // Path to store the traveled path
+    nav_msgs::Path traveled_path_;
     std::shared_ptr<QTree::QuadTree<motion_planning::Node>> quad_tree_;
     bool quad_tree_initialized_;
     tf2_ros::Buffer tf_buffer_;
