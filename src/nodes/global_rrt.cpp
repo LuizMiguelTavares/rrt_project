@@ -41,6 +41,7 @@ public:
         nav_msgs::GetMap srv;
         if (static_map_client_.call(srv)) {
             map_ = srv.response.map;
+            radius_pixel_ = std::round(radius_ / map_.info.resolution);
             return true;
         } else {
             ROS_ERROR("Failed to call /static_map service");
@@ -156,7 +157,7 @@ private:
         std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
         std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
         std::vector<std::shared_ptr<motion_planning::Node>> nodes;
-        nodes = motion_planning::rrt(grid_map, start_node, goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_);
+        nodes = motion_planning::rrt(grid_map, start_node, goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_pixel_);
 
         if (nodes.empty()) {
             ROS_ERROR("No path found from RRT within the local map.");
@@ -209,6 +210,7 @@ private:
     double goal_threshold_;
     double bias_probability_;
     double radius_;
+    int radius_pixel_;
     std::string world_frame_;
     std::string robot_frame_;
     double x_goal_;
