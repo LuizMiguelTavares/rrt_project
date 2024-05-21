@@ -69,7 +69,7 @@ namespace motion_planning{
             rand_y_int = map.cols - 1;
         }
 
-        return std::make_shared<Node>(rand_x_int, rand_y_int);
+        return std::make_shared<Node>(rand_y_int, rand_x_int);
     }
 
     bool isBlack(const cv::Mat& image, int x, int y) {
@@ -179,17 +179,19 @@ namespace motion_planning{
             }
 
             if(sample->x < 0 || sample->x >= grid_map.cols || sample->y < 0 || sample->y >= grid_map.rows) {
+                if (debug){
+                    std::cout << "Sample node is outside the boundaries of the map" << std::endl;
+                }
+
                 std::cerr << "Error: Sample node is outside the boundaries of the map." << std::endl;
-                std::vector<std::shared_ptr<Node>> error_node;
+                std::cerr << "X: " << sample->x << ", Y: " << sample->y << std::endl;
+                std::cerr << "Map Size: " << grid_map.cols << ", " << grid_map.rows << std::endl;
                 continue;
-                return error_node;
             }
 
             if (std::isnan(sample->x) || std::isnan(sample->y)) {
                 std::cerr << "Error: Sample node is NaN." << std::endl;
-                std::vector<std::shared_ptr<Node>> error_node;
                 continue;
-                return error_node;
             }
 
             if (debug){
@@ -202,9 +204,7 @@ namespace motion_planning{
 
             if (std::isnan(nearest_node->x) || std::isnan(nearest_node->y)) {
                 std::cerr << "Error: Nearest node is NaN." << std::endl;
-                std::vector<std::shared_ptr<Node>> error_node;
                 continue;
-                return error_node;
             }
 
             if (debug){
@@ -227,6 +227,7 @@ namespace motion_planning{
 
             if (new_node->x < 0 || new_node->x >= grid_map.cols || new_node->y < 0 || new_node->y >= grid_map.rows) {
                 std::cerr << "Error: New node is outside the boundaries of the map." << std::endl;
+                std::cerr << "Should not happen! Check steering function!";
                 std::vector<std::shared_ptr<Node>> error_node;
                 return error_node;
             }
@@ -252,14 +253,14 @@ namespace motion_planning{
                 } else {
                     std::cerr << "Failed to insert node into QuadTree" << std::endl;
                     std::cerr << "Node: (" << new_node->x << ", " << new_node->y << ")" << std::endl;
-                    std::cerr << "Baudaries: (" << boundary.x << ", " << boundary.y << ")" << std::endl;
+                    std::cerr << "Boundaries: (" << boundary.x << ", " << boundary.y << ")" << std::endl;
                     std::cerr << "Iteration: " << i << std::endl;
                 }
                 
             } catch (const std::runtime_error& e) {
                 std::cerr << "Failed to insert node into QuadTree: " << e.what() << std::endl;
                 std::cerr << "Node: (" << new_node->x << ", " << new_node->y << ")" << std::endl;
-                std::cerr << "Baudaries: (" << boundary.x << ", " << boundary.y << ")" << std::endl;
+                std::cerr << "Boundaries: (" << boundary.x << ", " << boundary.y << ")" << std::endl;
                 std::cerr << "Iteration: " << i << std::endl;
                 std::vector<std::shared_ptr<Node>> error_node;
                 return error_node;
@@ -340,7 +341,7 @@ namespace motion_planning{
         cv::circle(image, cv::Point(static_cast<int>(start->x), static_cast<int>(start->y)), 6, cv::Scalar(0, 0, 255), 1);
         cv::circle(image, cv::Point(static_cast<int>(end->x), static_cast<int>(end->y)), 6, cv::Scalar(0, 0, 255), 1);
 
-        // rechape to 500,500
+        // reshape to 500,500
         cv::resize(image, image, cv::Size(500, 500), 0, 0, cv::INTER_NEAREST);
 
         cv::imshow("RRT", image);
