@@ -29,8 +29,8 @@ void Node::set_position(Point pos){
     this->y = pos.m_y;
 }
 
-//RRTSTAR class Constructors
-RRTSTAR::RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter, QTree::QuadTree<Node>*& qtree) {
+//RRTStar class Constructors
+RRTStar::RRTStar(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter, QTree::QuadTree<Node>*& qtree) {
     //set the default values and set the first node as the staring point
     startPoint = start_pos;
     destination = end_pos;
@@ -53,13 +53,13 @@ RRTSTAR::RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh,
 }
 
 //Destructor
-RRTSTAR::~RRTSTAR()
+RRTStar::~RRTStar()
 {
     deleteNodes(root);
 }
 
-//RRTSTAR methods
-std::vector<Point> RRTSTAR::planner() {
+//RRTStar methods
+std::vector<Point> RRTStar::planner() {
     // while iter < MAX_Iterations
     while (this->m_num_itr < this->m_max_iter)
     {
@@ -118,11 +118,11 @@ std::vector<Point> RRTSTAR::planner() {
         return {};
     }
     else {
-        return RRTSTAR::planFromBestPath(); //after reaching the maximum iteration number retun the path that has the lowest cost.
+        return RRTStar::planFromBestPath(); //after reaching the maximum iteration number retun the path that has the lowest cost.
     }     
 }
 
-Node RRTSTAR::getRandomNode() {
+Node RRTStar::getRandomNode() {
     std::random_device rand_rd;
     std::mt19937 rand_gen(rand_rd());
     std::uniform_real_distribution<> rand_unif(0, 1.0);
@@ -144,7 +144,7 @@ Node RRTSTAR::getRandomNode() {
     return {};
 }
 
-Node* RRTSTAR::findNearest(const Point point) {
+Node* RRTStar::findNearest(const Point point) {
     Node* local_closest[omp_get_max_threads()]; 
     float local_minDist[omp_get_max_threads()];
 
@@ -176,7 +176,7 @@ Node* RRTSTAR::findNearest(const Point point) {
     return fn_closest;
 }
 
-void RRTSTAR::findNearNeighbors(const Point point, const float radius, std::vector<Node*>& neighbor_nodes) { // Find neighbor nodes of the given node within the defined radius
+void RRTStar::findNearNeighbors(const Point point, const float radius, std::vector<Node*>& neighbor_nodes) { // Find neighbor nodes of the given node within the defined radius
     for (size_t i = 0; i < this->nodes.size(); i++) { //iterate through all nodes to see which ones fall inside the circle with the given radius.
         if (this->distance(point, this->nodes[i]->position) < radius) {
             neighbor_nodes.push_back(this->nodes[i]);
@@ -184,20 +184,20 @@ void RRTSTAR::findNearNeighbors(const Point point, const float radius, std::vect
     }
 }
 
-float RRTSTAR::distance(const Point p, const Point q) { //Find the distance between two points.
+float RRTStar::distance(const Point p, const Point q) { //Find the distance between two points.
     Point dist_v = p - q;
     return sqrt(powf(dist_v.m_x, 2) + powf(dist_v.m_y, 2));
 }
 
-float RRTSTAR::getCost(const Node* N) { //get the cost current node (traveling from the given node to the root)
+float RRTStar::getCost(const Node* N) { //get the cost current node (traveling from the given node to the root)
     return N->cost;
 }
 
-float RRTSTAR::pathCost(const Node* Np, const Node* Nq) { //Compute the distance between the position of two nodes
+float RRTStar::pathCost(const Node* Np, const Node* Nq) { //Compute the distance between the position of two nodes
     return this->distance(Nq->position, Np->position);
 }
 
-Point RRTSTAR::steer(const Node n_rand, const Node* n_nearest) { // Steer from new node towards the nearest neighbor and interpolate if the new node is too far away from its neighbor
+Point RRTStar::steer(const Node n_rand, const Node* n_nearest) { // Steer from new node towards the nearest neighbor and interpolate if the new node is too far away from its neighbor
 
     if (this->distance(n_rand.position, n_nearest->position) >this->m_step_size) { //check if the distance between two nodes is larger than the maximum travel step size
         Point steer_p = n_rand.position - n_nearest->position;
@@ -210,7 +210,7 @@ Point RRTSTAR::steer(const Node n_rand, const Node* n_nearest) { // Steer from n
     }
 }
 
-Node* RRTSTAR::findParent(std::vector<Node*> v_n_near,Node* n_nearest, Node* n_new) {
+Node* RRTStar::findParent(std::vector<Node*> v_n_near,Node* n_nearest, Node* n_new) {
     Node* fp_n_parent = n_nearest; //create new note to find the parent
     float fp_cmin = this->getCost(n_nearest) + this->pathCost(n_nearest, n_new); // Update cost of reaching "N_new" from "N_Nearest"
     for (size_t j = 0; j < v_n_near.size(); j++) { //In all members of "N_near", check if "N_new" can be reached from a different parent node with cost lower than Cmin, and without colliding with the obstacle.
@@ -224,11 +224,11 @@ Node* RRTSTAR::findParent(std::vector<Node*> v_n_near,Node* n_nearest, Node* n_n
     return fp_n_parent;
 }
 
-std::vector<Point> RRTSTAR::get_available_points(){
+std::vector<Point> RRTStar::get_available_points(){
     return this->Available_Points;
 }
 
-void RRTSTAR::insertNode(Node* n_parent, Node* n_new) { //Append the new node to the tree.
+void RRTStar::insertNode(Node* n_parent, Node* n_new) { //Append the new node to the tree.
     n_new->parent = n_parent; //update the parent of new node
     n_new->cost = n_parent->cost + this->pathCost(n_parent, n_new);//update the cost of new node
     n_parent->children.push_back(n_new); //update the children of the nearest node to the new node
@@ -238,7 +238,7 @@ void RRTSTAR::insertNode(Node* n_parent, Node* n_new) { //Append the new node to
     this->lastnode = n_new;//inform the tree which node is just added
 }
 
-void RRTSTAR::reWire(Node* n_new, std::vector<Node*>& neighbor_nodes) { // Rewire the tree to decrease the cost of the path. 
+void RRTStar::reWire(Node* n_new, std::vector<Node*>& neighbor_nodes) { // Rewire the tree to decrease the cost of the path. 
     for (size_t j = 0; j < neighbor_nodes.size(); j++) {  // Search through nodes in "N_near" and see if changing their parent to "N_new" lowers the cost of the path. Also check the obstacles
         Node* rw_n_near = neighbor_nodes[j];
         if ((true) &&
@@ -259,7 +259,7 @@ void RRTSTAR::reWire(Node* n_new, std::vector<Node*>& neighbor_nodes) { // Rewir
 }
 
 // Here can I parallelize TOO.
-void RRTSTAR::updateChildrenCost(Node* n, const float costdifference) {//Update the cost of all children of a node after rewiring 
+void RRTStar::updateChildrenCost(Node* n, const float costdifference) {//Update the cost of all children of a node after rewiring 
     for (size_t i = 0; i < n->children.size(); i++)
     {
         n->children[i]->cost = n->children[i]->cost - costdifference;
@@ -267,38 +267,38 @@ void RRTSTAR::updateChildrenCost(Node* n, const float costdifference) {//Update 
     }
 }
 
-bool RRTSTAR::reached() { //check if the last node in the tree is close to the end position.
+bool RRTStar::reached() { //check if the last node in the tree is close to the end position.
     if (this->distance(this->lastnode->position, this->destination) < m_destination_threshhold) {
         return true;
     }
     return false;
 }
 
-void RRTSTAR::setStepSize(const float step) { // set the step size (the maximum distance between two nodes) for the RRT* algorithm
+void RRTStar::setStepSize(const float step) { // set the step size (the maximum distance between two nodes) for the RRT* algorithm
     this->m_step_size = step;
 }
 
-float RRTSTAR::getStepSize() { // get the step size (the maximum distance between two nodes) of the RRT* algorithm
+float RRTStar::getStepSize() { // get the step size (the maximum distance between two nodes) of the RRT* algorithm
     return this->m_step_size;
 }
 
-void RRTSTAR::setMaxIterations(const int iter) { // set the maximum number of iteration for the RRT* algorithm
+void RRTStar::setMaxIterations(const int iter) { // set the maximum number of iteration for the RRT* algorithm
     this->m_max_iter = iter;
 }
 
-int RRTSTAR::getMaxIterations() { //get the maximum number of iteration of the RRT* algorithm
+int RRTStar::getMaxIterations() { //get the maximum number of iteration of the RRT* algorithm
     return this->m_max_iter;
 }
 
-int RRTSTAR::getCurrentIterations() {
+int RRTStar::getCurrentIterations() {
     return this->m_num_itr;
 }
 
-const std::vector<Node*> RRTSTAR::getBestPath() const {
+const std::vector<Node*> RRTStar::getBestPath() const {
     return this->bestpath;
 }
 
-std::vector<Point> RRTSTAR::generatePlan(Node* n) {// generate shortest path to destination.
+std::vector<Point> RRTStar::generatePlan(Node* n) {// generate shortest path to destination.
     while (n != NULL) { // It goes from the given node to the root
         this->path.push_back(n);
         n = n->parent;
@@ -311,7 +311,7 @@ std::vector<Point> RRTSTAR::generatePlan(Node* n) {// generate shortest path to 
     return this->planFromBestPath();
 }
 
-std::vector<Point> RRTSTAR::planFromBestPath() { // Generate plan (vector of points) from the best plan so far.
+std::vector<Point> RRTStar::planFromBestPath() { // Generate plan (vector of points) from the best plan so far.
     std::vector<Point> pfb_generated_plan;
     // Accelerate I/O here. 
     for (size_t i = 0; i < this->bestpath.size(); i++) { // It goes from a node near destination to the root
@@ -320,7 +320,7 @@ std::vector<Point> RRTSTAR::planFromBestPath() { // Generate plan (vector of poi
     return pfb_generated_plan;
 }
 
-void RRTSTAR::deleteNodes(Node* root){ //Free up memory when RRTSTAR destructor is called.
+void RRTStar::deleteNodes(Node* root){ //Free up memory when RRTStar destructor is called.
 
     for (auto& i : root->children) {
         deleteNodes(i);
@@ -328,7 +328,7 @@ void RRTSTAR::deleteNodes(Node* root){ //Free up memory when RRTSTAR destructor 
     delete root;
 }
 
-void RRTSTAR::plotBestPath() {
+void RRTStar::plotBestPath() {
     // Create a white image
     cv::Mat img(this->m_map.size(), CV_8UC3, cv::Scalar(255, 255, 255));
 
@@ -352,7 +352,7 @@ void RRTSTAR::plotBestPath() {
     cv::waitKey(1);
 }
 
-bool RRTSTAR::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd) {
+bool RRTStar::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd) {
     int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
     int dy = -abs(yEnd - yBegin), sy = yBegin < yEnd ? 1 : -1; 
     int error = dx + dy, error2;

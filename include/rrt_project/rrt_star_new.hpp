@@ -8,7 +8,7 @@
 #include <opencv2/opencv.hpp>
 #include "QTree.hpp"
 
-// ======= 3 Classes : Point, Node, RRTSTAR ============== //
+// ======= 3 Classes : Point, Node, RRTStar ============== //
 
 /**
 * @brief Class for storing position of a point in the space
@@ -78,7 +78,7 @@ public:
 /**
  * @brief Class for RRT* objects
  */
-class RRTSTAR
+class RRTStar
 {
 private:
     // Private Data Members 
@@ -110,7 +110,7 @@ public:
     float m_cost_bestpath;
 
     /**
-    * @brief construct the RRTSTAR class
+    * @brief construct the RRTStar class
     * @param Point start point
     * @param Point end point (i.e., destination point)
     * @param float radius. Within a radius of r, RRT* will find all neighbour nodes of a node
@@ -120,10 +120,10 @@ public:
     * @param int max iterations. The maximum number of iterations for RRT* exploration
     * @param QTree::QuadTree* qtree. The quadtree used for RRT* exploration
      */
-    RRTSTAR(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter, QTree::QuadTree<Node>*& qtree);
+    RRTStar(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter, QTree::QuadTree<Node>*& qtree);
 
     //Destructor
-    ~RRTSTAR();
+    ~RRTStar();
     //Methods
 
    /**
@@ -244,7 +244,7 @@ public:
     * @brief Rewire the tree to decrease the cost of the path. Search through nodes in "N_near" and see if changing their parent to "N_new" lowers the cost of the path. If so, rewire the tree and
     *add them as the children of "N_new" and update the cost of the path.
     * @param Node* qNew (i.e., the new node)
-    * @param std::vector<Node*> neighbor_nodes (i.e, neighbor nodes within the RRTSTAR_RADIUS)
+    * @param std::vector<Node*> neighbor_nodes (i.e, neighbor nodes within the RRTStar_RADIUS)
     * @return void
      */
     void reWire(Node* n_new, std::vector<Node*>& neighbor_nodes);
@@ -304,7 +304,7 @@ public:
     const std::pair<float, float> getMapSize() const;
 
     /**
-    * @brief Generate plan (vector of points) from a point near the destination. Also, set the best plan so far into the RRTSTAR class.
+    * @brief Generate plan (vector of points) from a point near the destination. Also, set the best plan so far into the RRTStar class.
     * @param Node* n (i.e., a point near the destination)
     * @return std::vector<Point> plan (vector of points)
     */
