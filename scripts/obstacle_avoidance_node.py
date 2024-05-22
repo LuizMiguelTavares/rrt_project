@@ -54,10 +54,10 @@ class ObstacleAvoidanceScan:
 
         self.namespace = rospy.get_namespace()
         
-        self.velocity_sub = rospy.Subscriber(velocity_topic, 
-                                            TwistStamped,
-                                            self.velocity_callback,
-                                            queue_size=10)
+        # self.velocity_sub = rospy.Subscriber(velocity_topic, 
+        #                                     TwistStamped,
+        #                                     self.velocity_callback,
+        #                                     queue_size=10)
 
         self.scan_sub = rospy.Subscriber(self.scan_topic, 
                                             LaserScan, 
@@ -81,9 +81,9 @@ class ObstacleAvoidanceScan:
 
         rospy.loginfo(f"{self.namespace.strip('/')} obstacle avoidance node started")
         
-    def velocity_callback(self, velocity_data):
-        self.linear_velocity = velocity_data.twist.linear.x
-        self.angular_velocity = velocity_data.twist.angular.z
+    # def velocity_callback(self, velocity_data):
+    #     self.linear_velocity = velocity_data.twist.linear.x
+    #     self.angular_velocity = velocity_data.twist.angular.z
 
     def scan_callback(self, scan_data):
         self.laser_frame = scan_data.header.frame_id
@@ -269,10 +269,12 @@ class ObstacleAvoidanceScan:
             robot_points = self.robot_points
             observation_radius_gain = self.observation_radius_gain
             
-            observation_radius = observation_radius_gain * np.sqrt(self.linear_velocity**2 + self.angular_velocity**2)
+            # observation_radius = observation_radius_gain * np.sqrt(self.linear_velocity**2 + self.angular_velocity**2)
             
-            if observation_radius < self.min_observation_radius:
-                observation_radius = self.min_observation_radius
+            observation_radius = self.min_observation_radius
+            
+            # if observation_radius < self.min_observation_radius:
+            #     observation_radius = self.min_observation_radius
             
             self.observation_radius_cylinder_marker(observation_radius)
             
