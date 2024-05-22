@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf
   sensor_msgs
-  obstacle_avoidance_drone_follower 
+  obstacle_avoidance_drone_follower
   nav_msgs
   geometry_msgs
   map_msgs
@@ -41,7 +41,6 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
-
 include_directories(
   include/rrt_project
   include/header_lib
@@ -49,25 +48,21 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
-# Declare a C++ library
-add_library(motion_planning_lib
-  src/rrt.cpp
+# add_library(image_transformation
+#   src/image_transformation.cpp
+# )
+
+add_library(motion_planning_lib INTERFACE)
+target_include_directories(motion_planning_lib INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/header_lib)
+target_link_libraries(motion_planning_lib INTERFACE ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
+
+add_library(rrt_star_lib
+  src/rrt_star_new.cpp
 )
 
-add_library(image_transformation
-  src/image_transformation.cpp
+target_link_libraries(rrt_star_lib
+  ${OpenCV_LIBS} motion_planning_lib
 )
-
-# Specify libraries to link a library or executable target against
-target_link_libraries(motion_planning_lib
-  ${OpenCV_LIBS}
-)
-
-add_library(motion_planning_lib2 INTERFACE)
-target_include_directories(motion_planning_lib2 INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/header_lib)
-
-# Specify libraries to link a library or executable target against
-target_link_libraries(motion_planning_lib2 INTERFACE ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -82,19 +77,16 @@ target_link_libraries(motion_planning_lib2 INTERFACE ${OpenCV_LIBS} OpenMP::Open
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(rrt_path_node src/nodes/rrt_path.cpp)
-add_dependencies(rrt_path_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(rrt_path_node ${catkin_LIBRARIES} motion_planning_lib2)
 
-add_executable(rrt_simple src/rrt_simple_map.cpp src/image_transformation.cpp)
-target_link_libraries(rrt_simple ${catkin_LIBRARIES} ${OpenCV_LIBS})
+# add_executable(rrt_path_node src/nodes/rrt_path.cpp)
+# add_dependencies(rrt_path_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(rrt_path_node ${catkin_LIBRARIES} motion_planning_lib)
 
-## Dont work
-add_executable(rrt_test src/simple_map_test.cpp src/image_transformation.cpp)
-target_link_libraries(rrt_test ${OpenCV_LIBS} motion_planning_lib)
+# add_executable(rrt_simple src/rrt_simple_map.cpp src/image_transformation.cpp)
+# target_link_libraries(rrt_simple ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
-add_executable(mapping_node src/nodes/mapping.cpp)
-target_link_libraries(mapping_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
+# add_executable(mapping_node src/nodes/mapping.cpp)
+# target_link_libraries(mapping_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(publish_robot_potential_points src/nodes/robot_points.cpp)
 target_link_libraries(publish_robot_potential_points ${catkin_LIBRARIES})
@@ -109,21 +101,21 @@ add_executable(merge_local_map src/nodes/merge_local_map.cpp)
 target_link_libraries(merge_local_map ${catkin_LIBRARIES})
 
 add_executable(global_rrt src/nodes/global_rrt.cpp)
-target_link_libraries(global_rrt ${catkin_LIBRARIES} motion_planning_lib2)
+target_link_libraries(global_rrt ${catkin_LIBRARIES} motion_planning_lib)
 
 add_executable(local_rrt src/nodes/local_rrt.cpp)
-target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib2)
+target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib)
 
-add_executable(test_refactor src/nodes/test_refactor.cpp)
-target_link_libraries(test_refactor ${catkin_LIBRARIES} motion_planning_lib2 ${OpenCV_LIBS})
+# add_executable(test_refactor src/nodes/test_refactor.cpp)
+# target_link_libraries(test_refactor ${catkin_LIBRARIES} motion_planning_lib ${OpenCV_LIBS})
 
-add_executable(test_rrt_ptr src/test_rrt_ptr.cpp)
-target_link_libraries(test_rrt_ptr ${catkin_LIBRARIES} motion_planning_lib2 image_transformation ${OpenCV_LIBS})
+# add_executable(test_rrt_ptr src/test_rrt_ptr.cpp)
+# target_link_libraries(test_rrt_ptr ${catkin_LIBRARIES} motion_planning_lib image_transformation ${OpenCV_LIBS})
 
-add_executable(minimal_local_rrt src/nodes/minimal_local_rrt.cpp)
-target_link_libraries(minimal_local_rrt ${catkin_LIBRARIES} motion_planning_lib2 ${OpenCV_LIBS})
+# add_executable(minimal_local_rrt src/nodes/minimal_local_rrt.cpp)
+# target_link_libraries(minimal_local_rrt ${catkin_LIBRARIES} motion_planning_lib ${OpenCV_LIBS})
 
-add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+# add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # # find_package(MLPACK REQUIRED)
 # find_package(Armadillo REQUIRED)
