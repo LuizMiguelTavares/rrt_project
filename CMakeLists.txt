@@ -103,6 +103,9 @@ target_link_libraries(merge_local_map ${catkin_LIBRARIES})
 add_executable(global_rrt src/nodes/global_rrt.cpp)
 target_link_libraries(global_rrt ${catkin_LIBRARIES} motion_planning_lib)
 
+add_executable(global_rrt_star src/nodes/global_rrt_star.cpp)
+target_link_libraries(global_rrt_star ${catkin_LIBRARIES} rrt_star_lib)
+
 add_executable(local_rrt src/nodes/local_rrt.cpp)
 target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib)
 
