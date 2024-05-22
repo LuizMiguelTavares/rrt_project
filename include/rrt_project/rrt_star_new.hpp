@@ -6,7 +6,8 @@
 #include <random>
 #include <optional>
 #include <opencv2/opencv.hpp>
-#include "QTree.hpp"
+#include "QTree_ptr.hpp"
+#include <memory>
 
 // ======= 3 Classes : Point, Node, RRTStar ============== //
 
@@ -59,8 +60,8 @@ inline Point operator /(const Point& left, T right)
 class Node {
 public:
     // Data Members 
-    std::vector<Node*> children;
-    Node* parent;
+    std::vector<std::shared_ptr<Node>> children;
+    std::shared_ptr<Node> parent;
     Point position;
     float x;
     float y;
@@ -82,12 +83,12 @@ class RRTStar
 {
 private:
     // Private Data Members 
-    Node* root;
+    std::shared_ptr<Node> root;
     Point startPoint;
     Point destination;
-    QTree::QuadTree<Node>* qtree;
-    std::vector<Node*> path;
-    std::vector<Node*> bestpath;
+    std::shared_ptr<QTree::QuadTree<Node>> qtree;
+    std::vector<std::shared_ptr<Node>> path;
+    std::vector<std::shared_ptr<Node>> bestpath;
     std::vector<Point> Available_Points;
     
     int m_num_itr;
@@ -105,8 +106,8 @@ public:
     float Compute_time;
 
     // public Data Members 
-    std::vector<Node*> nodes;
-    Node* lastnode;
+    std::vector<std::shared_ptr<Node>> nodes;
+    std::shared_ptr<Node> lastnode;
     float m_cost_bestpath;
 
     /**
@@ -118,9 +119,8 @@ public:
     * @param cv::Mat map. The map used for RRT* exploration
     * @param float step size. The step size for RRT* exploration
     * @param int max iterations. The maximum number of iterations for RRT* exploration
-    * @param QTree::QuadTree* qtree. The quadtree used for RRT* exploration
      */
-    RRTStar(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter, QTree::QuadTree<Node>*& qtree);
+    RRTStar(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter);
 
     //Destructor
     ~RRTStar();
@@ -180,17 +180,17 @@ public:
     /**
      @brief Find the nearest Node to the new random node.
    * @param Point point (i.e., new random point)
-   * @return Node* nearest node
+   * @return std::shared_ptr<Node> nearest node
     */
-    Node* findNearest(const Point point);
+    std::shared_ptr<Node> findNearest(const Point point);
 
     /**
     * @brief Find neighbor nodes of the given node within the defined radius
     * @param Point point (i.e., the given node) 
     * @param float radius (i.e.,  Within the radius, the method will find all existing neighbor nodes)
-    * @param std::vector<Node*> neighbor_nodes (i.e, the found neighbor nodes)
+    * @param std::vector<std::shared_ptr<Node>> neighbor_nodes (i.e, the found neighbor nodes)
     */
-    void findNearNeighbors(const Point point, const float radius, std::vector<Node*>& neighbor_nodes);
+    void findNearNeighbors(const Point point, const float radius, std::vector<std::shared_ptr<Node>>& neighbor_nodes);
 
     /**
     * @brief Find the distance between two points.
@@ -202,60 +202,60 @@ public:
 
     /**
     * @brief Return the cost current node (traveling from the given node to the root)
-    * @param Node* N (i.e., new random node) 
+    * @param std::shared_ptr<Node> N (i.e., new random node) 
     * @return double cost
     */
-    float getCost(const Node* N);
+    float getCost(const std::shared_ptr<Node> N);
 
     /**
     * @brief Compute the distance between the position of two nodes
-    * @param Node* Np (i.e., first node) 
-    * @param Node* Nq (i.e., second node)
+    * @param std::shared_ptr<Node> Np (i.e., first node) 
+    * @param std::shared_ptr<Node> Nq (i.e., second node)
     * @return double cost
     */
-    float pathCost(const Node* Np, const Node* Nq);
+    float pathCost(const std::shared_ptr<Node> Np, const std::shared_ptr<Node> Nq);
 
     /**
     * @brief Steer from new node towards the nearest neighbor and interpolate if the new node is too far away from its neighbor
     * @param Node N_rand (i.e., the new node)
-    * @param Node* N_Nearest (i.e., the neighbor of the new node)
+    * @param std::shared_ptr<Node> N_Nearest (i.e., the neighbor of the new node)
     * @return Point the position of the interpolated node.
     */
-    Point steer(const Node n_rand, const Node* n_nearest);
+    Point steer(const Node n_rand, const std::shared_ptr<Node> n_nearest);
 
     /**
     * @brief Append the new node to the tree.
-    * @param Node* N_Nearest (i.e., the nearest node to the new node)
-    * @param Node* N_New (i.e., the new node)
+    * @param std::shared_ptr<Node> N_Nearest (i.e., the nearest node to the new node)
+    * @param std::shared_ptr<Node> N_New (i.e., the new node)
     * @return Void
     */
-    void insertNode(Node* n_nearest, Node* n_new);
+    void insertNode(std::shared_ptr<Node> n_nearest, std::shared_ptr<Node> n_new);
 
     /**
     * @brief Find the parent of the given node (the node that is near and has the lowest path cost)
-    * @param Node* v_n_near (i.e., the vector of nodes that are in a circle around the new node)
-    * @param Node* N_Nearest (i.e., the nearest node to the new node)
-    * @param Node* N_New (i.e., the new node)
-    * @return Node* parent
+    * @param std::shared_ptr<Node> v_n_near (i.e., the vector of nodes that are in a circle around the new node)
+    * @param std::shared_ptr<Node> N_Nearest (i.e., the nearest node to the new node)
+    * @param std::shared_ptr<Node> N_New (i.e., the new node)
+    * @return std::shared_ptr<Node> parent
     */
-    Node* findParent(std::vector<Node*> v_n_near, Node* n_nearest, Node* n_new);
+    std::shared_ptr<Node> findParent(std::vector<std::shared_ptr<Node>> v_n_near, std::shared_ptr<Node> n_nearest, std::shared_ptr<Node> n_new);
 
     /**
     * @brief Rewire the tree to decrease the cost of the path. Search through nodes in "N_near" and see if changing their parent to "N_new" lowers the cost of the path. If so, rewire the tree and
     *add them as the children of "N_new" and update the cost of the path.
-    * @param Node* qNew (i.e., the new node)
-    * @param std::vector<Node*> neighbor_nodes (i.e, neighbor nodes within the RRTStar_RADIUS)
+    * @param std::shared_ptr<Node> qNew (i.e., the new node)
+    * @param std::vector<std::shared_ptr<Node>> neighbor_nodes (i.e, neighbor nodes within the RRTStar_RADIUS)
     * @return void
      */
-    void reWire(Node* n_new, std::vector<Node*>& neighbor_nodes);
+    void reWire(std::shared_ptr<Node> n_new, std::vector<std::shared_ptr<Node>>& neighbor_nodes);
 
     /**
     * @brief Update the cost of all children of a node after rewiring 
-    * @param Node* n (i.e., the given node)
+    * @param std::shared_ptr<Node> n (i.e., the given node)
     * @param double CostDifference: the amount by which the cost of all children of the given node must decrease.
     * @return void
     */
-    void updateChildrenCost(Node* n, const float costdifference);
+    void updateChildrenCost(std::shared_ptr<Node> n, const float costdifference);
 
     /**
     * @brief Check if the last node in the tree is close to the end position. 
@@ -299,16 +299,16 @@ public:
     */
     int getCurrentIterations();
 
-    const std::vector<Node*> getBestPath() const;
+    const std::vector<std::shared_ptr<Node>> getBestPath() const;
 
     const std::pair<float, float> getMapSize() const;
 
     /**
     * @brief Generate plan (vector of points) from a point near the destination. Also, set the best plan so far into the RRTStar class.
-    * @param Node* n (i.e., a point near the destination)
+    * @param std::shared_ptr<Node> n (i.e., a point near the destination)
     * @return std::vector<Point> plan (vector of points)
     */
-    std::vector<Point> generatePlan(Node* n);
+    std::vector<Point> generatePlan(std::shared_ptr<Node> n);
 
     /**
     * @brief Generate plan (vector of points) from the best plan so far.
@@ -319,9 +319,9 @@ public:
 
     /**
      * @brief Delete all nodes 
-     * @param Node* root
+     * @param std::shared_ptr<Node> root
      */
-    void deleteNodes(Node* root);
+    void deleteNodes(std::shared_ptr<Node> root);
 
     void plotBestPath();
 

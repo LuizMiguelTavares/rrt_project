@@ -8,6 +8,7 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 #include <atomic>
+#include <memory>
 #include "omp.h"
 
 //Point class Constructors
@@ -30,7 +31,7 @@ void Node::set_position(Point pos){
 }
 
 //RRTStar class Constructors
-RRTStar::RRTStar(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter, QTree::QuadTree<Node>*& qtree) {
+RRTStar::RRTStar(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter) {
     //set the default values and set the first node as the staring point
     startPoint = start_pos;
     destination = end_pos;
@@ -49,7 +50,6 @@ RRTStar::RRTStar(Point start_pos, Point end_pos, float radius, float end_thresh,
     m_destination_threshhold = end_thresh;
     m_num_itr = 0;
     m_cost_bestpath = 0;
-    this->qtree = qtree;
 }
 
 //Destructor
@@ -67,16 +67,16 @@ std::vector<Point> RRTStar::planner() {
         Node plan_n_rand = this->getRandomNode(); //Generate a random node
         if (plan_n_rand.position.m_x!=0 && plan_n_rand.position.m_y!=0) {
             
-            Node* plan_n_nearest = this->qtree->nearest_neighbor(&plan_n_rand);
-            // Node* plan_n_nearest = this->findNearest(plan_n_rand.position);  //Find the closest node to the new random node.
+            std::shared_ptr<Node> plan_n_nearest = this->qtree->nearest_neighbor(&plan_n_rand);
+            // std::shared_ptr<Node> plan_n_nearest = this->findNearest(plan_n_rand.position);  //Find the closest node to the new random node.
             Point plan_p_new = this->steer(plan_n_rand, plan_n_nearest); //Steer from "N_Nearest" towards "N_rand": interpolate if node is too far away.
             bool intersection = this->check_obstacle_intersection(this->m_map, plan_n_nearest->position.m_x, plan_n_nearest->position.m_y, plan_p_new.m_x, plan_p_new.m_y);
         
         if (!intersection) { // Check obstacle
-                    Node* plan_n_new = new Node; //create new node to store the position of the steered node.
+                    std::shared_ptr<Node> plan_n_new = new Node; //create new node to store the position of the steered node.
                     plan_n_new->set_position(plan_p_new); //set the position of the new node
 
-                    std::vector<Node*> plan_v_n_near; //create a vector for neighbor nodes
+                    std::vector<std::shared_ptr<Node>> plan_v_n_near; //create a vector for neighbor nodes
                     // QTree::Rectangle boundary(grid_map.cols/2, grid_map.rows/2, grid_map.cols, grid_map.rows);
                     QTree::Rectangle nn(plan_n_new->x, plan_n_new->y, m_rrstar_radius*2, m_rrstar_radius*2);
                     this->qtree->query(nn, plan_v_n_near);
@@ -84,7 +84,7 @@ std::vector<Point> RRTStar::planner() {
                     this->qtree->insert(plan_n_new); // Insert the new node to the quadtree
 
                     // this->findNearNeighbors(plan_n_new->position, this->m_rrstar_radius, plan_v_n_near); // Find nearest neighbors with a given radius from new node.
-                    Node* plan_n_parent=this->findParent(plan_v_n_near,plan_n_nearest,plan_n_new); //Find the parent of the given node (the node that is near and has the lowest path cost)
+                    std::shared_ptr<Node> plan_n_parent=this->findParent(plan_v_n_near,plan_n_nearest,plan_n_new); //Find the parent of the given node (the node that is near and has the lowest path cost)
                     this->insertNode(plan_n_parent, plan_n_new);//Add N_new to node list.
                     this->reWire(plan_n_new, plan_v_n_near); //rewire the tree
 
@@ -101,7 +101,7 @@ std::vector<Point> RRTStar::planner() {
                         }
                         else {
                             // Havent reach the goal, ??? Why here.
-                            Node* Plan_NearNodeEnd = this->findNearest(this->destination);
+                            std::shared_ptr<Node> Plan_NearNodeEnd = this->findNearest(this->destination);
                             if (Plan_NearNodeEnd->cost < this->m_cost_bestpath) {
                                 return this->generatePlan(Plan_NearNodeEnd);
                             }
@@ -144,8 +144,8 @@ Node RRTStar::getRandomNode() {
     return {};
 }
 
-Node* RRTStar::findNearest(const Point point) {
-    Node* local_closest[omp_get_max_threads()]; 
+std::shared_ptr<Node> RRTStar::findNearest(const Point point) {
+    std::shared_ptr<Node> local_closest[omp_get_max_threads()]; 
     float local_minDist[omp_get_max_threads()];
 
     #pragma omp parallel
@@ -164,7 +164,7 @@ Node* RRTStar::findNearest(const Point point) {
         }
     }
 
-    Node* fn_closest = NULL;
+    std::shared_ptr<Node> fn_closest = NULL;
     float fn_minDist = FLT_MAX;
     for (int i = 0; i < omp_get_max_threads(); i++) {
         if (local_minDist[i] < fn_minDist) {
@@ -176,7 +176,7 @@ Node* RRTStar::findNearest(const Point point) {
     return fn_closest;
 }
 
-void RRTStar::findNearNeighbors(const Point point, const float radius, std::vector<Node*>& neighbor_nodes) { // Find neighbor nodes of the given node within the defined radius
+void RRTStar::findNearNeighbors(const Point point, const float radius, std::vector<std::shared_ptr<Node>>& neighbor_nodes) { // Find neighbor nodes of the given node within the defined radius
     for (size_t i = 0; i < this->nodes.size(); i++) { //iterate through all nodes to see which ones fall inside the circle with the given radius.
         if (this->distance(point, this->nodes[i]->position) < radius) {
             neighbor_nodes.push_back(this->nodes[i]);
@@ -189,15 +189,15 @@ float RRTStar::distance(const Point p, const Point q) { //Find the distance betw
     return sqrt(powf(dist_v.m_x, 2) + powf(dist_v.m_y, 2));
 }
 
-float RRTStar::getCost(const Node* N) { //get the cost current node (traveling from the given node to the root)
+float RRTStar::getCost(const std::shared_ptr<Node> N) { //get the cost current node (traveling from the given node to the root)
     return N->cost;
 }
 
-float RRTStar::pathCost(const Node* Np, const Node* Nq) { //Compute the distance between the position of two nodes
+float RRTStar::pathCost(const std::shared_ptr<Node> Np, const std::shared_ptr<Node> Nq) { //Compute the distance between the position of two nodes
     return this->distance(Nq->position, Np->position);
 }
 
-Point RRTStar::steer(const Node n_rand, const Node* n_nearest) { // Steer from new node towards the nearest neighbor and interpolate if the new node is too far away from its neighbor
+Point RRTStar::steer(const Node n_rand, const std::shared_ptr<Node> n_nearest) { // Steer from new node towards the nearest neighbor and interpolate if the new node is too far away from its neighbor
 
     if (this->distance(n_rand.position, n_nearest->position) >this->m_step_size) { //check if the distance between two nodes is larger than the maximum travel step size
         Point steer_p = n_rand.position - n_nearest->position;
@@ -210,11 +210,11 @@ Point RRTStar::steer(const Node n_rand, const Node* n_nearest) { // Steer from n
     }
 }
 
-Node* RRTStar::findParent(std::vector<Node*> v_n_near,Node* n_nearest, Node* n_new) {
-    Node* fp_n_parent = n_nearest; //create new note to find the parent
+std::shared_ptr<Node> RRTStar::findParent(std::vector<std::shared_ptr<Node>> v_n_near,std::shared_ptr<Node> n_nearest, std::shared_ptr<Node> n_new) {
+    std::shared_ptr<Node> fp_n_parent = n_nearest; //create new note to find the parent
     float fp_cmin = this->getCost(n_nearest) + this->pathCost(n_nearest, n_new); // Update cost of reaching "N_new" from "N_Nearest"
     for (size_t j = 0; j < v_n_near.size(); j++) { //In all members of "N_near", check if "N_new" can be reached from a different parent node with cost lower than Cmin, and without colliding with the obstacle.
-        Node* fp_n_near = v_n_near[j];
+        std::shared_ptr<Node> fp_n_near = v_n_near[j];
         if ((true) &&
             (this->getCost(fp_n_near) + this->pathCost(fp_n_near, n_new)) < fp_cmin) {
             fp_n_parent = fp_n_near; // a near node with minimun cost of path
@@ -228,7 +228,7 @@ std::vector<Point> RRTStar::get_available_points(){
     return this->Available_Points;
 }
 
-void RRTStar::insertNode(Node* n_parent, Node* n_new) { //Append the new node to the tree.
+void RRTStar::insertNode(std::shared_ptr<Node> n_parent, std::shared_ptr<Node> n_new) { //Append the new node to the tree.
     n_new->parent = n_parent; //update the parent of new node
     n_new->cost = n_parent->cost + this->pathCost(n_parent, n_new);//update the cost of new node
     n_parent->children.push_back(n_new); //update the children of the nearest node to the new node
@@ -238,12 +238,12 @@ void RRTStar::insertNode(Node* n_parent, Node* n_new) { //Append the new node to
     this->lastnode = n_new;//inform the tree which node is just added
 }
 
-void RRTStar::reWire(Node* n_new, std::vector<Node*>& neighbor_nodes) { // Rewire the tree to decrease the cost of the path. 
+void RRTStar::reWire(std::shared_ptr<Node> n_new, std::vector<std::shared_ptr<Node>>& neighbor_nodes) { // Rewire the tree to decrease the cost of the path. 
     for (size_t j = 0; j < neighbor_nodes.size(); j++) {  // Search through nodes in "N_near" and see if changing their parent to "N_new" lowers the cost of the path. Also check the obstacles
-        Node* rw_n_near = neighbor_nodes[j];
+        std::shared_ptr<Node> rw_n_near = neighbor_nodes[j];
         if ((true) &&
             (this->getCost(n_new) + this->pathCost(n_new, rw_n_near)) < this->getCost(rw_n_near)) {
-            Node* rw_n_parent = rw_n_near->parent;
+            std::shared_ptr<Node> rw_n_parent = rw_n_near->parent;
             float rw_costdifference = this->getCost(rw_n_near) - (this->getCost(n_new) + this->pathCost(n_new, rw_n_near)); //calculate the cost  by which the cost of all children of the near node must decrease
             // Remove branch between N_Parent and N_Near
             
@@ -259,7 +259,7 @@ void RRTStar::reWire(Node* n_new, std::vector<Node*>& neighbor_nodes) { // Rewir
 }
 
 // Here can I parallelize TOO.
-void RRTStar::updateChildrenCost(Node* n, const float costdifference) {//Update the cost of all children of a node after rewiring 
+void RRTStar::updateChildrenCost(std::shared_ptr<Node> n, const float costdifference) {//Update the cost of all children of a node after rewiring 
     for (size_t i = 0; i < n->children.size(); i++)
     {
         n->children[i]->cost = n->children[i]->cost - costdifference;
@@ -294,11 +294,11 @@ int RRTStar::getCurrentIterations() {
     return this->m_num_itr;
 }
 
-const std::vector<Node*> RRTStar::getBestPath() const {
+const std::vector<std::shared_ptr<Node>> RRTStar::getBestPath() const {
     return this->bestpath;
 }
 
-std::vector<Point> RRTStar::generatePlan(Node* n) {// generate shortest path to destination.
+std::vector<Point> RRTStar::generatePlan(std::shared_ptr<Node> n) {// generate shortest path to destination.
     while (n != NULL) { // It goes from the given node to the root
         this->path.push_back(n);
         n = n->parent;
@@ -320,7 +320,7 @@ std::vector<Point> RRTStar::planFromBestPath() { // Generate plan (vector of poi
     return pfb_generated_plan;
 }
 
-void RRTStar::deleteNodes(Node* root){ //Free up memory when RRTStar destructor is called.
+void RRTStar::deleteNodes(std::shared_ptr<Node> root){ //Free up memory when RRTStar destructor is called.
 
     for (auto& i : root->children) {
         deleteNodes(i);
