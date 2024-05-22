@@ -11,6 +11,7 @@
 
 // ======= 3 Classes : Point, Node, RRTStar ============== //
 
+
 /**
 * @brief Class for storing position of a point in the space
 */
@@ -70,8 +71,6 @@ public:
 
     //Constructor
     Node();
-    //Destructor
-    ~Node();
 
     void set_position(Point pos);
 };
@@ -87,9 +86,7 @@ private:
     Point startPoint;
     Point destination;
     std::shared_ptr<QTree::QuadTree<Node>> qtree;
-    std::vector<std::shared_ptr<Node>> path;
     std::vector<std::shared_ptr<Node>> bestpath;
-    std::vector<Point> Available_Points;
     
     int m_num_itr;
     float m_rrstar_radius;
@@ -97,6 +94,11 @@ private:
     int m_max_iter;
     float m_step_size;
     cv::Mat m_map;
+
+    const int DEFAULT_MAX_ITER = 5000;
+    const float DEFAULT_STEP_SIZE = 10.0f;
+    const float DEFAULT_RRTSTAR_RADIUS = 5.0f;
+    const float DEFAULT_DESTINATION_THRESHHOLD = 5.0f;
 
 public:
 
@@ -112,26 +114,8 @@ public:
 
     /**
     * @brief construct the RRTStar class
-    * @param Point start point
-    * @param Point end point (i.e., destination point)
-    * @param float radius. Within a radius of r, RRT* will find all neighbour nodes of a node
-    * @param float end threshold. Check within the radius of the end threshold to find nodes near the end point
-    * @param cv::Mat map. The map used for RRT* exploration
-    * @param float step size. The step size for RRT* exploration
-    * @param int max iterations. The maximum number of iterations for RRT* exploration
      */
-    RRTStar(Point start_pos, Point end_pos, float radius, float end_thresh, cv::Mat map, float step_size, int max_iter);
-
-    //Destructor
-    ~RRTStar();
-    //Methods
-
-   /**
-   * @brief For visualization of RRT* reachable workspace
-   * @return std::vector<Point>  return available points.
-   */   
-    // return available points.
-    std::vector<Point> get_available_points();
+    RRTStar();
 
    /**
    * @brief Return rrt node vector Points
@@ -175,7 +159,7 @@ public:
     * @param Void
     * @return Node Generated node
      */
-    Node getRandomNode();
+    std::shared_ptr<Node> getRandomNode();
 
     /**
      @brief Find the nearest Node to the new random node.
@@ -221,7 +205,7 @@ public:
     * @param std::shared_ptr<Node> N_Nearest (i.e., the neighbor of the new node)
     * @return Point the position of the interpolated node.
     */
-    Point steer(const Node n_rand, const std::shared_ptr<Node> n_nearest);
+    Point steer(const std::shared_ptr<Node> n_rand, const std::shared_ptr<Node> n_nearest);
 
     /**
     * @brief Append the new node to the tree.
@@ -263,6 +247,27 @@ public:
     * @return bool
     */
     bool reached();
+
+    /**
+     * @brief Set the start position of the RRT* algorithm
+     * @param float x, float y
+     * @return void
+     */
+    void setStartPoint(const float x, const float y);
+
+    /**
+     * @brief Set the destination position of the RRT* algorithm
+     * @param float x, float y
+     * @return void
+     */
+    void setDestination(const float x, const float y);
+
+    /**
+     * @brief Set the map of the RRT* algorithm
+     * @param cv::Mat map
+     * @return void
+     */
+    void setMap(const cv::Mat map);
 
     /**
     * @brief set the step size (the maximum distance between two nodes) for the RRT* algorithm
