@@ -6,7 +6,7 @@
 #include <random>
 #include <optional>
 #include <opencv2/opencv.hpp>
-#include "QTree_ptr.hpp"
+#include "QTree.hpp"
 #include <memory>
 
 // ======= 3 Classes : Point, Node, RRTStar ============== //

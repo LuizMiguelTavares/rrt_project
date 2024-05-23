@@ -6,7 +6,6 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf
   sensor_msgs
-  obstacle_avoidance_drone_follower
   nav_msgs
   geometry_msgs
   map_msgs
@@ -15,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_service_files(
   FILES
-  AddTwoInts.srv
   ClusterObstacles.srv
 )
 
@@ -48,7 +46,7 @@ target_include_directories(motion_planning_lib INTERFACE ${CMAKE_CURRENT_SOURCE_
 target_link_libraries(motion_planning_lib INTERFACE ${OpenCV_LIBS} OpenMP::OpenMP_CXX)
 
 add_library(rrt_star_lib
-  src/rrt_star_new.cpp
+  src/rrt_star.cpp
 )
 
 target_link_libraries(rrt_star_lib

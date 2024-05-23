@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <random>
 #include <opencv2/opencv.hpp>
-#include "QTree_ptr.hpp"
+#include "QTree.hpp"
 #include <omp.h>
 #include <thread>
 #include <memory>

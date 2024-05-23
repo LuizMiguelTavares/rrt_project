@@ -10,7 +10,7 @@
 #include <vector>
 #include <mutex>
 
-#include "rrt_simple_ptr.hpp"
+#include "rrt.hpp"
 
 class MapPathSubscriber {
 public:

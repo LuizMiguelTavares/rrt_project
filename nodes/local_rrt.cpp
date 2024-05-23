@@ -13,7 +13,7 @@
 #include <cmath>
 #include <mutex>
 #include <sensor_msgs/LaserScan.h>
-#include "rrt_simple_ptr.hpp"
+#include "rrt.hpp"
 
 class MapPathSubscriber {
 public:
