@@ -1,4 +1,4 @@
-#include"rrt_star_new.hpp"
+#include"rrt_star.hpp"
 #include <iostream>
 #include <cfloat>
 #include <algorithm>
@@ -54,7 +54,8 @@ namespace rrt_star{
         }
 
         while (this->m_num_itr < this->m_max_iter)
-        {
+        {   
+            std::cout << "Iteration: " << this->m_num_itr << std::endl;
             this->m_num_itr++;
             std::shared_ptr<Node> plan_n_rand = this->getRandomNode(); //Generate a random node
             if (plan_n_rand->position.m_x!=FLT_MAX && plan_n_rand->position.m_y!=FLT_MAX) {

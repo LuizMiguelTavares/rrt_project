@@ -12,10 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
-add_service_files(
-  FILES
-  ClusterObstacles.srv
-)
+# add_service_files(
+#   FILES
+# )
 
 generate_messages(
   DEPENDENCIES

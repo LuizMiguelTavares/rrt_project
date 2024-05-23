@@ -15,14 +15,6 @@
 
     <node pkg="rpic_article" type="emergency_button.py" name="emergency_button" output="screen" required="true"/>
 
-    <!-- <include file="$(find rrt_project)/launch/robot_and_map_setup.launch">
-        <arg name="paused" value="false" />
-        <arg name="use_sim_time" value="true" />
-        <arg name="gui" value="$(arg gui)" />
-        <arg name="headless" value="false" />
-        <arg name="debug" value="false" />
-    </include> -->
-
     <node pkg="rrt_project" type="map_server.py" name="map_server_node"/>
     <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
 
@@ -56,14 +48,6 @@
         <param name="path_topic" value="$(arg path_topic)" />
         <param name="rate" value="10.0" />
     </node>
-
-    <!-- <node pkg="rrt_project" type="rrt_path_node" name="rrt_path_node" output="screen" >
-        <rosparam file="$(find rrt_project)/simulation_config/rrt.yaml" command="load" />
-        <param name="robot_frame" value="$(arg robot_frame)" />
-        <param name="path_topic" value="$(arg path_topic)" />
-        <param name="x_goal" value="$(arg x_goal)" />
-        <param name="y_goal" value="$(arg y_goal)" />
-    </node> -->
 
     <!-- Control and potential nodes -->
     <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">

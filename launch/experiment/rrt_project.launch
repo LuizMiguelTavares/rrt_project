@@ -8,7 +8,7 @@
     <node pkg="tf2_ros" type="static_transform_publisher" name="static_transform_world_to_map" 
     args="-1.4166396141052246 1.1629546880722046 0.2935587763786316 -0.0004821104521397501 -0.0018562889890745282 0.002135741990059614 -0.9999958872795105 world map"/>
 
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/real_map2/real_map.yaml" />
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/first_map/map.yaml" />
     <node pkg="rrt_project" type="map_server.py" name="map_server_node"/>
     <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
 

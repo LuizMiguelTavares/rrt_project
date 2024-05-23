@@ -24,7 +24,7 @@
     <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
           respawn="false" output="screen" args="-urdf -model p3dx -param robot_description -y -5.5 -x -5.5" />
 
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simple_map2/map.yaml" />
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simulation/simulation_map/map.yaml" />
 
     <node pkg="amcl" type="amcl" name="amcl">
         <remap from="scan" to="/laser/scan"/>

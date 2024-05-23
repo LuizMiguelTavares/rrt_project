@@ -1,4 +1,0 @@
-float64[] obstacle_points
-float64 max_obstacle_distance
----
-float32[] clusters
