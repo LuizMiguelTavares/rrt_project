@@ -11,7 +11,7 @@
         <arg name="debug" value="false" />
     </include>
 
-    <include file="$(find rrt_project)/launch/simulation/rrt_project_simulation_setup.launch">
+    <include file="$(find rrt_project)/launch/simulation/rrt_star_project_simulation_setup.launch">
         <arg name="x_goal" value="$(arg x_goal)" />
         <arg name="y_goal" value="$(arg y_goal)" />
     </include>

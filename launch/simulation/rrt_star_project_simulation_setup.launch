@@ -26,7 +26,7 @@
     <node pkg="rrt_project" type="map_server.py" name="map_server_node"/>
     <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
 
-    <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen" >
+    <node pkg="rrt_project" type="global_rrt_star" name="global_rrt" output="screen" >
         <rosparam file="$(find rrt_project)/simulation_config/rrt.yaml" command="load" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />

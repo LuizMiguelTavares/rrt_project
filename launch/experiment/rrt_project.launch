@@ -56,13 +56,6 @@
         <param name="rate" value="10.0" />
     </node>
 
-    <node name="P1_velocity_calculation" pkg="rrt_project" type="velocity_publisher" output="screen">
-        <param name="robot_frame" value="$(arg robot_frame)" />
-        <param name="world_frame" value="$(arg world_frame)" />
-        <param name="rate" value="20" />
-        <param name="velocity_topic" value="velocity" />
-    </node>
-
     <!-- Control and potential nodes -->
     <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
         <rosparam file="$(find rrt_project)/config/differential_robots/pioneer_simulation.yaml" command="load" />

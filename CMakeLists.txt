@@ -57,9 +57,6 @@ target_link_libraries(rrt_star_lib
 add_executable(publish_robot_potential_points nodes/robot_points.cpp)
 target_link_libraries(publish_robot_potential_points ${catkin_LIBRARIES})
 
-add_executable(velocity_publisher nodes/velocity_calculator_node.cpp)
-target_link_libraries(velocity_publisher ${catkin_LIBRARIES})
-
 add_executable(local_map nodes/local_map.cpp)
 target_link_libraries(local_map ${catkin_LIBRARIES})
 
