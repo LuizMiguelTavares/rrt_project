@@ -34,6 +34,9 @@ namespace rrt_star{
 
     //RRTStar methods
     std::vector<Point> RRTStar::planner() {
+        
+        constexpr bool debug = false;
+        
         if (this->m_map.rows == 0 || this->m_map.cols == 0) {
             std::cerr << "Map not set!" << std::endl;
             return {};
@@ -49,19 +52,44 @@ namespace rrt_star{
             return {};
         }
 
+        if (debug) {
+            std::cout << "Map Size: " << this->m_map.rows << "x" << this->m_map.cols << std::endl;
+            std::cout << "Start Point: " << this->startPoint.m_x << ", " << this->startPoint.m_y << std::endl;
+            std::cout << "Destination: " << this->destination.m_x << ", " << this->destination.m_y <<std::endl;
+
+            std::cout << "Step Size: " << this->m_step_size << std::endl;
+            std::cout << "Max Iterations: " << this->m_max_iter << std::endl;
+            std::cout << "Destination Threshold: " << this->m_destination_threshhold << std::endl;
+            std::cout << "RRT* Radius: " << this->m_rrstar_radius << "\n" << std::endl;
+        }
+
         if (m_num_itr == 0) {
             this->qtree->insert(this->root);
         }
 
         while (this->m_num_itr < this->m_max_iter)
         {   
-            std::cout << "Iteration: " << this->m_num_itr << std::endl;
+            // std::cout << "Iteration: " << this->m_num_itr << std::endl;
             this->m_num_itr++;
             std::shared_ptr<Node> plan_n_rand = this->getRandomNode(); //Generate a random node
+
+            if (debug) {
+                std::cout << "Random Node: " << plan_n_rand->position.m_x << ", " << plan_n_rand->position.m_y << std::endl;
+            }
             if (plan_n_rand->position.m_x!=FLT_MAX && plan_n_rand->position.m_y!=FLT_MAX) {
                     std::shared_ptr<Node> plan_n_nearest = this->qtree->nearest_neighbor(plan_n_rand);
-                    Point plan_p_new = this->steer(plan_n_rand, plan_n_nearest); //Steer from "N_Nearest" towards "N_rand": interpolate if node is too far away.
-                    bool intersection = this->check_obstacle_intersection(this->m_map, plan_n_nearest->position.m_x, plan_n_nearest->position.m_y, plan_p_new.m_x, plan_p_new.m_y);
+
+                    if (debug){
+                        std::cout << "Nearest Node: " << plan_n_nearest->position.m_x << ", " << plan_n_nearest->position.m_y << std::endl;
+                    }
+
+                    Point plan_p_new = this->steer(*plan_n_rand, plan_n_nearest); //Steer from "N_Nearest" towards "N_rand": interpolate if node is too far away.
+
+                    if (debug) {
+                        std::cout << "Steered Node: " << plan_p_new.m_x << ", " << plan_p_new.m_y << std::endl;
+                    }
+
+                    bool intersection = this->check_obstacle_intersection(this->m_map, plan_n_nearest->position.m_x, plan_n_nearest->position.m_y, plan_p_new.m_x, plan_p_new.m_y, this->m_rrstar_radius);
                 
                 if (!intersection) { // Check obstacle
                             std::shared_ptr<Node> plan_n_new = std::make_shared<Node>(); //create new node to store the position of the steered node.
@@ -70,6 +98,10 @@ namespace rrt_star{
                             std::vector<std::shared_ptr<Node>> plan_v_n_near; //create a vector for neighbor nodes
                             QTree::Rectangle nn(plan_n_new->x, plan_n_new->y, m_rrstar_radius*2, m_rrstar_radius*2);
                             this->qtree->query(nn, plan_v_n_near);
+
+                            if (debug) {
+                                std::cout << "Number of Neighbors: " << plan_v_n_near.size() << std::endl;
+                            }
                             
                             this->qtree->insert(plan_n_new); // Insert the new node to the quadtree
 
@@ -98,12 +130,34 @@ namespace rrt_star{
                             } 
                     }            
             }
+            if (debug) {
+                std::cout << "\n" << "---------------------------------" << "\n" << std::endl;
+            
+            }
         }
         
         if (this->bestpath.empty()) {
             // if not reached yet, no solution has found
             std::cout << "Exceeded max iterations!" << std::endl;
             std::cout << "Error: No solution found" << std::endl;
+
+            //Debugging
+            // std::shared_ptr<Node> Plan_NearNodeEnd = this->findNearest(this->destination);
+            // std::cout << "Number of nodes: " << this->nodes.size() << std::endl;
+            // std::ofstream outfile("/home/miguel/cba_ws/src/rrt_project/src/nodes.csv");
+
+            // if (outfile.is_open()) {
+            //     outfile << "x,y" << std::endl;
+            //     for (const auto& node : this->nodes) {
+            //         outfile << node->position.m_x << "," << node->position.m_y << std::endl;
+            //     }
+            //     outfile.close();
+            // } else {
+            //     std::cerr << "Failed to open nodes.csv" << std::endl;
+            // }
+            // return this->generatePlan(Plan_NearNodeEnd);
+
+            // Finish Debugging
             return {};
         }
         else {
@@ -130,6 +184,10 @@ namespace rrt_star{
             return rand_randomnode;
         }
         return {};
+    }
+
+    float RRTStar::getBestPathCost() {
+        return this->m_cost_bestpath;
     }
 
     std::shared_ptr<Node> RRTStar::findNearest(const Point point) {
@@ -185,16 +243,50 @@ namespace rrt_star{
         return this->distance(Nq->position, Np->position);
     }
 
-    Point RRTStar::steer(const std::shared_ptr<Node> n_rand, const std::shared_ptr<Node> n_nearest) { // Steer from new node towards the nearest neighbor and interpolate if the new node is too far away from its neighbor
+    Point RRTStar::steer(const Node& n_rand, const std::shared_ptr<Node> n_nearest) { // Steer from new node towards the nearest neighbor and interpolate if the new node is too far away from its neighbor
+        constexpr bool debug_steer = false;
 
-        if (this->distance(n_rand->position, n_nearest->position) >this->m_step_size) { //check if the distance between two nodes is larger than the maximum travel step size
-            Point steer_p = n_rand->position - n_nearest->position;
-            double steer_norm = this->distance(n_rand->position, n_nearest->position);
+        if (debug_steer) {
+            std::cout << "Steering from " << n_nearest->position.m_x << ", " << n_nearest->position.m_y << " to " << n_rand.position.m_x << ", " << n_rand.position.m_y << std::endl;
+        }
+
+        if (this->distance(n_rand.position, n_nearest->position) >this->m_step_size) { //check if the distance between two nodes is larger than the maximum travel step size
+
+            if (debug_steer) {
+                std::cout << "Steering with step size: " << this->m_step_size << std::endl;
+            }
+
+            Point steer_p = n_rand.position - n_nearest->position;
+
+            if (debug_steer) {
+                std::cout << "Steer Vector: " << steer_p.m_x << ", " << steer_p.m_y << std::endl;
+            }
+            double steer_norm = this->distance(n_rand.position, n_nearest->position);
+
+            if (debug_steer) {
+                std::cout << "Steer Norm: " << steer_norm << std::endl;
+            }
+
             steer_p = steer_p / steer_norm; //normalize the vector
-            return (n_nearest->position + this->m_step_size * steer_p); //travel in the direction of line between the new node and the near node
+
+            if (debug_steer) {
+                std::cout << "Normalized Steer Vector: " << steer_p.m_x << ", " << steer_p.m_y << std::endl;
+                // std::cout << "Stered Node: " << n_nearest->position + this->m_step_size * steer_p << std::endl;
+            }
+
+            Point steer_node = n_nearest->position;
+            steer_node.m_x += this->m_step_size * steer_p.m_x;
+            steer_node.m_y += this->m_step_size * steer_p.m_y;
+
+            if (debug_steer) {
+                std::cout << "Steered Node: " << steer_node.m_x << ", " << steer_node.m_y << std::endl;
+            }
+
+            return steer_node; //travel in the direction of line between the new node and the near node
+            // return (n_nearest->position + this->m_step_size * steer_p); //travel in the direction of line between the new node and the near node
         }
         else {
-            return  (n_rand->position);
+            return  (n_rand.position);
         }
     }
 
@@ -297,6 +389,14 @@ namespace rrt_star{
         this->m_step_size = step;
     }
 
+    void RRTStar::setRadius(const float radius) { // set the radius for the RRT* algorithm
+        this->m_rrstar_radius = radius;
+    }
+
+    void RRTStar::setDestinationThreshold(const float thresh) { // set the destination threshold for the RRT* algorithm
+        this->m_destination_threshhold = thresh;
+    }
+
     float RRTStar::getStepSize() { // get the step size (the maximum distance between two nodes) of the RRT* algorithm
         return this->m_step_size;
     }
@@ -356,35 +456,83 @@ namespace rrt_star{
         cv::waitKey(1);
     }
 
-    bool RRTStar::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd) {
+    // bool RRTStar::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd) {
+    //     int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
+    //     int dy = -abs(yEnd - yBegin), sy = yBegin < yEnd ? 1 : -1; 
+    //     int error = dx + dy, error2;
+
+    //     std::vector<cv::Point> line_points; // Vector to store line points
+
+    //     while (true) {
+    //         line_points.push_back(cv::Point(xBegin, yBegin)); // Add point to the vector
+
+    //         // Check if the point is within the image boundaries and is an obstacle
+    //         if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
+    //             if (image.at<uchar>(yBegin, xBegin) != 255) { 
+    //                 return true;
+    //             }
+    //         }
+
+    //         if (xBegin == xEnd && yBegin == yEnd) break;
+    //         error2 = 2 * error;
+    //         if (error2 >= dy) { error += dy; xBegin += sx; }
+    //         if (error2 <= dx) { error += dx; yBegin += sy; }
+    //     }
+
+    //     // Drawing the line on the image for visualization
+    //     cv::Mat img_with_line = image.clone();
+    //     for (const auto& point : line_points) {
+    //         cv::circle(img_with_line, point, 1, cv::Scalar(0, 0, 255), -1); // Drawing in red
+    //     }
+
+    //     return false;
+    // }
+
+    bool RRTStar::isBlack(const cv::Mat& image, int x, int y) {
+        if (x >= 0 && x < image.cols && y >= 0 && y < image.rows) {
+            return image.at<uchar>(x, y) == 0;
+        }
+        return false;
+    }
+
+    void RRTStar::_bresenhamCircleCollision(const cv::Mat& image, int yc, int xc, int radius, bool &collisionDetected) {
+        int x = 0;
+        int y = radius;
+        int d = 3 - 2 * radius;
+        while (y >= x) {
+            // Check points using 8-way symmetry
+            if (isBlack(image, xc + x, yc + y) || isBlack(image, xc - x, yc + y) ||
+                isBlack(image, xc + x, yc - y) || isBlack(image, xc - x, yc - y) ||
+                isBlack(image, xc + y, yc + x) || isBlack(image, xc - y, yc + x) ||
+                isBlack(image, xc + y, yc - x) || isBlack(image, xc - y, yc - x)) {
+                collisionDetected = true;
+                return;
+            }
+            x++;
+            if (d > 0) {
+                y--;
+                d += 4 * (x - y) + 10;
+            } else {
+                d += 4 * x + 6;
+            }
+        }
+    }
+
+    bool RRTStar::check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, const int xEnd, const int yEnd, const int radius) {
         int dx = abs(xEnd - xBegin), sx = xBegin < xEnd ? 1 : -1;
         int dy = -abs(yEnd - yBegin), sy = yBegin < yEnd ? 1 : -1; 
         int error = dx + dy, error2;
 
-        std::vector<cv::Point> line_points; // Vector to store line points
-
         while (true) {
-            line_points.push_back(cv::Point(xBegin, yBegin)); // Add point to the vector
-
-            // Check if the point is within the image boundaries and is an obstacle
-            if (xBegin >= 0 && xBegin < image.cols && yBegin >= 0 && yBegin < image.rows) {
-                if (image.at<uchar>(yBegin, xBegin) != 255) { 
-                    return true;
-                }
-            }
-
+            bool collisionDetected = false;
+            _bresenhamCircleCollision(image, xBegin, yBegin, radius, collisionDetected);
+            if (collisionDetected) {
+                return true; }
             if (xBegin == xEnd && yBegin == yEnd) break;
             error2 = 2 * error;
             if (error2 >= dy) { error += dy; xBegin += sx; }
             if (error2 <= dx) { error += dx; yBegin += sy; }
         }
-
-        // Drawing the line on the image for visualization
-        cv::Mat img_with_line = image.clone();
-        for (const auto& point : line_points) {
-            cv::circle(img_with_line, point, 1, cv::Scalar(0, 0, 255), -1); // Drawing in red
-        }
-
         return false;
     }
     
