@@ -10,11 +10,11 @@
 #include <vector>
 #include <mutex>
 
-#include "rrt_simple_ptr.hpp"
+#include "rrt_star.hpp"
 
 class MapPathSubscriber {
 public:
-    MapPathSubscriber() : tf_listener_(tf_buffer_), found_path_(false) {
+    MapPathSubscriber() : tf_listener_(tf_buffer_), found_path_(false), rrtstar_(), best_path_cost_(-1.0), start_and_goal_set(false), first_path_found_(false) {
         ros::NodeHandle nh;
         ros::NodeHandle private_nh("~");
 
@@ -35,6 +35,10 @@ public:
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/static_map");
 
         merged_map_pub_ = nh.advertise<nav_msgs::OccupancyGrid>("/merged_map", 10);
+
+        rrtstar_.setMaxIterations(num_nodes_);
+        rrtstar_.setStepSize(step_size_);
+        rrtstar_.setDestinationThreshold(goal_threshold_);
     }
 
     bool fetchStaticMap() {
@@ -42,6 +46,10 @@ public:
         if (static_map_client_.call(srv)) {
             map_ = srv.response.map;
             radius_pixel_ = std::round(radius_ / map_.info.resolution);
+            rrtstar_.setRadius(radius_pixel_);
+            cv::Mat grid_map = occupancyGridToCvMat(map_);
+            rrtstar_.setMap(grid_map);
+
             return true;
         } else {
             ROS_ERROR("Failed to call /static_map service");
@@ -56,7 +64,9 @@ public:
             if (!map_.data.empty()) {
                 if (!found_path_) {
                     generateRRT();
-                } else {
+                } 
+                
+                if (rrtstar_.reached()) {
                     path_pub_.publish(ros_path_);
                 }
             } else {
@@ -125,17 +135,15 @@ private:
         try {
             geometry_msgs::TransformStamped transformRobotToMap = tf_buffer_.lookupTransform(map_.header.frame_id, robot_frame_, ros::Time(0), ros::Duration(3.0));
             tf2::doTransform(robot_pose, start_pose_map, transformRobotToMap);
-            ROS_INFO("Transformed start pose in map frame: x: %f, y: %f, z: %f", start_pose_map.pose.position.x, start_pose_map.pose.position.y, start_pose_map.pose.position.z);
+            // ROS_INFO("Transformed start pose in map frame: x: %f, y: %f, z: %f", start_pose_map.pose.position.x, start_pose_map.pose.position.y, start_pose_map.pose.position.z);
 
             geometry_msgs::TransformStamped transformWorldToMap = tf_buffer_.lookupTransform(map_.header.frame_id, world_frame_, ros::Time(0), ros::Duration(3.0));
             tf2::doTransform(goal_pose_world, goal_pose_map, transformWorldToMap);
-            ROS_INFO("Transformed goal pose in map frame: x: %f, y: %f, z: %f", goal_pose_map.pose.position.x, goal_pose_map.pose.position.y, goal_pose_map.pose.position.z);
+            // ROS_INFO("Transformed goal pose in map frame: x: %f, y: %f, z: %f", goal_pose_map.pose.position.x, goal_pose_map.pose.position.y, goal_pose_map.pose.position.z);
         } catch (tf2::TransformException &ex) {
             ROS_WARN("Transform failed: %s", ex.what());
             return;
         }
-
-        cv::Mat grid_map = occupancyGridToCvMat(map_);
 
         double x_start = std::round((start_pose_map.pose.position.x - map_.info.origin.position.x) / map_.info.resolution);
         double y_start = std::round((start_pose_map.pose.position.y - map_.info.origin.position.y) / map_.info.resolution);
@@ -145,8 +153,8 @@ private:
         double y_goal = std::round((goal_pose_map.pose.position.y - map_.info.origin.position.y) / map_.info.resolution);
         y_goal = map_.info.height - y_goal;
 
-        ROS_INFO("Start point in local map: x: %f, y: %f", x_start, y_start);
-        ROS_INFO("Goal point in local map: x: %f, y: %f", x_goal, y_goal);
+        // ROS_INFO("Start point in local map: x: %f, y: %f", x_start, y_start);
+        // ROS_INFO("Goal point in local map: x: %f, y: %f", x_goal, y_goal);
 
         if (x_start < 0 || x_start >= map_.info.width || y_start < 0 || y_start >= map_.info.height) {
             ROS_ERROR("%s: Start point outside the local map.", ros::this_node::getName().c_str());
@@ -158,41 +166,62 @@ private:
             return;
         }
 
-        std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
-        std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
-        std::vector<std::shared_ptr<motion_planning::Node>> nodes;
-        nodes = motion_planning::rrt(grid_map, start_node, goal_node, num_nodes_, step_size_, goal_threshold_, bias_probability_, radius_pixel_);
-
-        if (nodes.empty()) {
-            ROS_ERROR("No path found from RRT within the local map.");
-            return;
+        if (!start_and_goal_set){
+            rrtstar_.setStartPoint(x_start, y_start);
+            rrtstar_.setDestination(x_goal, y_goal);
+            start_and_goal_set = true;
         }
 
-        std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
-        if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
-            ROS_ERROR("No local path found!");
-            return;
+        if (first_path_found_) {
+            ROS_INFO("rrt_star_path: Reached the goal point.");
+            int iter = rrtstar_.getCurrentIterations();
+            
+            rrtstar_.setMaxIterations(iter + 10000);
+            std::vector<rrt_star::Point> new_path;
+            new_path = rrtstar_.planner();
+
+            if (rrtstar_.getBestPathCost() < best_path_cost_){
+                ROS_INFO("Found a better path in %i iterations", rrtstar_.getCurrentIterations() - iter );
+                ROS_INFO("Old best path cost: %f", best_path_cost_);
+                goal_path = new_path;
+                best_path_cost_ = rrtstar_.getBestPathCost();
+                ROS_INFO("New best path cost: %f", best_path_cost_);
+            } else {
+                found_path_ = true;
+                return;
+            }
+            
         } else {
-            goal_path = motion_planning::trace_goal_path(nodes.back());
-            found_path_ = true;
-        }
+            ROS_INFO("Generating a new path.");
+            goal_path = rrtstar_.planner();
+            if (rrtstar_.reached()) {
+                best_path_cost_ = rrtstar_.getBestPathCost();
+                first_path_found_ = true;
+            } else {
+                ROS_ERROR("rrt_star_path: Failed to find a rrt star path.");
+            }
+        } 
 
-        ros_path_ = convertNodesToPath(goal_path, map_);
+        ROS_INFO("rrtstar_.reached(): %d", rrtstar_.reached());
+
+        ros_path_ = convertPointToPath(goal_path, map_);
     }
 
-    nav_msgs::Path convertNodesToPath(const std::vector<std::shared_ptr<motion_planning::Node>> nodes, const nav_msgs::OccupancyGrid map) {
+    nav_msgs::Path convertPointToPath(const std::vector<rrt_star::Point> points, const nav_msgs::OccupancyGrid map) {
         nav_msgs::Path path;
         path.header.frame_id = map.header.frame_id;
         path.header.stamp = ros::Time::now();
 
-        for (auto node : nodes) {
-            if (node == nullptr) continue;
+        std::vector<rrt_star::Point> reversed_points = points;
+        std::reverse(reversed_points.begin(), reversed_points.end());
+
+        for (auto point : reversed_points) {
             geometry_msgs::PoseStamped pose_stamped;
             pose_stamped.header.frame_id = map.header.frame_id;
             pose_stamped.header.stamp = ros::Time::now();
 
-            pose_stamped.pose.position.x = node->x * map.info.resolution + map.info.origin.position.x;
-            pose_stamped.pose.position.y = (map.info.height - node->y) * map.info.resolution + map.info.origin.position.y;
+            pose_stamped.pose.position.x = point.m_x * map.info.resolution + map.info.origin.position.x;
+            pose_stamped.pose.position.y = (map.info.height - point.m_y) * map.info.resolution + map.info.origin.position.y;
             pose_stamped.pose.position.z = 0;
 
             pose_stamped.pose.orientation.x = 0.0;
@@ -206,6 +235,11 @@ private:
         return path;
     }
 
+    std::vector<rrt_star::Point> goal_path;
+    bool first_path_found_;
+    bool start_and_goal_set;
+    float best_path_cost_;
+    rrt_star::RRTStar rrtstar_;
     bool found_path_;
     nav_msgs::Path ros_path_;
     std::mutex local_map_mutex;
