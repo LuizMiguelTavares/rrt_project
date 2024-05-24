@@ -95,10 +95,10 @@ namespace rrt_star{
         float m_step_size;
         cv::Mat m_map;
 
-        const int DEFAULT_MAX_ITER = 5000;
-        const float DEFAULT_STEP_SIZE = 10.0f;
-        const float DEFAULT_RRTSTAR_RADIUS = 5.0f;
-        const float DEFAULT_DESTINATION_THRESHHOLD = 5.0f;
+        static constexpr int DEFAULT_MAX_ITER = 5000;
+        static constexpr float DEFAULT_STEP_SIZE = 10.0f;
+        static constexpr float DEFAULT_RRTSTAR_RADIUS = 5.0f;
+        static constexpr float DEFAULT_DESTINATION_THRESHHOLD = 5.0f;
 
     public:
 
@@ -205,7 +205,7 @@ namespace rrt_star{
         * @param std::shared_ptr<Node> N_Nearest (i.e., the neighbor of the new node)
         * @return Point the position of the interpolated node.
         */
-        Point steer(const std::shared_ptr<Node> n_rand, const std::shared_ptr<Node> n_nearest);
+        Point steer(const Node& n_rand, const std::shared_ptr<Node> n_nearest);
 
         /**
         * @brief Append the new node to the tree.
@@ -277,6 +277,20 @@ namespace rrt_star{
         void setStepSize(const float step);
 
         /**
+         * @brief set the radius for the RRT* algorithm
+         * @param float radius
+         * @return void
+         */
+        void setRadius(const float radius);
+
+        /**
+         * @brief set the destination threshold for the RRT* algorithm
+         * @param float threshold
+         * @return void
+         */
+        void setDestinationThreshold(const float threshold);
+
+        /**
         * @brief return the step size (the maximum distance between two nodes) of the RRT* algorithm
         * @param void
         * @return int step size
@@ -304,6 +318,13 @@ namespace rrt_star{
         */
         int getCurrentIterations();
 
+        /**
+         * @brief Return the cost of the best path so far
+         * @param void
+         * @return double cost
+         */
+        float getBestPathCost();
+
         const std::vector<std::shared_ptr<Node>> getBestPath() const;
 
         const std::pair<float, float> getMapSize() const;
@@ -326,10 +347,13 @@ namespace rrt_star{
          * @brief Delete all nodes 
          * @param std::shared_ptr<Node> root
          */
-        void deleteNodes(std::shared_ptr<Node> root);
 
         void plotBestPath();
 
-        bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd);
+        bool isBlack(const cv::Mat& image, int x, int y);
+
+        void _bresenhamCircleCollision(const cv::Mat& image, int yc, int xc, int radius, bool &collisionDetected);
+
+        bool check_obstacle_intersection(const cv::Mat& image, int xBegin, int yBegin, int xEnd, int yEnd, int radius);
     };
 } // namespace rrt_star
