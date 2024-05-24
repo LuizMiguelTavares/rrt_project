@@ -57,13 +57,6 @@
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
     </node>
 
-    <node name="P1_velocity_calculation" pkg="rrt_project" type="velocity_publisher" output="screen">
-        <param name="robot_frame" value="$(arg robot_frame)" />
-        <param name="world_frame" value="$(arg world_frame)" />
-        <param name="rate" value="20" />
-        <param name="velocity_topic" value="velocity" />
-    </node>
-
     <node pkg="rrt_project" type="publish_robot_potential_points" name="publish_robot_points" output="screen" >
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="robot_frame" value="$(arg robot_frame)" />
