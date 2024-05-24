@@ -5,9 +5,9 @@ gains:
   linear: 0.2
   angular: 0.2
 
-a: 0.15
+a: 0.1
 
-robot_control_topic: '/cmd_vel'
+robot_control_topic: '/RosAria/cmd_vel'
 robot_control_message: 'Twist'
 
 angular_velocity_priority_gain: 1.0
