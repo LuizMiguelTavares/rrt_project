@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="rpic_article" type="emergency_button.py" name="emergency_button_local_rrt" output="screen" required="true"/>
+    <node pkg="rrt_project" type="emergency_button.py" name="emergency_button_local_rrt" output="screen" required="true"/>
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_laser_tf_publisher"
     args="0.1 0 0 0 0 -0.98480775 -0.17364818 P1 laser" /> <!-- -20 -180deg in yaw -->

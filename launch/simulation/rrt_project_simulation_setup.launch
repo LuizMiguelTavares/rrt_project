@@ -13,7 +13,7 @@
     <arg name="robot_height" default="0.53" />
     <arg name="robot_width" default="0.46" />
 
-    <node pkg="rpic_article" type="emergency_button.py" name="emergency_button" output="screen" required="true"/>
+    <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true"/>
 
     <node pkg="rrt_project" type="map_server.py" name="map_server_node"/>
     <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
