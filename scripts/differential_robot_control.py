@@ -42,6 +42,7 @@ class DifferentialController:
         robot_control_message = rospy.get_param('~robot_control_message', None)
         self.rate = rospy.Rate(rospy.get_param('~control_frequency', 30))
         self.path_topic = rospy.get_param('~path_topic', "path")
+        self.goal_threshold = rospy.get_param('~goal_threshold', 0.25)
         # velocity_topic = rospy.get_param('~velocity_topic', None)
         
         self.pgains = [gains['linear'], gains['angular']]
@@ -182,10 +183,7 @@ class DifferentialController:
             route = self.route
 
             if self.path_index >= len(route):
-                rospy.loginfo('Path completed or index out of range')
-                self.publisher.publish(self.stop_msg)
-                self.rate.sleep()
-                continue
+                self.path_index = len(route) -1
 
             x_desired = route[self.path_index][0]
             y_desired = route[self.path_index][1]
@@ -196,6 +194,10 @@ class DifferentialController:
             distance = np.sqrt((x_dot_route)**2 + (y_dot_route)**2)
             x_dot_route = x_dot_route/distance
             y_dot_route = y_dot_route/distance
+
+            x_d_goal = route[-1][0] - robot_pose[0]
+            y_d_goal = route[-1][1] - robot_pose[1]
+            distance_to_goal = np.sqrt((x_d_goal)**2 + (y_d_goal)**2)
             
             point = PointStamped()
             point.header.frame_id = self.world_frame
@@ -205,12 +207,17 @@ class DifferentialController:
             point.point.z = self.z_route
             self.publish_which_route_point.publish(point)
 
+            # print(distance_to_goal)
+
+            if (self.path_index >= len(route) - 1) and (distance_to_goal <= self.goal_threshold):
+                rospy.loginfo('Path completed')
+                self.publisher.publish(self.stop_msg)
+                self.rate.sleep()
+                continue
+
             if distance < self.distance_to_change_path_index:
                 if self.path_index >= len(route) - 1:
-                    rospy.loginfo('Path completed')
-                    self.publisher.publish(self.stop_msg)
-                    self.rate.sleep()
-                    continue
+                    self.path_index = len(route) - 1
                 else:
                     self.path_index += 1
 
