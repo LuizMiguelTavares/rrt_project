@@ -1,4 +1,5 @@
 /rosbag/
 /.catkin_tools
 /.vscode
+scripts/aurora_py/__pycache__/
 
