@@ -1,5 +1,7 @@
 #include <ros/ros.h>
 #include <nav_msgs/OccupancyGrid.h>
+#include <sensor_msgs/PointCloud.h>
+#include <geometry_msgs/Point32.h>
 #include <nav_msgs/Path.h>
 #include <nav_msgs/GetMap.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -31,6 +33,7 @@ public:
         getParamOrThrow(private_nh, "y_goal", y_goal_);
 
         path_pub_ = nh.advertise<nav_msgs::Path>(path_topic_, 10);
+        points_pub_ = nh.advertise<sensor_msgs::PointCloud>("/rrt_nodes_", 10);
         ros::service::waitForService("/static_map");
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/static_map");
 
@@ -42,6 +45,30 @@ public:
         if (static_map_client_.call(srv)) {
             map_ = srv.response.map;
             radius_pixel_ = std::round(radius_ / map_.info.resolution);
+
+            // // Convert OccupancyGrid to OpenCV image
+            // int width = map_.info.width;
+            // int height = map_.info.height;
+            // cv::Mat map_image(height, width, CV_8UC1);
+
+            // for (int y = 0; y < height; y++) {
+            //     for (int x = 0; x < width; x++) {
+            //         int index = x + y * width;
+            //         int8_t value = map_.data[index];
+            //         if (value == -1) {
+            //             map_image.at<uchar>(y, x) = 127; // Unknown
+            //         } else if (value == 0) {
+            //             map_image.at<uchar>(y, x) = 255; // Free space
+            //         } else {
+            //             map_image.at<uchar>(y, x) = 0;   // Occupied space
+            //         }
+            //     }
+            // }
+
+            // // Show the image
+            // cv::imshow("Map", map_image);
+            // cv::waitKey(0);
+
             return true;
         } else {
             ROS_ERROR("Failed to call /static_map service");
@@ -58,6 +85,7 @@ public:
                     generateRRT();
                 } else {
                     path_pub_.publish(ros_path_);
+                    points_pub_.publish(rrt_points_);
                 }
             } else {
                 if (fetchStaticMap()) {
@@ -178,6 +206,26 @@ private:
         }
 
         ros_path_ = convertNodesToPath(goal_path, map_);
+        rrt_points_ = allNodesToPointCloud(nodes, map_);
+    }
+
+    sensor_msgs::PointCloud allNodesToPointCloud(const std::vector<std::shared_ptr<motion_planning::Node>> nodes, const nav_msgs::OccupancyGrid map) {
+        sensor_msgs::PointCloud cloud;
+        cloud.header.frame_id = map.header.frame_id;
+        cloud.header.stamp = ros::Time::now();
+
+        for (auto node : nodes) {
+            if (node == nullptr) continue;
+            geometry_msgs::Point32 point;
+
+            point.x = node->x * map.info.resolution + map.info.origin.position.x;
+            point.y = (map.info.height - node->y) * map.info.resolution + map.info.origin.position.y;
+            point.z = 0;
+
+            cloud.points.push_back(point);
+        }
+
+        return cloud;
     }
 
     nav_msgs::Path convertNodesToPath(const std::vector<std::shared_ptr<motion_planning::Node>> nodes, const nav_msgs::OccupancyGrid map) {
@@ -208,6 +256,7 @@ private:
 
     bool found_path_;
     nav_msgs::Path ros_path_;
+    sensor_msgs::PointCloud rrt_points_;
     std::mutex local_map_mutex;
     int rate_;
     std::string path_topic_;
@@ -223,6 +272,7 @@ private:
     double y_goal_;
 
     ros::Publisher path_pub_;
+    ros::Publisher points_pub_;
     ros::ServiceClient static_map_client_;
 
     nav_msgs::OccupancyGrid map_;
