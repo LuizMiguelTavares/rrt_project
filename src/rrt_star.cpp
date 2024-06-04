@@ -30,16 +30,27 @@ namespace rrt_star{
     //RRTStar class Constructors
     RRTStar::RRTStar() : 
         m_step_size(DEFAULT_STEP_SIZE), m_max_iter(DEFAULT_MAX_ITER), m_destination_threshhold(DEFAULT_DESTINATION_THRESHHOLD), m_rrstar_radius(DEFAULT_RRTSTAR_RADIUS),
-        m_num_itr(0), m_cost_bestpath(0), startPoint(Point()), destination(Point()) {}
+        m_num_itr(0), m_cost_bestpath(0), startPoint(Point()), destination(Point()), m_map_set(false) {}
 
     //RRTStar methods
     std::vector<Point> RRTStar::planner() {
         
         constexpr bool debug = false;
-        
-        if (this->m_map.rows == 0 || this->m_map.cols == 0) {
+        const bool time_debug = false;
+
+        if (time_debug) {
+            std::cout << "Time Debugging Enabled" << std::endl;
+        }
+        std::chrono::steady_clock::time_point startFullTime = std::chrono::steady_clock::now();
+        std::chrono::steady_clock::time_point startTime;
+        std::vector<std::shared_ptr<Node>> nodes;
+
+        if (!m_map_set) {
             std::cerr << "Map not set!" << std::endl;
             return {};
+        } else {
+            if (debug){
+                std::cerr << "Map correctly setted!" << std::endl;}
         }
 
         if (this->startPoint.m_x == FLT_MAX || this->startPoint.m_y == FLT_MAX) {
@@ -64,23 +75,54 @@ namespace rrt_star{
         }
 
         if (m_num_itr == 0) {
+            if (debug) {
+                std::cout << "Node to insert: x = " << this->root->x << ", y = " << this->root->y << std::endl;}
             this->qtree->insert(this->root);
         }
 
         while (this->m_num_itr < this->m_max_iter)
         {   
-            // std::cout << "Iteration: " << this->m_num_itr << std::endl;
+            if (time_debug) {
+                startTime = std::chrono::steady_clock::now();
+            }
+
+            if (debug){
+                std::cout << "Iteration: " << this->m_num_itr << std::endl;
+                std::cout << "Going to sample" << std::endl;
+            }
+
             this->m_num_itr++;
             std::shared_ptr<Node> plan_n_rand = this->getRandomNode(); //Generate a random node
 
             if (debug) {
                 std::cout << "Random Node: " << plan_n_rand->position.m_x << ", " << plan_n_rand->position.m_y << std::endl;
             }
+
+            if(plan_n_rand->position.m_x < 0 || plan_n_rand->position.m_x >= m_map.cols || plan_n_rand->position.m_y < 0 || plan_n_rand->position.m_y >= m_map.rows) {
+                if (debug){
+                    std::cout << "Sample node is outside the boundaries of the map" << std::endl;
+                }
+
+                std::cerr << "Error: Sample node is outside the boundaries of the map." << std::endl;
+                std::cerr << "X: " << plan_n_rand->position.m_x << ", Y: " << plan_n_rand->position.m_y << std::endl;
+                std::cerr << "Map Size: " << m_map.cols << ", " << m_map.rows << std::endl;
+                continue;
+            }
+
             if (plan_n_rand->position.m_x!=FLT_MAX && plan_n_rand->position.m_y!=FLT_MAX) {
+
+                    if (debug){
+                        std::cout << "Going to nearest node" << std::endl;
+                    }
+
                     std::shared_ptr<Node> plan_n_nearest = this->qtree->nearest_neighbor(plan_n_rand);
 
                     if (debug){
                         std::cout << "Nearest Node: " << plan_n_nearest->position.m_x << ", " << plan_n_nearest->position.m_y << std::endl;
+                    }
+
+                    if (debug){
+                        std::cout << "Going to steer" << std::endl;
                     }
 
                     Point plan_p_new = this->steer(*plan_n_rand, plan_n_nearest); //Steer from "N_Nearest" towards "N_rand": interpolate if node is too far away.
@@ -88,47 +130,98 @@ namespace rrt_star{
                     if (debug) {
                         std::cout << "Steered Node: " << plan_p_new.m_x << ", " << plan_p_new.m_y << std::endl;
                     }
-
+                    
+                    if (debug){
+                        std::cout << "Going to check obstacle intersection" << std::endl;
+                    }
+                    
                     bool intersection = this->check_obstacle_intersection(this->m_map, plan_n_nearest->position.m_x, plan_n_nearest->position.m_y, plan_p_new.m_x, plan_p_new.m_y, this->m_rrstar_radius);
-                
+                    if (intersection){
+                        if (debug){
+                            std::cout << "Obstacle detected" << std::endl;}
+                        continue;                        
+                    }
                 if (!intersection) { // Check obstacle
-                            std::shared_ptr<Node> plan_n_new = std::make_shared<Node>(); //create new node to store the position of the steered node.
-                            plan_n_new->set_position(plan_p_new); //set the position of the new node
+                    if (debug){
+                        std::cout << "No obstacle detected" << std::endl;
+                        std::cout << "Going to see Neighbors in a radius" << std::endl;
+                    }
 
-                            std::vector<std::shared_ptr<Node>> plan_v_n_near; //create a vector for neighbor nodes
-                            QTree::Rectangle nn(plan_n_new->x, plan_n_new->y, m_rrstar_radius*2, m_rrstar_radius*2);
-                            this->qtree->query(nn, plan_v_n_near);
+                    std::shared_ptr<Node> plan_n_new = std::make_shared<Node>(); //create new node to store the position of the steered node.
+                    plan_n_new->set_position(plan_p_new); //set the position of the new node
 
+                    std::vector<std::shared_ptr<Node>> plan_v_n_near; //create a vector for neighbor nodes
+                    QTree::Rectangle nn(plan_n_new->x, plan_n_new->y, m_rrstar_radius*2, m_rrstar_radius*2);
+                    this->qtree->query(nn, plan_v_n_near);
+
+                    if (debug) {
+                        std::cout << "Number of Neighbors: " << plan_v_n_near.size() << std::endl;
+                        std::cout << "Going to insert node" << std::endl;
+                    }
+                    
+                    //this->qtree->insert(plan_n_new); // Insert the new node to the quadtree
+
+                    try {
+                        if (qtree->insert(plan_n_new)){
+                            if (debug){
+                            std::cout << "Node inserted at :" << plan_n_new->x << ", " << plan_n_new->y << "\n" <<std::endl;}
+                        } else {
+                            QTree::Rectangle boundary((m_map.cols)/2, (m_map.rows)/2, m_map.cols, m_map.rows);
+                            std::cerr << "Failed to insert node into QuadTree" << std::endl;
+                            std::cerr << "Node: (" << plan_n_new->x << ", " << plan_n_new->y << ")" << std::endl;
+                            std::cerr << "Boundaries: (" << boundary.x << ", " << boundary.y << ")" << std::endl;
+                            std::cerr << "Iteration: " << this->m_num_itr << std::endl;
+                        }
+                        
+                    } catch (const std::runtime_error& e) {
+                        QTree::Rectangle boundary((m_map.cols)/2, (m_map.rows)/2, m_map.cols, m_map.rows);
+                        std::cerr << "Failed to insert node into QuadTree: " << e.what() << std::endl;
+                        std::cerr << "Node: (" << plan_n_new->x << ", " << plan_n_new->y << ")" << std::endl;
+                        std::cerr << "Boundaries: (" << boundary.x << ", " << boundary.y << ")" << std::endl;
+                        std::cerr << "Iteration: " << this->m_num_itr << std::endl;
+                    }
+
+                    if (debug){
+                        std::cout << "Going to find lowest cost parent" << std::endl;
+                    }
+
+                    std::shared_ptr<Node> plan_n_parent=this->findParent(plan_v_n_near,plan_n_nearest,plan_n_new); //Find the parent of the given node (the node that is near and has the lowest path cost)
+
+
+                    this->insertNode(plan_n_parent, plan_n_new);//Add N_new to node list.
+
+                    if (debug){
+                        std::cout << "Going to rewire" << std::endl;
+                    }
+
+                    this->reWire(plan_n_new, plan_v_n_near); //rewire the tree
+
+                    if (this->reached() && this->bestpath.empty()) { //find the first viable path
+                        if (debug) {
+                                    std::cout << "First path reached!" << std::endl;
+                                }
+                        return this->generatePlan(this->lastnode);
+                    }
+
+                    if (!this->bestpath.empty()) { //find more optimal paths
+                        if (this->reached()) {
+                            // If we get a better path (lower cost)!
+                            if (this->lastnode->cost < this->m_cost_bestpath) {
                             if (debug) {
-                                std::cout << "Number of Neighbors: " << plan_v_n_near.size() << std::endl;
+                                std::cout << "New best Path Found!" << std::endl;
                             }
-                            
-                            this->qtree->insert(plan_n_new); // Insert the new node to the quadtree
-
-                            std::shared_ptr<Node> plan_n_parent=this->findParent(plan_v_n_near,plan_n_nearest,plan_n_new); //Find the parent of the given node (the node that is near and has the lowest path cost)
-                            this->insertNode(plan_n_parent, plan_n_new);//Add N_new to node list.
-                            this->reWire(plan_n_new, plan_v_n_near); //rewire the tree
-
-                            if (this->reached() && this->bestpath.empty()) { //find the first viable path
                                 return this->generatePlan(this->lastnode);
                             }
-
-                            if (!this->bestpath.empty()) { //find more optimal paths
-                                if (this->reached()) {
-                                    // If we get a better path (lower cost)!
-                                    if (this->lastnode->cost < this->m_cost_bestpath) {
-                                        return this->generatePlan(this->lastnode);
-                                    }
-                                }
-                                else {
-                                    // Havent reach the goal, ??? Why here.
-                                    std::shared_ptr<Node> Plan_NearNodeEnd = this->findNearest(this->destination);
-                                    if (Plan_NearNodeEnd->cost < this->m_cost_bestpath) {
-                                        return this->generatePlan(Plan_NearNodeEnd);
-                                    }
-                                }
-                            } 
-                    }            
+                        }
+                        else {
+                            // Havent reach the goal, ??? Why here.
+                            std::shared_ptr<Node> Plan_NearNodeEnd = this->findNearest(this->destination);
+                            if (Plan_NearNodeEnd->cost < this->m_cost_bestpath) {
+                                return this->generatePlan(Plan_NearNodeEnd);
+                            }
+                        }
+                    } 
+                }            
             }
             if (debug) {
                 std::cout << "\n" << "---------------------------------" << "\n" << std::endl;
@@ -357,7 +450,8 @@ namespace rrt_star{
         this->root = std::make_shared<Node>();
         root->parent = nullptr;
         this->startPoint = Point(x, y);
-        root->position = startPoint;
+        root->set_position(startPoint);
+        // root->position = startPoint;
         root->cost = 0.0;
         this->lastnode = root;
         this->nodes.clear();
@@ -380,6 +474,7 @@ namespace rrt_star{
         }
 
         this->m_map = map;
+        m_map_set = true;
 
         QTree::Rectangle boundary((map.cols)/2, (map.rows)/2, map.cols, map.rows);
         qtree = std::make_shared<QTree::QuadTree<Node>>(boundary);
