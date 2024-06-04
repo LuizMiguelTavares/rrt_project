@@ -94,6 +94,7 @@ namespace rrt_star{
         int m_max_iter;
         float m_step_size;
         cv::Mat m_map;
+        bool m_map_set;
 
         static constexpr int DEFAULT_MAX_ITER = 5000;
         static constexpr float DEFAULT_STEP_SIZE = 10.0f;
