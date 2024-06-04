@@ -172,7 +172,7 @@ namespace motion_planning{
                 std::cout << "Going to sample" << std::endl;
             }
 
-                std::shared_ptr<Node> sample = biased_sample(grid_map, *goal, bias_probability);
+            std::shared_ptr<Node> sample = biased_sample(grid_map, *goal, bias_probability);
 
             if (debug){
                 std::cout << "Sampled Node at :" << sample->x << ", " << sample->y << std::endl;
@@ -236,7 +236,7 @@ namespace motion_planning{
             }
             if (check_obstacle_intersection(grid_map, nearest_node->x, nearest_node->y, new_node->x, new_node->y, radius)) {
                 if (debug){
-                std::cout << "Obstacle detected" << std::endl;}
+                    std::cout << "Obstacle detected" << std::endl;}
                 continue;
             }
 
