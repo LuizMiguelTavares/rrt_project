@@ -17,7 +17,7 @@
 
 class MapPathSubscriber {
 public:
-    MapPathSubscriber() : tf_listener_(tf_buffer_), quad_tree_initialized_(false), is_rrt_completed_(false) {
+    MapPathSubscriber() : tf_listener_(tf_buffer_), quad_tree_initialized_(false), is_rrt_completed_(false), Log_time(tic()), log_time(2.0){
         ros::NodeHandle nh;
         ros::NodeHandle private_nh("~");
 
@@ -163,7 +163,10 @@ public:
                 generateLocalRRT();
                 updateTraveledPath();
             } else {
-                ROS_WARN("Occupancy grid map or path is not yet available.");
+                if (toc(Log_time) > log_time){
+                    ROS_WARN("Occupancy grid map or path is not yet available.");
+                    Log_time = tic();
+                }    
             }
             rate.sleep();
         }
@@ -520,8 +523,20 @@ private:
         traveled_path_pub_.publish(traveled_path_);
     }
 
+    std::chrono::time_point<std::chrono::high_resolution_clock> tic() {
+        return std::chrono::high_resolution_clock::now();
+    }
+
+    double toc(std::chrono::time_point<std::chrono::high_resolution_clock> start) {
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        return elapsed.count();
+    }
+
     std::mutex local_map_mutex;
     int rate_;
+    float log_time;
+    std::chrono::time_point<std::chrono::high_resolution_clock> Log_time;
     std::string path_topic_;
     int path_number_;
     std::string map_frame_id_;
