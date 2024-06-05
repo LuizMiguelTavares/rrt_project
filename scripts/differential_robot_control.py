@@ -25,6 +25,7 @@ class DifferentialController:
         self.robot_path_is_on = False
         self.path_index = 0
         self.route = []
+        self.end_of_path = False
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -43,6 +44,7 @@ class DifferentialController:
         self.rate = rospy.Rate(rospy.get_param('~control_frequency', 30))
         self.path_topic = rospy.get_param('~path_topic', "path")
         self.goal_threshold = rospy.get_param('~goal_threshold', 0.25)
+        self.has_new_path = False
         # velocity_topic = rospy.get_param('~velocity_topic', None)
         
         self.pgains = [gains['linear'], gains['angular']]
@@ -101,6 +103,7 @@ class DifferentialController:
 
     def route_callback(self, route_data):
         transformed_route = []
+        self.has_new_path = True
 
         try:
             transform = self.tf_buffer.lookup_transform(self.world_frame,
@@ -169,7 +172,7 @@ class DifferentialController:
                 continue
 
             if self.robot_path_is_on == False or self.btn_emergencia_is_on == False:
-                rospy.loginfo(f'{rospy.get_name()}: No path or emergency button found')
+                # rospy.loginfo(f'{rospy.get_name()}: No path or emergency button found')
                 self.rate.sleep()
                 continue
 
@@ -181,9 +184,14 @@ class DifferentialController:
             robot_pose = np.array([translation[0], translation[1], yaw])
 
             route = self.route
-
-            if self.path_index >= len(route):
-                self.path_index = len(route) -1
+            
+            if self.has_new_path:
+                idx = self.cumulative_dist_index(route=route)
+                if (idx == -1):
+                    rospy.logerr("Robot control node: There is something wrong with the cumulative_dist_index method")
+                else:
+                    self.path_index = idx
+                    self.has_new_path = False
 
             x_desired = route[self.path_index][0]
             y_desired = route[self.path_index][1]
@@ -215,11 +223,14 @@ class DifferentialController:
                 self.rate.sleep()
                 continue
 
-            if distance < self.distance_to_change_path_index:
-                if self.path_index >= len(route) - 1:
-                    self.path_index = len(route) - 1
+            print(f"The distance is: {distance} and the threshhold is: {self.goal_threshold}")
+
+            if distance < self.goal_threshold:
+                idx = self.cumulative_dist_index(route=route, index=self.path_index)
+                if (idx == -1):
+                    rospy.logerr("Robot control node: There is something wrong with the cumulative_dist_index method")
                 else:
-                    self.path_index += 1
+                    self.path_index = idx
 
             X_potential = np.array([self.x_dot, self.y_dot])
             x_dot_desired = np.array([x_dot_route, y_dot_route]) * self.min_velocity
@@ -251,6 +262,31 @@ class DifferentialController:
 
             self.publisher.publish(ctrl_msg)
             self.rate.sleep()
+
+    def cumulative_dist_index(self, route, index=None):
+        if index is None:
+            index = 0  # Start from the beginning of the path
+        
+        cumulative_dist = 0
+        # print(f"Starting cumulative_dist_index from index: {index}")
+        
+        for i in range(index, len(route) - 1):  # Iterate through the route
+            x_dist = route[i][0] - route[i + 1][0]
+            y_dist = route[i][1] - route[i + 1][1]
+            dist = np.sqrt(x_dist**2 + y_dist**2)  # Calculate Euclidean distance
+            
+            cumulative_dist += dist  # Update cumulative distance
+            # print(f"Index: {i}, Cumulative Distance: {cumulative_dist}, Segment Distance: {dist}")
+            
+            if cumulative_dist >= self.distance_to_change_path_index:
+                # print(f"Threshold met at index: {i + 1}")
+                return i + 1  # Return the next index if the threshold is met
+        
+        # If we reach the end of the route
+        self.end_of_path = True
+        # print(f"End of path reached, returning index: {len(route) - 1}")
+        return len(route) - 1  # Return the last index
+
 
 def main():
     try:
