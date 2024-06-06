@@ -198,7 +198,7 @@ private:
 
         std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
         if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
-            ROS_ERROR("No local path found!");
+            ROS_ERROR("No global path found!");
             return;
         } else {
             goal_path = motion_planning::trace_goal_path(nodes.back());
