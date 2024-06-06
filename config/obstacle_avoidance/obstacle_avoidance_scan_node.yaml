@@ -1,32 +1,15 @@
-# robot_pose_topic: /RosAria/pose
-# robot_pose_message: Odometry
-
-robot_pose_topic: /amcl_pose
-robot_pose_message: PoseWithCovarianceStamped
-
-robot_control_topic: /cmd_vel
+robot_control_topic: /RosAria/cmd_vel
 robot_control_message: Twist
 
-max_obstacle_distance: 0.5
-density_gain: 1
-observation_radius: 1.5
-min_threshold: 0.4
+max_obstacle_distance: 0.55
+density_gain: 0.3
+min_observation_radius: 0.4
+observation_radius_gain: 0.0
+min_threshold: 0.23
 cumulative_distance: 0.15
 
 obstacle_avoidance:
   n: 2.0
-  a: 0.1
-  b: 0.1
-  k: 0.5
-
-# max_obstacle_distance: 0.05
-# density_gain: 1
-# observation_radius: 1.5
-# min_threshold: 0.1
-# cumulative_distance: 0.15
-
-# obstacle_avoidance:
-#   n: 1.0
-#   a: 0.01
-#   b: 0.01
-#   k: 0.01
+  a: 4.0
+  b: 4.0
+  k: 0.00001
