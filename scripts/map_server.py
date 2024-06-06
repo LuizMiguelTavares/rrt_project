@@ -13,6 +13,7 @@ class MapServerNode:
         # Set the logging level for tf2 to ERROR to suppress warnings
         logging.getLogger('tf2_ros').setLevel(logging.ERROR)
         
+        self.map = None
         rospy.init_node('map_server_node')
 
         # Create a service to provide the updated map
