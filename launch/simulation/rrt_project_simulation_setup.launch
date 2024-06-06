@@ -19,7 +19,7 @@
     <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
 
     <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen" >
-        <rosparam file="$(find rrt_project)/simulation_config/rrt.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/simulation/rrt_star.yaml" command="load" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="path_topic" value="$(arg path_topic)" />
@@ -41,7 +41,7 @@
 
     <!-- Max rate is 230hz with this specs -->
     <node pkg="rrt_project" type="local_rrt" name="local_rrt" output="screen"> 
-    <rosparam file="$(find rrt_project)/simulation_config/local_rrt.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/simulation/local_rrt.yaml" command="load" />
         <param name="local_map_topic" value="$(arg local_map_topic)" />
         <param name="path_topic" value="$(arg path_topic)" />
         <param name="rate" value="10.0" />
@@ -49,7 +49,7 @@
 
     <!-- Control and potential nodes -->
     <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
-        <rosparam file="$(find rrt_project)/config/differential_robots/pioneer_simulation.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/simulation/differential_robots/pioneer.yaml" command="load" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
@@ -64,7 +64,7 @@
     </node>
 
     <node pkg="rrt_project" type="obstacle_avoidance_node.py" name="obstacle_avoidance_node" output="screen">
-        <rosparam file="$(find rrt_project)/config/obstacle_avoidance/obstacle_avoidance_scan_node_simulation.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/simulation/obstacle_avoidance/obstacle_avoidance_scan_node.yaml" command="load" />
         <param name="scan_topic" value="$(arg laser_topic)"/>
         <param name="robot_frame" value="$(arg robot_frame)"/>
         <param name="world_frame" value="$(arg world_frame)"/>

@@ -1,14 +1,24 @@
 <launch>
+    <include file="$(find rrt_project)/launch/rosbag.launch">
+        <arg name="filename" value="RRT_star.bag"/>
+    </include>
+
     <node pkg="rpic_article" type="emergency_button.py" name="emergency_button_local_rrt" output="screen" required="true"/>
 
     <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_laser_tf_publisher"
     args="0.2225 -0.010 0 0 0 -0.98480775 -0.17364818 P1 laser" /> <!-- -20 -180deg in yaw -->
 
     <!-- Static transformation from world to map -->
+    <!-- Map smal -->
+    <!-- <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/first_map/map.yaml" />
     <node pkg="tf2_ros" type="static_transform_publisher" name="static_transform_world_to_map" 
-    args="-1.4166396141052246 1.1629546880722046 0.2935587763786316 -0.0004821104521397501 -0.0018562889890745282 0.002135741990059614 -0.9999958872795105 world map"/>
+    args="-1.4166396141052246 1.1629546880722046 0.2935587763786316 -0.0004821104521397501 -0.0018562889890745282 0.002135741990059614 -0.9999958872795105 world map"/> -->
 
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/first_map/map.yaml" />
+    <!-- Map dissertation -->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/map_3_for_dissertation/map.yaml" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="static_transform_world_to_map" 
+    args="-1.7510635089874268 1.1890406036376953 0.2935587763786316 0 0 0 1 world map"/>
+
     <node pkg="rrt_project" type="map_server.py" name="map_server_node"/>
     <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
 
@@ -24,11 +34,11 @@
     <arg name="path_topic" default="/rrt_path" />
     <arg name="local_map_topic" default="/local_map" />
     <arg name="robot_density" default="100" />
-    <arg name="robot_height" default="0.53" />
-    <arg name="robot_width" default="0.46" />
+    <arg name="robot_height" default="0.5" />
+    <arg name="robot_width" default="0.40" />
 
-    <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen" >
-        <rosparam file="$(find rrt_project)/simulation_config/rrt.yaml" command="load" />
+    <node pkg="rrt_project" type="global_rrt_star" name="global_rrt_star" output="screen" >
+        <rosparam file="$(find rrt_project)/config/rrt_star.yaml" command="load" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="path_topic" value="$(arg path_topic)" />
@@ -40,7 +50,7 @@
     <node pkg="rrt_project" type="local_map" name="local_map">
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="laser_topic" value="$(arg laser_topic)" />
-        <param name="local_map_topic" value="$(arg local_map_topic)" />
+        <param name="grid_topic" value="$(arg local_map_topic)" />
         <param name="rate" value="10.0" />
         <param name="resolution" value="0.05" />
         <param name="width" value="40" />
@@ -49,7 +59,7 @@
 
     <!-- Max rate is 230hz with this specs -->
     <node pkg="rrt_project" type="local_rrt" name="local_rrt" output="screen"> 
-        <rosparam file="$(find rrt_project)/simulation_config/local_rrt.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/local_rrt.yaml" command="load" />
         <param name="local_map_topic" value="$(arg local_map_topic)" />
         <param name="laser_scan_topic" value="$(arg laser_topic)" />
         <param name="path_topic" value="$(arg path_topic)" />
@@ -58,7 +68,7 @@
 
     <!-- Control and potential nodes -->
     <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
-        <rosparam file="$(find rrt_project)/config/differential_robots/pioneer_simulation.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/differential_robots/pioneer.yaml" command="load" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
@@ -73,7 +83,7 @@
     </node>
 
     <node pkg="rrt_project" type="obstacle_avoidance_node.py" name="obstacle_avoidance_node" output="screen">
-        <rosparam file="$(find rrt_project)/config/obstacle_avoidance/obstacle_avoidance_scan_node_simulation.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/obstacle_avoidance/obstacle_avoidance_scan_node.yaml" command="load" />
         <param name="scan_topic" value="$(arg laser_topic)"/>
         <param name="robot_frame" value="$(arg robot_frame)"/>
         <param name="world_frame" value="$(arg world_frame)"/>
