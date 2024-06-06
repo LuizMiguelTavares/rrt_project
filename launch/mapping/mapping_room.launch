@@ -19,12 +19,17 @@
 
     <arg name="base_frame"  default="base_link"/>
     <arg name="odom_frame"  default="odom"/>
-    <arg name="x_min" value="-1.0"/>
+    <!-- <arg name="x_min" value="-1.0"/>
     <arg name="y_min" value="-4.0"/>
     <arg name="x_max" value="5.5"/>
-    <arg name="y_max" value="1"/> 
+    <arg name="y_max" value="1"/>  -->
 
-    <include file="$(find rrt_project)/launch/gmapping_igor.launch" >
+    <arg name="x_min" value="-2.0"/>
+    <arg name="y_min" value="-6.0"/>
+    <arg name="x_max" value="7.0"/>
+    <arg name="y_max" value="2"/> 
+
+    <include file="$(find rrt_project)/launch/mapping/mapping_igor.launch" >
         <arg name="scan_topic" value="$(arg scan_topic)"/>
         <arg name="base_frame" value="$(arg base_frame)"/>
         <arg name="odom_frame" value="$(arg odom_frame)"/>
