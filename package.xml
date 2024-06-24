@@ -59,10 +59,12 @@
   <exec_depend>std_msgs</exec_depend>
   <depend>nav_msgs</depend>
   <build_depend>map_msgs</build_depend>
+  <build_depend>map_server</build_depend>
   <exec_depend>map_msgs</exec_depend>
+  <exec_depend>map_server</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-scipy</exec_depend>
-
+  <exec_depend>python3-numba</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
