@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(rrt_project)
 set(CMAKE_CXX_STANDARD 20)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf2_ros
@@ -12,15 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
-# add_service_files(
-#   FILES
-# )
-
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  geometry_msgs
-)
+# Add the path to the custom Findmlpack.cmake script
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
@@ -35,6 +29,7 @@ catkin_package(
 include_directories(
   include/rrt_project
   include/header_lib
+  include/external
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
@@ -70,3 +65,7 @@ target_link_libraries(global_rrt_star ${catkin_LIBRARIES} rrt_star_lib)
 
 add_executable(local_rrt nodes/local_rrt.cpp)
 target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib)
+
+add_executable(obstacle_avoidance nodes/obstacle_avoidance.cpp)
+target_link_libraries(obstacle_avoidance 
+                      ${catkin_LIBRARIES})
