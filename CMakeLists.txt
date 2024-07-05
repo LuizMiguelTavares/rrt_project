@@ -18,6 +18,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 find_package(OpenCV REQUIRED)
 find_package(OpenMP REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -32,6 +33,7 @@ include_directories(
   include/external
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
 )
 
 # Libraries
@@ -46,6 +48,9 @@ add_library(rrt_star_lib
 target_link_libraries(rrt_star_lib
   ${OpenCV_LIBS} motion_planning_lib
 )
+
+add_library(potential_lib
+            src/potential.cpp)
 
 # Executables
 add_executable(publish_robot_potential_points nodes/robot_points.cpp)
@@ -68,4 +73,4 @@ target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib)
 
 add_executable(obstacle_avoidance nodes/obstacle_avoidance.cpp)
 target_link_libraries(obstacle_avoidance 
-                      ${catkin_LIBRARIES})
+                      ${catkin_LIBRARIES} potential_lib)
