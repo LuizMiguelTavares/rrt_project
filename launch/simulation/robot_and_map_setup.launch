@@ -38,7 +38,7 @@
     </node>
 
     <!-- Launch rviz -->
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz" required="false" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz" required="false" if="$(arg gui)"/>
 
     <!-- Launch state publishers -->
     <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />

@@ -52,21 +52,23 @@ public:
         private_nh.param("robot_width", robot_width_, 0.4);
         private_nh.param("num_clusters", num_clusters_, 8);
         private_nh.param("x_offset", x_offset_, 0.15);
-        private_nh.param("min_dist_threshold", min_sqr_dist_threshold_, 0.4);
+        private_nh.param("min_dist_threshold", min_sqr_dist_threshold_, 0.8);
         min_sqr_dist_threshold_ = min_sqr_dist_threshold_ * min_sqr_dist_threshold_;
-        private_nh.param("use_angle_filter", use_angle_filter_, false);
+        private_nh.param("use_angle_filter", use_angle_filter_, true);
+        private_nh.param("angle_filter_margin", angle_filter_margin_, 0.3);
 
         ROS_INFO("Robot parameters: density=%d, height=%f, width=%f, clusters=%d", robot_density_, robot_height_, robot_width_, num_clusters_);
 
         // Get obstacle avoidance parameters
-        double n, a, b, k;
+        double n, a, b, k, lambda;
         private_nh.param("obstacle_avoidance_n", n, 2.0);
-        private_nh.param("obstacle_avoidance_a", a, 1.0);
-        private_nh.param("obstacle_avoidance_b", b, 1.0);
-        private_nh.param("obstacle_avoidance_k", k, 1.0);
+        private_nh.param("obstacle_avoidance_a", a, 0.05);
+        private_nh.param("obstacle_avoidance_b", b, 0.05);
+        private_nh.param("obstacle_avoidance_k", k, 10.103757784844165);
+        private_nh.param("obstacle_avoidance_lambda", lambda, 10.0);
 
         // Initialize potential class
-        potential = potential::ObstacleAvoidance(n, a, b, k);
+        potential = potential::ObstacleAvoidance(n, a, b, k, lambda);
 
         // Compute the discretized ellipse points
         double theta = 0.0;
@@ -215,6 +217,16 @@ public:
         return (normalized_x * normalized_x + normalized_y * normalized_y) <= 1.0;
     }
 
+    // Blended tanh function for smooth transition
+    double blended_tanh(double x) {
+        auto sigmoid = [](double x, double a = 2) {
+            return 1 / (1 + std::exp(-a * x));
+        };
+
+        double blend = sigmoid(x);
+        return ((1 - blend) * std::tanh(x * 1) + blend * std::tanh(x * 2) + 1) / 2;
+    }
+
     void filterClosestPoints(const std::string& frame_id) {
         if (closest_points.empty()) return;
 
@@ -315,15 +327,29 @@ public:
             Eigen::Vector2d robot_point(base_pt.first, base_pt.second);
             Eigen::Vector2d obstacle_point(pt.first, pt.second);
 
-            std::vector<Eigen::Vector2d> obstacle_points = {obstacle_point};
+            aux_x_dot_y_dot = potential.obstacle_avoidance(robot_point, obstacle_point);
 
-            aux_x_dot_y_dot = potential.obstacle_avoidance(robot_point, obstacle_points);
+            // if (use_angle_filter_) {
+            //     if (std::abs(pt.second) > robot_width_/2) {
+            //         x_dot_y_dot.first += 0.0;
+            //     } else {
+            //         x_dot_y_dot.first += aux_x_dot_y_dot.first;
+            //     }
+            // } else {
+            //     x_dot_y_dot.first += aux_x_dot_y_dot.first;
+            // }
 
             if (use_angle_filter_) {
-                if (base_pt.first > robot_width_) {
-                    x_dot_y_dot.first += 0.0;
-                } else {
+                if (std::abs(pt.second) <= robot_width_/2) {
                     x_dot_y_dot.first += aux_x_dot_y_dot.first;
+                } else if (std::abs(pt.second) < robot_width_/2 + angle_filter_margin_) {
+                    double d = robot_width_/2 + angle_filter_margin_ - std::abs(pt.second);
+                    double product = d / angle_filter_margin_;  // 0 - 1
+                    double mapped_product = product * (1.5 + 3) - 3;  // Equivalent to map_to_tanh_range(product, 0, 1, -3, 1.5)
+                    double value_gain = blended_tanh(mapped_product);
+                    x_dot_y_dot.first += aux_x_dot_y_dot.first*value_gain;
+                } else {
+                    x_dot_y_dot.first += 0.0;
                 }
             } else {
                 x_dot_y_dot.first += aux_x_dot_y_dot.first;
@@ -345,7 +371,39 @@ public:
             start.y = pt.second;
             start.z = 0.0;
 
-            end.x = start.x + aux_x_dot_y_dot.first;
+            // if (use_angle_filter_) {
+            //     if (std::abs(pt.second) > robot_width_/2) {
+            //         end.x = start.x;
+            //     } else {
+            //         end.x = start.x + aux_x_dot_y_dot.first;
+            //     }
+            // } else {
+            //     end.x = start.x + aux_x_dot_y_dot.first;
+            // }
+
+            if (use_angle_filter_) {
+                if (std::abs(pt.second) <= robot_width_/2) {
+                    end.x = start.x + aux_x_dot_y_dot.first;
+                    // std::cout << "Full power!" << std::endl;
+                } else if (std::abs(pt.second) < robot_width_/2 + angle_filter_margin_) {
+                    double d = robot_width_/2 + angle_filter_margin_ - std::abs(pt.second);
+                    double product = d / angle_filter_margin_;  // 0 - 1
+                    // std::cout << "Product: " << product << std::endl;
+                    // Map the product to the range of the blended tanh function
+                    double mapped_product = product * (1.5 + 3) - 3;  // Equivalent to map_to_tanh_range(product, 0, 1, -3, 1.5)
+                    // std::cout << "Mapped Product: " << mapped_product << std::endl;
+                    // Use the blended tanh function for power calculation
+                    double value_gain = blended_tanh(mapped_product);
+                    // std::cout << "Working with " << value_gain * 100 << "% of the power!" << std::endl;
+                    end.x = start.x + aux_x_dot_y_dot.first*value_gain;
+                } else {
+                    end.x = start.x;
+                    // std::cout << "Point too far" << std::endl;
+                }
+            } else {
+                end.x = start.x + aux_x_dot_y_dot.first;
+            }
+
             end.y = start.y + aux_x_dot_y_dot.second;
             end.z = 0.0;
 
@@ -393,6 +451,12 @@ public:
         final_arrow_marker.color.g = 0.0;
         final_arrow_marker.color.b = 0.0;
         final_arrow_marker.color.a = 1.0; // Alpha
+
+        // Initialize quaternion to identity
+        final_arrow_marker.pose.orientation.x = 0.0;
+        final_arrow_marker.pose.orientation.y = 0.0;
+        final_arrow_marker.pose.orientation.z = 0.0;
+        final_arrow_marker.pose.orientation.w = 1.0;
 
         arrow_array.markers.push_back(final_arrow_marker);
 
@@ -466,6 +530,7 @@ private:
     std::vector<std::pair<float, float>> cleaned_closest_base_points;
     potential::ObstacleAvoidance potential;
     bool use_angle_filter_;
+    double angle_filter_margin_;
 };
 
 int main(int argc, char** argv) {

@@ -223,7 +223,7 @@ class DifferentialController:
                 self.rate.sleep()
                 continue
 
-            print(f"The distance is: {distance} and the threshhold is: {self.goal_threshold}")
+            # print(f"The distance is: {distance} and the threshhold is: {self.goal_threshold}")
 
             if distance < self.goal_threshold:
                 idx = self.cumulative_dist_index(route=route, index=self.path_index)
