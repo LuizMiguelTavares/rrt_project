@@ -1,4 +1,6 @@
 <launch>
     <!-- Launch rviz -->
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz"/>
+    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz"/> -->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/potential_wall_test.rviz" output="screen"/>
+
 </launch>

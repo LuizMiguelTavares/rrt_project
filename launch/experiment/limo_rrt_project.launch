@@ -1,0 +1,122 @@
+<launch>
+    <arg name="x_goal" default="3.127" />
+    <arg name="y_goal" default="0.80" />
+    <arg name="world_frame" default="world" />
+    <arg name="robot_frame" default="L1" />
+    <arg name="laser_topic" default="/rplidar/scan" />
+    <arg name="cmd_vel_topic" default="/L1/cmd_vel" />
+    <arg name="path_topic" default="/rrt_path" />
+    <arg name="local_map_topic" default="/local_map" />
+    <arg name="robot_density" default="100" />
+    <arg name="robot_height" default="0.5" />
+    <arg name="robot_width" default="0.40" />
+    <arg name="map_topic_for_local_rrt" default="/map_topic_for_local_rrt" />
+    <arg name="map_frame_for_local_rrt" default="map_frame_for_local_rrt" />
+    <arg name="resolution_of_local_map" default="0.02"/>
+
+    <!-- <node name="vrpn_client_node" pkg="vrpn_client_ros" type="vrpn_client_node" output="screen"/> -->
+
+    <!-- <include file="$(find rplidar_ros)/launch/rplidar_a2m12.launch">
+        <arg name="serial_port" value="/dev/ttyUSB0"/>
+    </include> -->
+
+    <include file="$(find rrt_project)/launch/mapping/mapping_room.launch">
+        <arg name="map_topic" value="$(arg map_topic_for_local_rrt)"/>
+        <arg name="map_frame" value="$(arg map_frame_for_local_rrt)"/>
+        <arg name="resolution" value="$(arg resolution_of_local_map)"/>
+        <arg name="x_offset" value="0.053" />
+        <arg name="y_offset" value="-0.01" />
+        <arg name="publish_transform" default="true"/>
+    </include>
+
+    <!-- <include file="$(find rrt_project)/launch/rosbag.launch">
+        <arg name="filename" value="RRT_simple_limo.bag"/>
+    </include> -->
+
+    <node pkg="rrt_project" type="emergency_button.py" name="emergency_button_local_rrt" output="screen" required="true"/>
+<!-- 
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_laser_tf_publisher"
+    args="0.053 -0.01 0 0 0 1 0 $(arg robot_frame) laser" /> -->
+
+    <!-- Map dissertation -->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/limo_map_latest/map.yaml">
+        <param name="frame_id" value="map" />
+    </node>
+    
+    <node pkg="tf2_ros" type="static_transform_publisher" name="static_transform_world_to_map" 
+    args="0 0 0 0 0 0 1 world map"/>
+
+    <node pkg="rrt_project" type="map_server.py" name="map_server_node"/>
+    <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project.rviz" required="false" />
+
+    <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen" >
+        <rosparam file="$(find rrt_project)/config/limo_rrt.yaml" command="load" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="x_goal" value="$(arg x_goal)" />
+        <param name="y_goal" value="$(arg y_goal)" />
+        <param name="rate" value="1.0" />
+    </node>
+
+    <node pkg="rrt_project" type="local_map" name="local_map">
+        <param name="global_map_topic" value="$(arg map_topic_for_local_rrt)" />
+        <param name="local_map_topic" value="$(arg local_map_topic)" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="publish_rate" value="10" />
+        <param name="width_meters" value="1.5" />
+        <param name="height_meters" value="1.5" />
+        <param name="local_resolution" value="0.01" />
+    </node>
+
+    <node pkg="rrt_project" type="local_rrt" name="local_rrt" output="screen"> 
+        <rosparam file="$(find rrt_project)/config/limo_local_rrt.yaml" command="load" />
+        <param name="local_map_topic" value="$(arg local_map_topic)" />
+        <param name="laser_scan_topic" value="$(arg laser_topic)" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="rate" value="15.0" />
+    </node>
+
+    <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
+        <rosparam file="$(find rrt_project)/config/differential_robots/pioneer.yaml" command="load" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
+        <param name="max_linear_velocity" value="0.08"/>
+
+        <!-- Mudar essa merda de 0.52 para 0.53 ta dando uma diferença gigantesca -->
+        <param name="max_angular_velocity" value="0.53"/> 
+        <param name="angular_velocity_priority_gain" value="0"/>
+
+        <param name="apply_filter" value="False"/>
+        <param name="linear_filter_gain" value="1.0"/>
+        <param name="angular_filter_gain" value="0.9"/>
+    </node>
+
+    <node pkg="rrt_project" type="obstacle_avoidance" name="obstacle_avoidance_node" output="screen">
+        <param name="num_clusters" value="12"/>
+        <param name="use_angle_filter" value="true"/>
+        <param name="angle_filter_margin" value="0.4"/>
+
+        <param name="filter_type" value="0"/>
+        <param name="filter_gain" value="0.8"/>
+
+        <param name="robot_height" value="0.3"/>
+        <param name="robot_width" value="0.2"/>
+        <param name="x_offset" value="-0.1"/>
+        <param name="lidar_topic" value="/rplidar/scan"/>
+        
+        <param name="min_dist_threshold" value="0.5"/>
+
+        <param name="obstacle_avoidance_n" value="2.0"/>
+        <param name="obstacle_avoidance_a" value="0.23"/>
+        <param name="obstacle_avoidance_b" value="0.23"/>
+        <param name="obstacle_avoidance_k" value="0.9"/> <!-- 0.3 -->
+        <param name="obstacle_avoidance_lambda" value="0.05"/>
+        <param name="potential_gain" value="1.0"/>
+
+        <param name="saturate_potential" value="8.0"/>
+    </node>
+</launch>

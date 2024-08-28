@@ -2,21 +2,53 @@
 
     <arg name="paused" default="false" />
     <arg name="use_sim_time" default="true" />
-    <arg name="gui" default="true" />
+    <arg name="gui" default="false" />
+    <arg name="use_rviz" default="true" />
     <arg name="headless" default="false" />
     <arg name="debug" default="false" />
     <arg name="world" default="walk" />
+    <arg name="robot_frame" default="odom" />
+    <arg name="robot_name" default="p3dx" />
+    <arg name="world_frame" default="map" />
+    <arg name="scan_topic"  default="/laser/scan" />
 
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
         <arg name="world_name" value="$(find gazebo_ros)/worlds/empty_world.world" />
         <arg name="debug" value="$(arg debug)" />
         <arg name="gui" value="$(arg gui)" />
         <arg name="paused" value="$(arg paused)" />
-        <arg name="use_sim_time" value="$(arg use_sim_time)" />
         <arg name="headless" value="$(arg headless)" />
     </include>
 
     <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find p3dx_description)/urdf/pioneer3dx.xacro'" />
+
+    <node pkg="rrt_project" type="publish_gazebo_positions.py" name="publish_gazebo_positions">
+        <param name="robot_frame" value="$(arg robot_frame)"/>
+        <param name="robot_name" value="$(arg robot_name)"/>
+        <param name="frame_id" value="$(arg world_frame)"/>
+    </node>
+
+    <arg name="map_topic_for_local_rrt" default="/map_topic_for_local_rrt" />
+    <arg name="map_frame_for_local_rrt" default="map_frame_for_local_rrt" />
+    <arg name="resolution_of_local_map" default="0.03"/>
+    <arg name="base_frame"  default="base_link"/>
+    <arg name="x_min" default="-8.0"/>
+    <arg name="y_min" default="-8.0"/>
+    <arg name="x_max" default="8.0"/>
+    <arg name="y_max" default="8.0"/>
+
+    <include file="$(find rrt_project)/launch/mapping/mapping_room.launch">
+        <arg name="scan_topic"  value="$(arg scan_topic)" />
+        <arg name="odom_frame"  value="$(arg world_frame)"/>
+        <arg name="map_topic" value="$(arg map_topic_for_local_rrt)"/>
+        <arg name="map_frame" value="$(arg map_frame_for_local_rrt)"/>
+        <arg name="base_frame" value="$(arg base_frame)"/>
+        <arg name="resolution" value="$(arg resolution_of_local_map)"/>
+        <arg name="x_min" value="$(arg x_min)"/>
+        <arg name="y_min" value="$(arg y_min)"/>
+        <arg name="x_max" value="$(arg x_max)"/>
+        <arg name="y_max" value="$(arg y_max)"/>
+    </include>
 
     <node pkg="gazebo_ros" type="spawn_model" name="spawn_obstacles" args="-file $(find rrt_project)/worlds/simple_map_big2/model.sdf -sdf -model my_custom_model -y 0 -x 0" output="screen"/>
     <node pkg="gazebo_ros" type="spawn_model" name="spawn_my_model" args="-file $(find rrt_project)/worlds/simple_map_big/model.sdf -sdf -model my_custom_model2 -y 0 -x 0" output="screen"/>
@@ -24,9 +56,10 @@
     <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
           respawn="false" output="screen" args="-urdf -model p3dx -param robot_description -y -5.5 -x -5.5" />
 
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simulation/simulation_map/map.yaml" />
+    <!-- <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simulation/simulation_map/map.yaml" /> -->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simulation/simulation_map_high_res_latest/map.yaml" />
 
-    <node pkg="amcl" type="amcl" name="amcl">
+    <!-- <node pkg="amcl" type="amcl" name="amcl">
         <remap from="scan" to="/laser/scan"/>
         <param name="odom_frame_id" value="odom"/>
         <param name="base_frame_id" value="base_link"/>
@@ -35,10 +68,10 @@
         <param name="initial_pose_y" value="-5.5"/>
         <param name="initial_pose_a" value="0"/>
         <param name="use_sim_time" value="true" />
-    </node>
+    </node> -->
 
     <!-- Launch rviz -->
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz" required="false" if="$(arg gui)"/>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz" required="false" if="$(arg use_rviz)"/>
 
     <!-- Launch state publishers -->
     <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />

@@ -1,0 +1,14 @@
+<launch>
+    <arg name="world_frame" default="map" />
+    <arg name="robot_frame" default="base_link" />
+
+    <include file="$(find rrt_project)/launch/simulation/limo/launch_map_and_limo.launch">
+        <arg name="room_model" value="$(find rrt_project)/worlds/teste_parede/model.sdf"/>
+        <arg name="gui" value="true"/>
+        <arg name="use_rviz" value="false"/>
+        <arg name="x" default="0"/>
+        <arg name="y" default="0"/>
+        <arg name="z" default="0.0"/>
+        <arg name="yaw" default="0"/>
+    </include>
+</launch>

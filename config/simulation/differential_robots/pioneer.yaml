@@ -14,6 +14,7 @@ angular_velocity_priority_gain: 1.0
 distance_to_change_path_index: 0.25
 min_velocity: 0.1
 max_linear_velocity: 0.4
+max_angular_velocity: 0.7
 world_frame: 'map'
 robot_frame: 'base_link'
 path_topic: '/local_path'

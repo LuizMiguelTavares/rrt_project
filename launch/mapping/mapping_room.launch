@@ -1,35 +1,29 @@
 <launch>
-    <arg name="scan_topic"  default="/RosAria/scan" />
-
-    <!-- Optitrack -->
-    <!-- -20 -180deg in yaw -->
-    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
-        args="0.1 0 0 0 0 -0.98480775 -0.17364818 P1 laser" />
-
-    <arg name="base_frame"  default="P1"/>
+    <arg name="scan_topic"  default="/rplidar/scan" />
+    <arg name="cmd_vel_topic"  default="/L1/cmd_vel"/>
+    <arg name="map_topic" default="/map"/>
+    <arg name="map_frame" default="map"/>
+    <arg name="resolution" default="0.05"/>
+    <arg name="x_offset" default="0.053" />
+    <arg name="y_offset" default="-0.01" />
+    <arg name="launch_rviz" default="false"/>
+    <arg name="launch_teleop" default="false"/>
+    <arg name="publish_transform" default="false"/>
+    <arg name="base_frame"  default="L1"/>
+    <arg name="scan_frame"  default="laser"/>
     <arg name="odom_frame"  default="world"/>
-    <arg name="xmin" value="-2.0"/>
-    <arg name="ymin" value="-2.0"/>
-    <arg name="xmax" value="3.0"/>
-    <arg name="ymax" value="3"/> -->
+    
+    <arg name="x_min" default="-5.0"/>
+    <arg name="y_min" default="-4.0"/>
+    <arg name="x_max" default="5.0"/>
+    <arg name="y_max" default="4.0"/> 
 
-    <!-- Odom -->
-    <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
-        args="0.1 0 0 0 0 -0.98480775 -0.17364818 base_link laser" />
-
-    <arg name="base_frame"  default="base_link"/>
-    <arg name="odom_frame"  default="odom"/>
-    <!-- <arg name="x_min" value="-1.0"/>
-    <arg name="y_min" value="-4.0"/>
-    <arg name="x_max" value="5.5"/>
-    <arg name="y_max" value="1"/>  -->
-
-    <arg name="x_min" value="-2.0"/>
-    <arg name="y_min" value="-6.0"/>
-    <arg name="x_max" value="7.0"/>
-    <arg name="y_max" value="2"/> 
+    <node if="$(arg publish_transform)" pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
+        args="$(arg x_offset) $(arg y_offset) 0 0 0 1 0 $(arg base_frame) $(arg scan_frame)" />
 
     <include file="$(find rrt_project)/launch/mapping/mapping_igor.launch" >
+        <arg name="map_topic" value="$(arg map_topic)"/>
+        <arg name="map_frame" value="$(arg map_frame)"/>
         <arg name="scan_topic" value="$(arg scan_topic)"/>
         <arg name="base_frame" value="$(arg base_frame)"/>
         <arg name="odom_frame" value="$(arg odom_frame)"/>
@@ -37,11 +31,12 @@
         <arg name="y_min" value="$(arg y_min)"/>
         <arg name="x_max" value="$(arg x_max)"/>
         <arg name="y_max" value="$(arg y_max)"/>
+        <arg name="resolution" value="$(arg resolution)"/>
     </include>
 
-    <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find rrt_project)/rviz/mapping_real_world.rviz" />
+    <node if="$(arg launch_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/mapping_real_world.rviz" />
 
-    <node name="teleop" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen" >
-        <remap from="cmd_vel" to="/RosAria/cmd_vel"/>
+    <node if="$(arg launch_teleop)" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop_twist_keyboard" output="screen">
+        <remap from="cmd_vel" to="$(arg cmd_vel_topic)"/>
     </node>
 </launch>

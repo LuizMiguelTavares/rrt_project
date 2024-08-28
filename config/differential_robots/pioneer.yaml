@@ -3,7 +3,7 @@ control_frequency: 30
 
 gains:
   linear: 0.1
-  angular: 0.1
+  angular: 0.05
 
 a: 0.15
 

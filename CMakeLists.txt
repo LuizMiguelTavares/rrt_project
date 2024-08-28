@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   map_msgs
   message_generation
+  filters
 )
 
 # Add the path to the custom Findmlpack.cmake script

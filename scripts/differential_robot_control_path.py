@@ -6,8 +6,9 @@ import tf2_geometry_msgs
 import tf
 from geometry_msgs.msg import Twist, Point, TwistStamped, PoseStamped, PointStamped
 from nav_msgs.msg import Path
-from std_msgs.msg import Bool, Float64
+from std_msgs.msg import Bool
 from sensor_msgs.msg import ChannelFloat32
+from visualization_msgs.msg import Marker, MarkerArray
 
 from aurora_py.differential_robot_controller import solver_bot_controller, pioneer_controller
 
@@ -50,8 +51,6 @@ class DifferentialController:
         self.apply_filter = rospy.get_param('~apply_filter', True)
         self.linear_filter_gain = rospy.get_param('~linear_filter_gain', 0.8)
         self.angular_filter_gain = rospy.get_param('~angular_filter_gain', 0.8)
-        self.use_null_space = rospy.get_param('~use_null_space', False)
-        self.null_gain = rospy.get_param('~null_gain', 0.7)
         self.has_new_path = False
 
         self.last_linear_velocity = False
@@ -83,10 +82,6 @@ class DifferentialController:
         self.path_subscriber = rospy.Subscriber(self.path_topic,
                             Path,
                             self.route_callback)
-        
-        self.get_jacobian = rospy.Subscriber('/jacobian', Point, self.jacobian_callback)
-
-        self.get_v = rospy.Subscriber('/v', Float64, self.v_callback)
 
         self.potential_subscriber = rospy.Subscriber(f"potential",
                                 Point,
@@ -101,6 +96,8 @@ class DifferentialController:
                                                         Bool,
                                                         self.emergency_button_callback,
                                                         queue_size=10)
+        
+        self.vectors_pub = rospy.Publisher('/route_vectors', MarkerArray, queue_size=10)
 
         ### Stop message
         if self.robot_type == 'Solverbot':
@@ -117,20 +114,13 @@ class DifferentialController:
 
         rospy.loginfo(f'{rospy.get_name()} started!')
 
-    def jacobian_callback(self, jacobian_data):
-        self.jacobian = np.array([[jacobian_data.x, jacobian_data.y]])
-        self.jacobian_true = True
-    
-    def v_callback(self, v_data):
-        self.v = v_data.data
-        self.v_true = True
-
     def potential_callback(self, potential_data):
-        self.x_dot = potential_data.x
-        self.y_dot = potential_data.y
+        self.x_dot = -potential_data.x
+        self.y_dot = -potential_data.y
 
     def route_callback(self, route_data):
         transformed_route = []
+        transformed_route_dx = []
         self.has_new_path = True
 
         try:
@@ -139,7 +129,9 @@ class DifferentialController:
                                                         rospy.Time(0),
                                                         rospy.Duration(1.0))
             
-            for pose in route_data.poses:
+            vectors_marker_array = MarkerArray()
+
+            for idx, pose in enumerate(route_data.poses):
                 pose_stamped = PoseStamped()
                 pose_stamped.pose = pose.pose
                 pose_stamped.header.frame_id = route_data.header.frame_id
@@ -148,15 +140,68 @@ class DifferentialController:
                 transformed_pose = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
 
                 transformed_route.append([transformed_pose.pose.position.x, transformed_pose.pose.position.y])
+                
+                if idx > 0:
+                    dx_vector = np.array([transformed_route[idx][0] - transformed_route[idx - 1][0], transformed_route[idx][1] - transformed_route[idx - 1][1]])
+                    unitary_dx_vector = dx_vector/np.linalg.norm(dx_vector)
+                    transformed_route_dx.append(unitary_dx_vector)
+
+                    arrow_marker = Marker()
+                    arrow_marker.header.frame_id = self.world_frame
+                    arrow_marker.header.stamp = rospy.Time.now()
+                    arrow_marker.ns = "route_vectors"
+                    arrow_marker.id = idx
+                    arrow_marker.type = Marker.ARROW
+                    arrow_marker.action = Marker.ADD
+
+                    arrow_marker.scale.x = 0.05  # Shaft diameter
+                    arrow_marker.scale.y = 0.1   # Head diameter
+                    arrow_marker.scale.z = 0.1   # Head length
+
+                    arrow_marker.color.a = 1.0
+                    arrow_marker.color.r = 0.0
+                    arrow_marker.color.g = 1.0
+                    arrow_marker.color.b = 0.0
+
+                    start_point = Point()
+                    start_point.x = transformed_route[idx - 1][0]
+                    start_point.y = transformed_route[idx - 1][1]
+                    start_point.z = transformed_pose.pose.position.z
+
+                    end_point = Point()
+                    end_point.x = transformed_route[idx][0]
+                    end_point.y = transformed_route[idx][1]
+                    end_point.z = transformed_pose.pose.position.z
+
+                    arrow_marker.points.append(start_point)
+                    arrow_marker.points.append(end_point)
+
+                    vectors_marker_array.markers.append(arrow_marker)
+
                 self.z_route = transformed_pose.pose.position.z
+            
+            self.vectors_pub.publish(vectors_marker_array)
+            transformed_route_dx.append([0, 0])
             self.robot_path_is_on = True
             self.route = transformed_route
+            self.route_dx = transformed_route_dx
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
             rospy.logerr("Failed to fetch or apply transform: %s" % e)
 
         # Update the internal route representation with the transformed route
         self.route = transformed_route
+
+    def find_closest_point(self, robot_pose, route):
+        min_dist = float('inf')
+        closest_point = None
+        for idx, point in enumerate(route):
+            dist = np.linalg.norm(np.array(point) - np.array(robot_pose[:2]))
+            if dist < min_dist:
+                min_dist = dist
+                closest_point = point
+                closest_idx = idx
+        return closest_point, closest_idx
 
     def emergency_button_callback(self, emergency):
         self.btn_emergencia_is_on = True
@@ -208,36 +253,22 @@ class DifferentialController:
                 self.rate.sleep()
                 continue
 
-            if (not self.jacobian_true) or (not self.v_true):
-                rospy.loginfo(f'{rospy.get_name()}: Jacobian or V not found')
-                self.rate.sleep()
-                continue
-
             yaw = tf.transformations.euler_from_quaternion(quaternion)[2]
             robot_pose = np.array([translation[0], translation[1], yaw])
 
             route = self.route
+            route_dx = self.route_dx
             
-            if self.has_new_path:
-                idx = self.cumulative_dist_index(route=route)
-                if (idx == -1):
-                    rospy.logerr("Robot control node: There is something wrong with the cumulative_dist_index method")
-                else:
-                    self.path_index = idx
-                    self.has_new_path = False
+            closest_point, closest_idx = self.find_closest_point(robot_pose, route)
             
             if self.path_index > len(route) - 1:
                 self.path_index = len(route) - 1
 
-            x_desired = route[self.path_index][0]
-            y_desired = route[self.path_index][1]
+            x_desired = closest_point[0]
+            y_desired = closest_point[1]
 
-            x_dot_route = route[self.path_index][0] - robot_pose[0]
-            y_dot_route = route[self.path_index][1] - robot_pose[1]
-            
-            distance = np.sqrt((x_dot_route)**2 + (y_dot_route)**2)
-            x_dot_route = x_dot_route/distance
-            y_dot_route = y_dot_route/distance
+            x_dot_route = route_dx[closest_idx][0] * 1
+            y_dot_route = route_dx[closest_idx][1] * 1
 
             x_d_goal = route[-1][0] - robot_pose[0]
             y_d_goal = route[-1][1] - robot_pose[1]
@@ -261,51 +292,14 @@ class DifferentialController:
 
             # print(f"The distance is: {distance} and the threshhold is: {self.goal_threshold}")
 
-            if distance < self.goal_threshold:
-                idx = self.cumulative_dist_index(route=route, index=self.path_index)
-                if (idx == -1):
-                    rospy.logerr("Robot control node: There is something wrong with the cumulative_dist_index method")
-                else:
-                    self.path_index = idx
-
             rotation_matrix = np.array([[np.cos(yaw), -np.sin(yaw)],
                                         [np.sin(yaw), np.cos(yaw)]])
             
             x_dot_potential, y_dot_potential = rotation_matrix @ np.array([self.x_dot, self.y_dot])
 
-            if self.use_null_space:
-                J = self.jacobian
-                v = self.v
-                
-                P_inv_J = J.T @ np.linalg.inv(J @ J.T + 0.01)
-
-                rospy.logerr(f"J: {J}")
-                rospy.logerr(f"P_inv_J: {P_inv_J}")
-
-                x_dot_obs = -P_inv_J * self.null_gain * v
-                rospy.logerr(f"X_dot_obs: {x_dot_obs}")
-
-                x_dot_ref_aux1 =  (np.eye(2) - P_inv_J@J) 
-                rospy.logerr(f"x_dot_ref_aux1: {x_dot_ref_aux1}")
-
-                x_dot_ref_aux = x_dot_ref_aux1 @ np.array([[x_dot_route],
-                                                           [y_dot_route]])
-                
-                rospy.logerr(f"x_dot_ref_aux: {x_dot_ref_aux}")
-                
-                x_dot_ref = x_dot_obs + x_dot_ref_aux
-                rospy.logerr(f"x_dot_ref: {x_dot_ref}")
-
-                x_dot_desired = x_dot_ref[0][0]
-                y_dot_desired = x_dot_ref[1][0]
-
-                rospy.logerr(f"Desired: {x_dot_desired, y_dot_desired}\n")
-            else:
-                x_dot_desired, y_dot_desired = x_dot_potential + x_dot_route, y_dot_potential + y_dot_route
+            x_dot_desired, y_dot_desired = x_dot_potential + x_dot_route, y_dot_potential + y_dot_route
 
             desired = [x_desired, y_desired, x_dot_desired, y_dot_desired]
-
-            rospy.logerr(f"Desired: {desired}\n")
 
             desired_no_potential = [x_desired, y_desired, x_dot_route, y_dot_route]
 

@@ -17,3 +17,7 @@ Video order:
 - RRT_star with obstacle local minimum
 - RRT_star_with_obstacle_50_50
 - RRT_star_with_obstacle_big_2
+
+
+To reset the gazebo simulation
+rosservice call /gazebo/reset_world "{}"

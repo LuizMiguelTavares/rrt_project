@@ -1,7 +1,7 @@
 <launch>
     <arg name="x_goal" default="5.5" />
     <arg name="y_goal" default="5.5" />
-    <arg name="gui" default="true" />
+    <arg name="gui" default="false" />
 
     <include file="$(find rrt_project)/launch/simulation/robot_and_map_setup.launch">
         <arg name="paused" value="false" />

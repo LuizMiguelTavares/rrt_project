@@ -1,0 +1,58 @@
+<launch>
+    <!-- <arg name="world_frame" default="map" /> -->
+    <arg name="world_frame" default="odom" />
+    <arg name="robot_frame" default="base_link" />
+    <arg name="cmd_vel_topic" default="/cmd_vel" />
+    <arg name="laser_topic" default="/laser/scan" />
+
+    <arg name="robot_density" default="100" />
+    <arg name="robot_height" default="0.35" />
+    <arg name="robot_width" default="0.23" />
+    
+    <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true"/>
+
+    <arg name="robot_name" default="limo/" />
+    <node pkg="rrt_project" type="publish_gazebo_positions.py" name="publish_gazebo_positions">
+        <param name="robot_frame" value="$(arg robot_frame)"/>
+        <param name="robot_name" value="$(arg robot_name)"/>
+        <param name="frame_id" value="$(arg world_frame)"/>
+    </node>
+
+    <node pkg="rrt_project" type="obstacle_avoidance" name="obstacle_avoidance_node" output="screen">
+        <param name="num_clusters" value="12"/>
+        <param name="use_angle_filter" value="true"/>
+        <param name="angle_filter_margin" value="0.4"/>
+
+        <param name="filter_type" value="0"/>
+        <param name="filter_gain" value="0.8"/>
+
+        <param name="robot_height" value="$(arg robot_height)"/>
+        <param name="robot_width" value="$(arg robot_width)"/>
+        <param name="robot_density" value="$(arg robot_density)"/>
+        <param name="x_offset" value="0.1"/>
+        <param name="lidar_topic" value="$(arg laser_topic)"/>
+        
+        <param name="min_dist_threshold" value="0.5"/>
+
+        <param name="obstacle_avoidance_n" value="2.0"/>
+        <param name="obstacle_avoidance_a" value="0.23"/>
+        <param name="obstacle_avoidance_b" value="0.23"/>
+        <param name="obstacle_avoidance_k" value="0.7"/> <!-- 0.3 -->
+        <param name="obstacle_avoidance_lambda" value="0.05"/>
+        <param name="potential_gain" value="1.0"/>
+
+        <param name="saturate_potential" value="8.0"/>
+    </node>
+
+    <node pkg="rrt_project" type="path_generation_potential_wall_test.py" name="path" output="screen" />
+
+    <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
+        <rosparam file="$(find rrt_project)/config/simulation/differential_robots/pioneer.yaml" command="load" />
+        <param name="path_topic" value="/rrt_path" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
+    </node>
+
+    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/potential_wall_test.rviz" output="screen"/> -->
+</launch>

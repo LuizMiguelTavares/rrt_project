@@ -1,7 +1,7 @@
 <launch>
-    <arg name="x_goal" default="5.5" />
-    <arg name="y_goal" default="5.5" />
-    <arg name="gui" default="false" />
+    <arg name="x_goal" default="2.25" />
+    <arg name="y_goal" default="-1" />
+
     <arg name="world_frame" default="map" />
     <arg name="robot_frame" default="base_link" />
     <arg name="cmd_vel_topic" default="/cmd_vel" />
@@ -10,12 +10,11 @@
     <arg name="path_topic" default="/rrt_path" />
 
     <arg name="robot_density" default="100" />
-    <arg name="robot_height" default="0.53" />
-    <arg name="robot_width" default="0.46" />
+    <arg name="robot_height" default="0.35" />
+    <arg name="robot_width" default="0.23" />
 
     <arg name="map_topic_for_local_rrt" default="/map_topic_for_local_rrt" />
     <arg name="map_frame_for_local_rrt" default="map_frame_for_local_rrt" />
-    <arg name="resolution_of_local_map" default="0.02"/>
 
     <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true"/>
 
@@ -23,7 +22,7 @@
     <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
 
     <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen" >
-        <rosparam file="$(find rrt_project)/config/simulation/rrt_star.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/limo_rrt.yaml" command="load" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="path_topic" value="$(arg path_topic)" />
@@ -37,15 +36,16 @@
         <param name="global_map_topic" value="$(arg map_topic_for_local_rrt)" />
         <param name="local_map_topic" value="$(arg local_map_topic)" />
         <param name="pose_topic" value="/vrpn_client_node/P1/pose" />
-        <param name="width_meters" value="4" />
-        <param name="height_meters" value="4" />
-        <param name="publish_rate" value="100.0" />
-        <param name="local_resolution" value="0.04" />
+        <param name="width_meters" value="2" />
+        <param name="height_meters" value="2" />
+        <param name="publish_rate" value="50.0" />
+        <param name="local_resolution" value="0.01" />
     </node>
 
     <!-- Max rate is 230hz with this specs -->
     <node pkg="rrt_project" type="local_rrt" name="local_rrt" output="screen"> 
-        <rosparam file="$(find rrt_project)/config/simulation/local_rrt.yaml" command="load" />
+        <rosparam file="$(find rrt_project)/config/limo_local_rrt.yaml" command="load" />
+        <param name="step_size" value="2.0" />
         <param name="local_map_topic" value="$(arg local_map_topic)" />
         <param name="path_topic" value="$(arg path_topic)" />
         <param name="rate" value="10.0" />
@@ -54,17 +54,10 @@
     <!-- Control and potential nodes -->
     <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
         <rosparam file="$(find rrt_project)/config/simulation/differential_robots/pioneer.yaml" command="load" />
+        <!-- <param name="path_topic" value="/rrt_path" /> -->
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
-    </node>
-
-    <node pkg="rrt_project" type="publish_robot_potential_points" name="publish_robot_points" output="screen" >
-        <param name="world_frame" value="$(arg world_frame)" />
-        <param name="robot_frame" value="$(arg robot_frame)" />
-        <param name="robot_density" value="$(arg robot_density)" />
-        <param name="robot_height" value="$(arg robot_height)" />
-        <param name="robot_width" value="$(arg robot_width)" />
     </node>
 
     <node pkg="rrt_project" type="obstacle_avoidance" name="obstacle_avoidance_node" output="screen">
@@ -77,7 +70,7 @@
 
         <param name="robot_height" value="$(arg robot_height)"/>
         <param name="robot_width" value="$(arg robot_width)"/>
-        <param name="x_offset" value="0.0"/>
+        <param name="x_offset" value="0.1"/>
         <param name="lidar_topic" value="$(arg laser_topic)"/>
         
         <param name="min_dist_threshold" value="0.5"/>
@@ -85,18 +78,10 @@
         <param name="obstacle_avoidance_n" value="2.0"/>
         <param name="obstacle_avoidance_a" value="0.23"/>
         <param name="obstacle_avoidance_b" value="0.23"/>
-        <param name="obstacle_avoidance_k" value="1.3"/> <!-- 0.3 -->
+        <param name="obstacle_avoidance_k" value="0.7"/> <!-- 0.3 -->
         <param name="obstacle_avoidance_lambda" value="0.05"/>
         <param name="potential_gain" value="1.0"/>
 
         <param name="saturate_potential" value="8.0"/>
     </node>
-
-    <!-- <node pkg="rrt_project" type="obstacle_avoidance_node.py" name="obstacle_avoidance_node" output="screen">
-        <rosparam file="$(find rrt_project)/config/simulation/obstacle_avoidance/obstacle_avoidance_scan_node.yaml" command="load" />
-        <param name="scan_topic" value="$(arg laser_topic)"/>
-        <param name="robot_frame" value="$(arg robot_frame)"/>
-        <param name="world_frame" value="$(arg world_frame)"/>
-        <param name="velocity_topic" value="velocity"/>
-    </node> -->
 </launch>

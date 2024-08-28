@@ -1,0 +1,36 @@
+<launch>
+    <!-- Publish limo positions and link to the map -->
+    <!-- <arg name="robot_frame" default="odom" />
+    <arg name="robot_name" default="limo/" /> -->
+    <arg name="world_frame" default="map" />
+
+    <!-- <node pkg="rrt_project" type="publish_gazebo_positions.py" name="publish_gazebo_positions">
+        <param name="robot_frame" value="$(arg robot_frame)"/>
+        <param name="robot_name" value="$(arg robot_name)"/>
+        <param name="frame_id" value="$(arg world_frame)"/>
+    </node> -->
+
+    <!-- Launch mapping for Local Map-->
+    <arg name="map_topic_for_local_rrt" default="/map_topic_for_local_rrt" />
+    <arg name="map_frame_for_local_rrt" default="map_frame_for_local_rrt" />
+    <arg name="resolution_of_local_map" default="0.01"/>
+    <arg name="base_frame"  default="base_link"/>
+    <arg name="x_min" default="-4.0"/>
+    <arg name="y_min" default="-2.5"/>
+    <arg name="x_max" default="4.0"/>
+    <arg name="y_max" default="2.5"/>
+    <arg name="scan_topic"  default="/laser/scan" />
+
+    <include file="$(find rrt_project)/launch/mapping/mapping_room.launch">
+        <arg name="scan_topic"  value="$(arg scan_topic)" />
+        <arg name="odom_frame"  value="$(arg world_frame)"/>
+        <arg name="map_topic" value="$(arg map_topic_for_local_rrt)"/>
+        <arg name="map_frame" value="$(arg map_frame_for_local_rrt)"/>
+        <arg name="base_frame" value="$(arg base_frame)"/>
+        <arg name="resolution" value="$(arg resolution_of_local_map)"/>
+        <arg name="x_min" value="$(arg x_min)"/>
+        <arg name="y_min" value="$(arg y_min)"/>
+        <arg name="x_max" value="$(arg x_max)"/>
+        <arg name="y_max" value="$(arg y_max)"/>
+    </include>
+</launch>
