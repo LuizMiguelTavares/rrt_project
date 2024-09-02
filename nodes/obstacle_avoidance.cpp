@@ -472,9 +472,6 @@ public:
 
             Eigen::Vector2d robot_point(base_pt.first, base_pt.second);
             Eigen::Vector2d obstacle_point(pt.first, pt.second);
-
-            aux_x_dot_y_dot = potential.obstacle_avoidance(robot_point, obstacle_point);
-            combined_v += potential.get_v();
             
             // double x_diff = robot_point(0) - obstacle_point(0);
             // double y_diff = robot_point(1) - obstacle_point(1);
@@ -489,27 +486,30 @@ public:
 
             if (use_angle_filter_) {
                 if (std::abs(pt.second) <= robot_width_/2) {
+                    aux_x_dot_y_dot = potential.obstacle_avoidance(robot_point, obstacle_point, 1.0);
                     x_dot_y_dot.first += aux_x_dot_y_dot.first;
-                    combined_gradient += potential.get_J();
+                    
                 } else if (std::abs(pt.second) < robot_width_/2 + angle_filter_margin_) {
                     double d = robot_width_/2 + angle_filter_margin_ - std::abs(pt.second);
                     double product = d / angle_filter_margin_;  // 0 - 1
                     double mapped_product = product * (1.5 + 3) - 3;
                     double value_gain = blended_tanh(mapped_product);
+                    aux_x_dot_y_dot = potential.obstacle_avoidance(robot_point, obstacle_point, 1.0);
                     x_dot_y_dot.first += aux_x_dot_y_dot.first*value_gain;
-                    combined_gradient(0) += potential.get_J()(0)*value_gain;
-                    combined_gradient(1) += potential.get_J()(1);
                 } else {
+                    aux_x_dot_y_dot = potential.obstacle_avoidance(robot_point, obstacle_point, 1.0);
                     x_dot_y_dot.first += 0.0;
-                    combined_gradient(0) += 0.0;
-                    combined_gradient(1) += potential.get_J()(1);
                 }
             } else {
+                aux_x_dot_y_dot = potential.obstacle_avoidance(robot_point, obstacle_point, 1.0);
                 x_dot_y_dot.first += aux_x_dot_y_dot.first;
-                combined_gradient += potential.get_J();
             }
 
+            // x_dot_y_dot.first += aux_x_dot_y_dot.first;
             x_dot_y_dot.second += aux_x_dot_y_dot.second;
+
+            combined_gradient += potential.get_J();
+            combined_v += potential.get_v();
 
             // Create and add arrow marker for aux_x_dot_y_dot
             visualization_msgs::Marker arrow_marker;
@@ -531,11 +531,13 @@ public:
                 } else if (std::abs(pt.second) < robot_width_/2 + angle_filter_margin_) {
                     double d = robot_width_/2 + angle_filter_margin_ - std::abs(pt.second);
                     double product = d / angle_filter_margin_;  // 0 - 1
-                    double mapped_product = product * (1.5 + 3) - 3; 
+                    double mapped_product = product * (1.5 + 3) - 3;
                     double value_gain = blended_tanh(mapped_product);
                     end.x = start.x + aux_x_dot_y_dot.first*value_gain;
+                    // end.x = start.x + aux_x_dot_y_dot.first;
                 } else {
                     end.x = start.x;
+                    // end.x = start.x + aux_x_dot_y_dot.first;
                 }
             } else {
                 end.x = start.x + aux_x_dot_y_dot.first;
