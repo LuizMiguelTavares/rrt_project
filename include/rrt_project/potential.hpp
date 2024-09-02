@@ -6,7 +6,7 @@
 namespace potential{
     class ObstacleAvoidance {
     private:
-        double n, a, b, k, lambda;
+        double n, a, b, k, lambda, a_aux;
         Eigen::Vector2d J;
         double V;
 
@@ -17,9 +17,7 @@ namespace potential{
 
         Eigen::Vector2d j_ob(double v, double x_diff, double y_diff);
 
-        std::pair<double, double> obstacle_avoidance(const Eigen::Vector2d& robot_point, const Eigen::Vector2d& obstacle_points);
-
-        std::pair<double, double> calculate_diff(double x_dot, double y_dot, const Eigen::Vector2d& combined_gradient);
+        std::pair<double, double> obstacle_avoidance(const Eigen::Vector2d& robot_point, const Eigen::Vector2d& obstacle_points, const double auxiliar_gain_x_direction);
         
         Eigen::Vector2d get_J() const;
 

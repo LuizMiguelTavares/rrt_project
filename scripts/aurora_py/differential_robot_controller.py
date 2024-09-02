@@ -9,14 +9,14 @@ def pioneer_controller(robot_pose, desired, gains, limits=[0.5, 0.5], a=0.15):
     Kp = np.array([[kp_x, 0],
                     [0, kp_y]])
 
-    K = np.array([[np.cos(robot_yaw), -a*np.sin(robot_yaw)],
+    H = np.array([[np.cos(robot_yaw), -a*np.sin(robot_yaw)],
                     [np.sin(robot_yaw), a*np.cos(robot_yaw)]])
 
     Xtil = np.array([desired_x - robot_x, desired_y - robot_y]) 
 
     desired_velocity = np.array([desired_linear_x, desired_linear_y])
 
-    reference_velocity = np.dot(np.linalg.inv(K), (desired_velocity.T + np.dot(Kp, Xtil.T)))
+    reference_velocity = np.dot(np.linalg.inv(H), (desired_velocity.T + np.dot(Kp, Xtil.T)))
 
     reference_linear_velocity = reference_velocity[0]
     reference_angular_velocity = reference_velocity[1]

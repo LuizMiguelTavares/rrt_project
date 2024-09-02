@@ -52,9 +52,9 @@
     </node>
 
     <!-- Control and potential nodes -->
-    <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">
+    <node pkg="rrt_project" type="differential_robot_control_path.py" name="pioneer_control_node" output="screen">
         <rosparam file="$(find rrt_project)/config/simulation/differential_robots/pioneer.yaml" command="load" />
-        <!-- <param name="path_topic" value="/rrt_path" /> -->
+        <param name="path_topic" value="/rrt_path" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
@@ -76,11 +76,11 @@
         <param name="min_dist_threshold" value="0.5"/>
 
         <param name="obstacle_avoidance_n" value="2.0"/>
-        <param name="obstacle_avoidance_a" value="0.23"/>
+        <param name="obstacle_avoidance_a" value="0.3"/>
         <param name="obstacle_avoidance_b" value="0.23"/>
-        <param name="obstacle_avoidance_k" value="0.7"/> <!-- 0.3 -->
+        <param name="obstacle_avoidance_k" value="0.15"/> 
         <param name="obstacle_avoidance_lambda" value="0.05"/>
-        <param name="potential_gain" value="1.0"/>
+        <param name="potential_gain" value="1.1"/>
 
         <param name="saturate_potential" value="8.0"/>
     </node>

@@ -10,6 +10,7 @@ Panels:
         - /Local Map1/Position1
         - /Local Map1/Orientation1
         - /RRT Global Path1/Offset1
+        - /Path1
       Splitter Ratio: 0.5
     Tree Height: 827
   - Class: rviz/Selection
@@ -342,7 +343,7 @@ Visualization Manager:
       Marker Topic: /potential_arrows
       Name: MarkerArray
       Namespaces:
-        potential_arrows: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -468,12 +469,36 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /route_vectors
       Name: MarkerArray
       Namespaces:
-        route_vectors: true
+        {}
       Queue Size: 100
+      Value: false
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /smoothed_local_path
+      Unreliable: false
       Value: true
   Enabled: true
   Global Options:
@@ -512,10 +537,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: -98.05975341796875
+      Scale: -135.76109313964844
       Target Frame: <Fixed Frame>
-      X: -0.43465951085090637
-      Y: 0.05853798985481262
+      X: -1.7046178579330444
+      Y: -0.2876538336277008
     Saved: ~
 Window Geometry:
   Displays:

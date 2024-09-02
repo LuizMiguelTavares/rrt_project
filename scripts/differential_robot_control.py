@@ -131,7 +131,7 @@ class DifferentialController:
 
     def route_callback(self, route_data):
         transformed_route = []
-        self.has_new_path = True
+        # self.has_new_path = True
 
         try:
             transform = self.tf_buffer.lookup_transform(self.world_frame,
@@ -156,7 +156,12 @@ class DifferentialController:
             rospy.logerr("Failed to fetch or apply transform: %s" % e)
 
         # Update the internal route representation with the transformed route
-        self.route = transformed_route
+
+        # check if the route changed
+        if self.route != transformed_route:
+            self.has_new_path = True
+            self.route = transformed_route
+        # self.route = transformed_route
 
     def emergency_button_callback(self, emergency):
         self.btn_emergencia_is_on = True
@@ -236,8 +241,8 @@ class DifferentialController:
             y_dot_route = route[self.path_index][1] - robot_pose[1]
             
             distance = np.sqrt((x_dot_route)**2 + (y_dot_route)**2)
-            x_dot_route = x_dot_route/distance
-            y_dot_route = y_dot_route/distance
+            x_dot_route = (x_dot_route/distance) * self.min_velocity
+            y_dot_route = (y_dot_route/distance) * self.min_velocity
 
             x_d_goal = route[-1][0] - robot_pose[0]
             y_d_goal = route[-1][1] - robot_pose[1]
@@ -285,7 +290,7 @@ class DifferentialController:
                 x_dot_obs = -P_inv_J * self.null_gain * v
                 rospy.logerr(f"X_dot_obs: {x_dot_obs}")
 
-                x_dot_ref_aux1 =  (np.eye(2) - P_inv_J@J) 
+                x_dot_ref_aux1 =  (np.eye(2) - P_inv_J@J)
                 rospy.logerr(f"x_dot_ref_aux1: {x_dot_ref_aux1}")
 
                 x_dot_ref_aux = x_dot_ref_aux1 @ np.array([[x_dot_route],
