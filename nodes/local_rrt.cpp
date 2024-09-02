@@ -14,6 +14,7 @@
 #include <mutex>
 #include <sensor_msgs/LaserScan.h>
 #include "rrt.hpp"
+#include <utility>
 
 class MapPathSubscriber {
 public:
@@ -35,7 +36,8 @@ public:
 
         last_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("last_point_inside_map", 10);
         path_pub_ = nh.advertise<nav_msgs::Path>("local_path", 10);
-        traveled_path_pub_ = nh.advertise<nav_msgs::Path>("traveled_path", 10);
+        smoothed_path_pub_ = nh.advertise<nav_msgs::Path>("smoothed_local_path", 10);
+        // traveled_path_pub_ = nh.advertise<nav_msgs::Path>("traveled_path", 10);
 
         ros::service::waitForService("/updated_map");
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/updated_map");
@@ -161,7 +163,7 @@ public:
                     }
                 }
                 generateLocalRRT();
-                updateTraveledPath();
+                // updateTraveledPath();
             } else {
                 if (toc(Log_time) > log_time){
                     ROS_WARN("Occupancy grid map or path is not yet available.");
@@ -306,7 +308,7 @@ private:
         last_point_pub_.publish(last_point_inside_map);
 
         // local RRT
-        double x_start = std::round(map_.info.width/2);
+        double x_start = std::round(map_.info.width/2 + (0.15/map_.info.resolution));
         double y_start = std::round(map_.info.height/2);
 
         double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
@@ -370,6 +372,9 @@ private:
 
         // Convert the path from nodes to a ROS path message
         nav_msgs::Path ros_path = convertNodesToPath(goal_path, map_);
+        nav_msgs::Path smoothed_path = smoothPath(ros_path, 20);
+
+        smoothed_path_pub_.publish(smoothed_path);
         path_pub_.publish(ros_path);
     }
 
@@ -504,24 +509,24 @@ private:
         return false;
     }
 
-    void updateTraveledPath() {
-        geometry_msgs::PoseStamped current_pose;
-        current_pose.header.frame_id = global_map_.header.frame_id;
-        current_pose.header.stamp = ros::Time::now();
-        current_pose.pose.position.x = robot_position[0];
-        current_pose.pose.position.y = robot_position[1];
-        current_pose.pose.position.z = 0;
+    // void updateTraveledPath() {
+    //     geometry_msgs::PoseStamped current_pose;
+    //     current_pose.header.frame_id = global_map_.header.frame_id;
+    //     current_pose.header.stamp = ros::Time::now();
+    //     current_pose.pose.position.x = robot_position[0];
+    //     current_pose.pose.position.y = robot_position[1];
+    //     current_pose.pose.position.z = 0;
 
-        current_pose.pose.orientation.x = 0.0;
-        current_pose.pose.orientation.y = 0.0;
-        current_pose.pose.orientation.z = 0.0;
-        current_pose.pose.orientation.w = 1.0;
+    //     current_pose.pose.orientation.x = 0.0;
+    //     current_pose.pose.orientation.y = 0.0;
+    //     current_pose.pose.orientation.z = 0.0;
+    //     current_pose.pose.orientation.w = 1.0;
 
-        traveled_path_.poses.push_back(current_pose);
-        traveled_path_.header.frame_id = global_map_.header.frame_id;
-        traveled_path_.header.stamp = ros::Time::now();
-        traveled_path_pub_.publish(traveled_path_);
-    }
+    //     traveled_path_.poses.push_back(current_pose);
+    //     traveled_path_.header.frame_id = global_map_.header.frame_id;
+    //     traveled_path_.header.stamp = ros::Time::now();
+    //     traveled_path_pub_.publish(traveled_path_);
+    // }
 
     std::chrono::time_point<std::chrono::high_resolution_clock> tic() {
         return std::chrono::high_resolution_clock::now();
@@ -531,6 +536,75 @@ private:
         auto end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end - start;
         return elapsed.count();
+    }
+
+    std::pair<double, double> bezierPoint(const std::vector<std::pair<double, double>>& controlPoints, double t) {
+        int n = controlPoints.size() - 1;
+        std::pair<double, double> p = {0.0, 0.0};
+
+        for (int i = 0; i <= n; ++i) {
+            double binomialCoefficient = std::tgamma(n + 1) / (std::tgamma(i + 1) * std::tgamma(n - i + 1));
+            double term = binomialCoefficient * std::pow(1 - t, n - i) * std::pow(t, i);
+
+            p.first += term * controlPoints[i].first;
+            p.second += term * controlPoints[i].second;
+        }
+
+        return p;
+    }
+
+    // Function to generate a smoothed path using an n-point Bézier curve
+    nav_msgs::Path smoothPath(const nav_msgs::Path& rrtPath, int numPoints, float smoothness = 0.01) {
+        nav_msgs::Path smoothPath;
+        smoothPath.header = rrtPath.header; 
+
+        std::vector<std::pair<double, double>> controlPoints;
+        std::vector<std::pair<double, double>> rrtPoints;
+
+        // Extract points from the RRT path
+        for (const auto& pose : rrtPath.poses) {
+            rrtPoints.emplace_back(pose.pose.position.x, pose.pose.position.y);
+        }
+
+        int n = numPoints > 0 ? numPoints : rrtPoints.size();
+
+        if (n > rrtPoints.size()) {
+            n = rrtPoints.size();  // Ensure n does not exceed the size of the RRT path
+        }
+
+        if (n > rrtPoints.size() || rrtPoints.size() < 4) {
+            ROS_ERROR("Not enough points to form a Bézier curve. Need at least 4 points.");
+            return rrtPath;
+        }
+
+        int step = (rrtPoints.size() - 1) / (n - 1);
+
+        controlPoints.push_back(rrtPoints.front());
+
+        // Select equally spaced points from the RRT path, or use all points if numPoints is 0
+        for (int i = 0; i < n; ++i) {
+            if (i * step == 0){
+                continue;
+            } else if (i * step >= rrtPoints.size()){
+                break;
+            }
+            controlPoints.push_back(rrtPoints[i * step]);
+        }
+
+        controlPoints.push_back(rrtPoints.back());
+
+        // Generate points on the Bézier curve
+        for (double t = 0.0; t <= 1.0; t += smoothness) {
+            std::pair<double, double> pt = bezierPoint(controlPoints, t);
+
+            geometry_msgs::PoseStamped pose;
+            pose.pose.position.x = pt.first;
+            pose.pose.position.y = pt.second;
+            pose.pose.position.z = 0.0;  // Assuming a 2D path, z remains 0
+            smoothPath.poses.push_back(pose);
+        }
+
+        return smoothPath;
     }
 
     std::mutex local_map_mutex;
@@ -554,7 +628,8 @@ private:
     ros::Subscriber path_sub_;
     ros::Publisher last_point_pub_;
     ros::Publisher path_pub_;
-    ros::Publisher traveled_path_pub_;
+    ros::Publisher smoothed_path_pub_;
+    // ros::Publisher traveled_path_pub_;
     ros::ServiceClient static_map_client_;
     ros::ServiceClient update_map_client;
     ros::ServiceClient merged_map_client;
