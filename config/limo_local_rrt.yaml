@@ -1,5 +1,5 @@
-num_nodes: 7000
-step_size: 1
+num_nodes: 10000
+step_size: 7
 goal_threshold: 0.7
-bias_probability: 0.1
+bias_probability: 0.05
 radius: 0.15
