@@ -51,9 +51,6 @@ class DifferentialController:
         self.apply_filter = rospy.get_param('~apply_filter', True)
         self.linear_filter_gain = rospy.get_param('~linear_filter_gain', 0.8)
         self.angular_filter_gain = rospy.get_param('~angular_filter_gain', 0.8)
-        self.use_null_space = rospy.get_param('~use_null_space', False)
-        self.k_null_gain = rospy.get_param('~k_null_gain', 0.4)
-        self.has_new_path = False
 
         self.last_linear_velocity = False
         self.last_angular_velocity = False
@@ -101,10 +98,6 @@ class DifferentialController:
         
         self.vectors_pub = rospy.Publisher('/route_vectors', MarkerArray, queue_size=10)
 
-        self.get_jacobian = rospy.Subscriber('/jacobian', Point, self.jacobian_callback)
-
-        self.get_v = rospy.Subscriber('/v', Float64, self.v_callback)
-
         ### Stop message
         if self.robot_type == 'Solverbot':
             self.stop_msg = ChannelFloat32(values=[0.0, 0.0])
@@ -135,8 +128,7 @@ class DifferentialController:
     def route_callback(self, route_data):
         transformed_route = []
         transformed_route_dx = []
-        self.has_new_path = True
-
+        
         # route_data.poses = route_data.poses[int(len(route_data.poses) * 0.15):]
 
         try:
@@ -310,95 +302,41 @@ class DifferentialController:
                 continue
 
             # print(f"The distance is: {distance} and the threshhold is: {self.goal_threshold}")
-
+            
+            ######## Control ########
             rotation_matrix_bw = np.array([[np.cos(yaw), -np.sin(yaw)],
                                            [np.sin(yaw), np.cos(yaw)]])
-
-            
-            # x_dot_potential, y_dot_potential = rotation_matrix_bw @ np.array([self.x_dot_obs, self.y_dot_obs])
 
             ### H_inv is the inverse of the kinematic model
             H_inv = np.array([[      np.cos(yaw)      ,       np.sin(yaw)],
                             [-(1/self.a)*np.sin(yaw), (1/self.a)*np.cos(yaw)]])
 
-            if self.use_null_space:
-                #### Calculating X_dot_obs_ref ####
-                J = self.jacobian
-                v = self.v
-                
-                Pseudo_inv_J = J.T @ np.linalg.inv(J @ J.T + 0.01)
+            #### Calculate X_dot_ref_path ####
+            X_dot_desired_w = np.array([[x_dot_desired], 
+                                        [y_dot_desired]])
+            
+            X_til_w = np.array([[x_desired - robot_pose_control[0]], 
+                                [y_desired - robot_pose_control[1]]])
 
-                rospy.logerr(f"J: {J}")
-                rospy.logerr(f"P_inv_J: {Pseudo_inv_J}")
+            gains = np.array([[self.pgains[0], 0], 
+                                [0, self.pgains[1]]])
+            
+            X_dot_ref_path_w = X_dot_desired_w + gains @ X_til_w
+            
+            #### Calculate X_dot_ref_obs ####
+            X_dot_obs_ref = np.array([[self.x_dot_obs], 
+                                        [self.y_dot_obs]])
+            
+            ### X_obs_ref to world
+            X_dot_obs_ref_w = rotation_matrix_bw @ X_dot_obs_ref
 
-                X_dot_ref_obs = -Pseudo_inv_J * self.k_null_gain * v
-                rospy.logerr(f"X_dot_obs: {X_dot_ref_obs}")
+            #### Full reference ####
+            X_dot_ref_w = X_dot_obs_ref_w + X_dot_ref_path_w
 
-                #### Calculate X_dot_ref_path ####
-                X_dot_desired_w = np.array([[x_dot_desired], 
-                                          [y_dot_desired]])
-                
-                X_til_w = np.array([[x_desired - robot_pose_control[0]], 
-                                  [y_desired - robot_pose_control[1]]])
-                
-                print(f"X_til_w: {X_til_w}")
+            uw = H_inv @ X_dot_ref_w
 
-                gains = np.array([[self.pgains[0], 0], 
-                                  [0, self.pgains[1]]])
-                
-                print(f"Gains: {gains}")
-                
-                X_dot_ref_path_w = X_dot_desired_w + gains @ X_til_w
-
-                #### Change X_dot_ref_obs to body frame ####
-                rotation_matrix_wb = np.array([[np.cos(yaw), np.sin(yaw)],
-                                               [-np.sin(yaw), np.cos(yaw)]])
-
-                X_dot_ref_path = rotation_matrix_wb @ X_dot_ref_path_w
-
-                #### Null Space Projection ####
-                proj_null_space = np.eye(2) - Pseudo_inv_J @ J
-
-                # Full reference
-                X_dot_ref = X_dot_ref_obs + proj_null_space @ X_dot_ref_path
-
-                ### X_dot_ref to world
-                X_dot_ref_w = rotation_matrix_bw @ X_dot_ref
-
-                uw = H_inv @ X_dot_ref_w
-
-                reference_linear_velocity = uw[0][0]
-                reference_angular_velocity = uw[1][0]
-            else:
-                #### Calculate X_dot_ref_path ####
-                X_dot_desired_w = np.array([[x_dot_desired], 
-                                          [y_dot_desired]])
-                
-                X_til_w = np.array([[x_desired - robot_pose_control[0]], 
-                                  [y_desired - robot_pose_control[1]]])
-
-                gains = np.array([[self.pgains[0], 0], 
-                                  [0, self.pgains[1]]])
-                
-                X_dot_ref_path_w = X_dot_desired_w + gains @ X_til_w
-                
-                #### Calculate X_dot_ref_obs ####
-                X_dot_obs_ref = np.array([[self.x_dot_obs], 
-                                          [self.y_dot_obs]])
-                
-                ### X_obs_ref to world
-                X_dot_obs_ref_w = rotation_matrix_bw @ X_dot_obs_ref
-
-                #### Full reference ####
-                X_dot_ref_w = X_dot_obs_ref_w + X_dot_ref_path_w
-
-                uw = H_inv @ X_dot_ref_w
-
-                reference_linear_velocity = uw[0][0]
-                reference_angular_velocity = uw[1][0]
-
-            # reference_linear_velocity, reference_angular_velocity = self.differential_robot_controller(robot_pose_control, desired, gains=gains, limits=[100000, 100000], a=a)
-            # reference_linear_velocity = reference_linear_velocity/(1+ self.angular_velocity_priority_gain * np.abs(reference_angular_velocity))
+            reference_linear_velocity = uw[0][0]
+            reference_angular_velocity = uw[1][0]
 
             ctrl_msg_no_limits = Twist()
             ctrl_msg_no_limits.linear.x = reference_linear_velocity
@@ -438,16 +376,21 @@ class DifferentialController:
             self.publisher.publish(ctrl_msg)
 
             # ############### No potential ##################
-            # reference_linear_velocity_no_potential, reference_angular_velocity_no_potential = self.differential_robot_controller(robot_pose_control, desired_no_potential, gains=gains, limits=[100000, 100000], a=a)
-            # ctrl_msg_no_potential = Twist()
-            # ctrl_msg_no_potential.linear.x = reference_linear_velocity_no_potential
-            # ctrl_msg_no_potential.linear.y = 0.0
-            # ctrl_msg_no_potential.linear.z = 0.0
-            # ctrl_msg_no_potential.angular.x = 0.0
-            # ctrl_msg_no_potential.angular.y = 0.0
-            # ctrl_msg_no_potential.angular.z = reference_angular_velocity_no_potential
+            
+            uw_no_potential = H_inv @ X_dot_ref_path_w
+            
+            reference_linear_velocity_no_potential = uw_no_potential[0][0]            
+            reference_angular_velocity_no_potential = uw_no_potential[1][0]
+            
+            ctrl_msg_no_potential = Twist()
+            ctrl_msg_no_potential.linear.x = reference_linear_velocity_no_potential
+            ctrl_msg_no_potential.linear.y = 0.0
+            ctrl_msg_no_potential.linear.z = 0.0
+            ctrl_msg_no_potential.angular.x = 0.0
+            ctrl_msg_no_potential.angular.y = 0.0
+            ctrl_msg_no_potential.angular.z = reference_angular_velocity_no_potential
 
-            # self.publisher_no_limits_no_potential.publish(ctrl_msg_no_potential)
+            self.publisher_no_limits_no_potential.publish(ctrl_msg_no_potential)
 
             # # print(f"linear: {np.round(reference_linear_velocity, 3)}, angular: {np.round(reference_angular_velocity, 3)}")
             
