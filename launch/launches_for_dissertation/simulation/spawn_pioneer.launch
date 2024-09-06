@@ -1,20 +1,21 @@
 <launch>
     <arg name="x" default="2.25" />
-    <arg name="y" default="1" />
+    <arg name="y" default="-1" />
+    <arg name="yaw" default="0" />
     <arg name="tf_prefix" default="Pioneer" />
 
-    <group ns="Pioneer">
+    <group ns="$(arg tf_prefix)">
         <param name="tf_prefix" value="$(arg tf_prefix)" />
         <param name="robot_description" command="$(find xacro)/xacro '$(find p3dx_description)/urdf/pioneer3dx.xacro'" />
 
         <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model"
-            respawn="false" output="screen" args="-urdf -model p3dx -param robot_description -x $(arg x) -y $(arg y)" />
+            respawn="false" output="screen" args="-urdf -model $(arg tf_prefix) -param robot_description -x $(arg x) -y $(arg y) -Y $(arg yaw)" />
         
         <node name="robot_state_publisher2" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
         <arg name="world_frame" default="map" />
         <arg name="robot_frame" default="odom" />
-        <arg name="robot_name" default="p3dx" />
+        <arg name="robot_name" default="$(arg tf_prefix)" />
 
         <node pkg="rrt_project" type="publish_gazebo_positions.py" name="publish_gazebo_positions" output="screen">
             <param name="robot_vrpn_topic" value="/vrpn_client_node/$(arg tf_prefix)/pose"/>
