@@ -231,7 +231,7 @@ class DifferentialController:
                     # Publish the Twist message to stop the robot
                     self.publisher.publish(stop_cmd)
 
-                rospy.signal_shutdown("Pioneer Emergency stop")
+                # rospy.signal_shutdown("Pioneer Emergency stop")
 
             if self.robot_type == 'Solverbot':
                 for _ in range(10):
