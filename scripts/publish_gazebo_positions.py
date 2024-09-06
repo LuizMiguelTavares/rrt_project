@@ -10,12 +10,16 @@ import tf.transformations as tft
 class GroundTruthPublisher:
     def __init__(self):
         rospy.init_node('ground_truth_publisher', anonymous=True)
-        self.pub = rospy.Publisher('/vrpn_client_node/P1/pose', PoseStamped, queue_size=10)
+        robot_vrpn_topic = rospy.get_param('~robot_vrpn_topic', '/vrpn_client_node/P1/pose')
+        self.pub = rospy.Publisher(robot_vrpn_topic, PoseStamped, queue_size=10)
         rospy.Subscriber('/gazebo/model_states', ModelStates, self.model_states_callback)
-        rospy.Subscriber('/odom', Odometry, self.odom_callback)
+        rospy.Subscriber('odom', Odometry, self.odom_callback)
         self.robot_frame = rospy.get_param('~robot_frame', 'odom')
+        print(f"Robot frame: {self.robot_frame}")
         self.robot_name = rospy.get_param('~robot_name', 'p3dx')
+        print(f"Robot name: {self.robot_name}")
         self.frame_id = rospy.get_param('~frame_id', 'map')
+        print(f"Frame ID: {self.frame_id}")
         self.rate = rospy.Rate(50)  # 50 Hz
         self.br = tf.TransformBroadcaster()
         self.ground_truth_pose = None
