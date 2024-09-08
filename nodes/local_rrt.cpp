@@ -308,7 +308,7 @@ private:
         last_point_pub_.publish(last_point_inside_map);
 
         // local RRT
-        double x_start = std::round(map_.info.width/2 + (0.15/map_.info.resolution));
+        double x_start = std::round(map_.info.width/2);
         double y_start = std::round(map_.info.height/2);
 
         double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
