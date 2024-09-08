@@ -44,6 +44,18 @@
         <param name="rate" value="1.0" />
     </node>
 
+    <include file="$(find rrt_project)/launch/launches_for_dissertation/simulation/mapping/limo_mapping.launch">
+        <arg name="scan_topic" value="$(arg laser_topic)" />
+        <arg name="map_topic" value="$(arg map_topic_for_local_rrt)" />
+        <arg name="map_frame" value="$(arg map_frame_for_local_rrt)" />
+        <arg name="base_frame" value="$(arg robot_frame)" />
+        <arg name="resolution" value="0.01" />
+        <arg name="x_min" value="-4.0" />
+        <arg name="y_min" value="-2.5" />
+        <arg name="x_max" value="4.0" />
+        <arg name="y_max" value="2.5" />
+    </include>
+
     <!-- Max rate is over 1000hz with this specs -->
     <node pkg="rrt_project" type="local_map" name="local_map">
         <param name="global_map_topic" value="$(arg map_topic_for_local_rrt)" />
@@ -91,11 +103,11 @@
         <param name="obstacle_avoidance_n" value="2.0"/>
         <param name="obstacle_avoidance_a" value="0.3"/>
         <param name="obstacle_avoidance_b" value="0.3"/>
-        <param name="obstacle_avoidance_k" value="0.14"/>
+        <param name="obstacle_avoidance_k" value="0.3"/>
         <param name="obstacle_avoidance_lambda" value="0.001"/>
         <param name="potential_gain" value="1.1"/>
 
-        <param name="saturate_potential" value="8.0"/>
+        <param name="saturate_potential" value="100.0"/>
     </node>
 
     <node name="traveled_path" pkg="rrt_project" type="publish_robot_traveled_path.py" output="screen">

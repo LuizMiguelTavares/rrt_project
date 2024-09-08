@@ -1,12 +1,13 @@
 <launch>
     <!-- Launch limo gazebo simulation -->
     <arg name="robot_namespace" default="/"/>
-    <arg name="world_name" default="$(find limo_gazebo_sim)/worlds/empty.world"/>
     <arg name="with_obstacle" default="false"/>
     <arg name="gui" default="false"/>
+    <arg name="room_model" default="$(find rrt_project)/worlds/SALA_LIMO/model.sdf"/>
+    <arg name="map" default="$(find rrt_project)/maps/simulation/limo_map/map.yaml"/>
 
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
-        <arg name="world_name" value="$(arg world_name)"/>
+        <arg name="world_name" value="$(find limo_gazebo_sim)/worlds/empty.world"/>
         <arg name="paused" value="false"/>
         <arg name="use_sim_time" value="true"/>
         <arg name="gui" value="$(arg gui)"/>
@@ -18,16 +19,11 @@
         robot_namespace:=$(arg robot_namespace)" />
 
     <!-- initial pose -->
-    <!-- <arg name="x" default="-5.5"/>
-    <arg name="y" default="-5.5"/> -->
     <arg name="x" default="-2.7"/>
     <arg name="y" default="1.3"/>
-
-    <!-- x: -1.792670504360676
-    y: 1.363807088300469 -->
-    
     <arg name="z" default="0.0"/>
     <arg name="yaw" default="-1.5708"/>
+    
     <node name="spawn_limo_model" pkg="gazebo_ros" type="spawn_model" args="-x $(arg x)
               -y $(arg y)
               -z $(arg z)
@@ -38,28 +34,27 @@
               -model 'limo$(arg robot_namespace)'" />
 
     <!-- Launch room -->
-    <arg name="room_model" default="$(find rrt_project)/worlds/SALA_LIMO/model.sdf"/>
-    <node pkg="gazebo_ros" type="spawn_model" name="spawn_room" args="-file $(arg room_model) -sdf -model my_custom_model -y 0 -x 0" output="screen"/>
-    <node pkg="gazebo_ros" type="spawn_model" name="spawn_obstacles" args="-file $(find rrt_project)/worlds/obstacles/model.sdf -sdf -model obstacles -y 2.46 -x -1.8 -z 0.54" output="screen" if="$(arg with_obstacle)"/>
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn_room" args="-file $(arg room_model) -sdf -model my_custom_model -y 0 -x 0" output="screen" />
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn_obstacles" args="-file $(find rrt_project)/worlds/obstacles/model.sdf -sdf -model obstacles -y 2.46 -x -1.8 -z 0.54" output="screen" if="$(arg with_obstacle)" />
 
     <!-- Load joint controller configurations from YAML file to parameter server -->
-    <rosparam file="$(find limo_gazebo_sim)/config/limo_four_diff_control.yaml" command="load"/>
+    <rosparam file="$(find limo_gazebo_sim)/config/limo_four_diff_control.yaml" command="load" />
 
     <!-- load the controllers -->
     <node name="controller_spawner" pkg="controller_manager" type="spawner"
-          respawn="false" output="screen" args="limo_state_controller "/>
+          respawn="false" output="screen" args="limo_state_controller " />
 
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
     <arg name="use_rviz" default="true" />
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz" required="false" if="$(arg use_rviz)"/>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz" required="false" if="$(arg use_rviz)" />
 
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/simulation/limo_map/map.yaml" />
+    <node name="map_server" pkg="map_server" type="map_server" args="$(arg map)" />
 
     <arg name="world_frame" default="map" />
     <arg name="robot_frame" default="odom" />
     <arg name="robot_name" default="limo/" />
-    <node pkg="rrt_project" type="publish_gazebo_positions.py" name="publish_gazebo_positions">
+    <node pkg="rrt_project" type="publish_gazebo_positions.py" name="publish_gazebo_positions" >
         <param name="robot_frame" value="$(arg robot_frame)"/>
         <param name="robot_name" value="$(arg robot_name)"/>
         <param name="frame_id" value="$(arg world_frame)"/>

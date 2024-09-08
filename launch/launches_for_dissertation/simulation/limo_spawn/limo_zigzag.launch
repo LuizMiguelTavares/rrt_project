@@ -1,0 +1,12 @@
+<launch>
+    <include file="$(find rrt_project)/launch/launches_for_dissertation/simulation/limo_and_map.launch">
+        <arg name="room_model" value="$(find rrt_project)/worlds/ZIGZAG/model.sdf"/>
+        <arg name="map" default="$(find rrt_project)/maps/simulation/ZIGZAG/map.yaml"/>
+        <arg name="x" value="-2.87"/>
+        <arg name="y" value="1.6"/>
+        <!-- <arg name="x" value="2"/>
+        <arg name="y" value="0.8"/> -->
+        <arg name="yaw" value="-1.5708"/>
+        <arg name="gui" value="false"/>
+    </include>
+</launch>

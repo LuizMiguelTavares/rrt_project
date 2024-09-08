@@ -10,8 +10,6 @@
         <arg name="with_obstacle" value="false"/>
     </include> -->
 
-    <include file="$(find rrt_project)/launch/simulation/limo/limo_mapping.launch"/>
-
     <include file="$(find rrt_project)/launch/launches_for_dissertation/simulation/rrt_project_simulation_setup.launch">
         <!-- <arg name="control_path_topic" value="local_path" /> -->
         <arg name="control_path_topic" value="smoothed_local_path" />
