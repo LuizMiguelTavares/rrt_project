@@ -70,6 +70,7 @@
     <!-- Max rate is 230hz with this specs -->
     <node pkg="rrt_project" type="local_rrt" name="local_rrt" output="screen"> 
         <rosparam file="$(find rrt_project)/config/limo_local_rrt.yaml" command="load" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="step_size" value="7.0" />
         <param name="local_map_topic" value="$(arg local_map_topic)" />
         <param name="path_topic" value="$(arg path_topic)" />

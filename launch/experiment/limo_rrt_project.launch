@@ -77,6 +77,7 @@
         <param name="laser_scan_topic" value="$(arg laser_topic)" />
         <param name="path_topic" value="$(arg path_topic)" />
         <param name="rate" value="15.0" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
     </node>
 
     <node pkg="rrt_project" type="differential_robot_control.py" name="pioneer_control_node" output="screen">

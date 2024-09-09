@@ -23,6 +23,7 @@ public:
         ros::NodeHandle private_nh("~");
 
         this->getParamOrThrow(private_nh, "local_map_topic", local_map_topic_);
+        this->getParamOrThrow(private_nh, "robot_frame", robot_frame_);
         this->getParamOrThrow(private_nh, "path_topic", path_topic_);
         this->getParamOrThrow(private_nh, "rate", rate_);
         this->getParamOrThrow(private_nh, "num_nodes", num_nodes_);
@@ -255,7 +256,7 @@ private:
     }
 
     void generateLocalRRT() {
-        updatePositionFromTF(global_map_.header.frame_id, map_frame_id_);
+        updatePositionFromTF(global_map_.header.frame_id, robot_frame_);
 
         float robot_x = robot_position[0] - global_map_.info.origin.position.x;
         float robot_y = robot_position[1] - global_map_.info.origin.position.y;
@@ -611,7 +612,7 @@ private:
     int rate_;
     float log_time;
     std::chrono::time_point<std::chrono::high_resolution_clock> Log_time;
-    std::string path_topic_;
+    std::string path_topic_, robot_frame_;
     int path_number_;
     std::string map_frame_id_;
     std::string local_map_topic_;
