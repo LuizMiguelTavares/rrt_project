@@ -60,6 +60,12 @@ target_link_libraries(publish_robot_potential_points ${catkin_LIBRARIES})
 add_executable(local_map nodes/local_map.cpp)
 target_link_libraries(local_map ${catkin_LIBRARIES})
 
+add_executable(local_map_new nodes/local_map_new.cpp)
+target_link_libraries(local_map_new ${catkin_LIBRARIES})
+
+add_executable(merged_map nodes/merged_map.cpp)
+target_link_libraries(merged_map ${catkin_LIBRARIES})
+
 add_executable(merge_local_map nodes/merge_local_map.cpp)
 target_link_libraries(merge_local_map ${catkin_LIBRARIES})
 
