@@ -37,8 +37,8 @@ class DifferentialController:
         gains = rospy.get_param('~gains', None)
         self.angular_velocity_priority_gain = rospy.get_param('~angular_velocity_priority_gain', 0.0)
         self.distance_to_change_path_index = rospy.get_param('~distance_to_change_path_index', None)
-        self.min_velocity = rospy.get_param('~min_velocity', None)
-        self.max_linear_velocity = rospy.get_param('~max_linear_velocity', 0.1)
+        self.reference_velocity = rospy.get_param('~reference_velocity', 0.1)
+        self.max_linear_velocity = rospy.get_param('~max_linear_velocity', 0.2)
         self.max_angular_velocity = rospy.get_param('~max_angular_velocity', 0.5)
         self.world_frame = rospy.get_param('~world_frame', None)
         self.robot_frame = rospy.get_param('~robot_frame', None)
@@ -77,6 +77,7 @@ class DifferentialController:
         self.publisher_no_limits = rospy.Publisher(robot_control_topic + '_no_limits', message_types[robot_control_message], queue_size=10)
         self.publisher_no_limits_no_potential = rospy.Publisher(robot_control_topic + '_no_limits_no_potential', message_types[robot_control_message], queue_size=10)
         self.publish_which_route_point = rospy.Publisher('which_route_point', PointStamped, queue_size=10)
+        self.publish_control_point = rospy.Publisher('control_point', PointStamped, queue_size=10)
 
         self.path_subscriber = rospy.Subscriber(self.path_topic,
                             Path,
@@ -152,7 +153,7 @@ class DifferentialController:
                 if idx > 0:
                     dx_vector = np.array([transformed_route[idx][0] - transformed_route[idx - 1][0], transformed_route[idx][1] - transformed_route[idx - 1][1]])
                     unitary_dx_vector = dx_vector/np.linalg.norm(dx_vector)
-                    dx_vector = unitary_dx_vector * self.min_velocity
+                    dx_vector = unitary_dx_vector * self.reference_velocity
                     transformed_route_dx.append(dx_vector)
 
                     arrow_marker = Marker()
@@ -266,6 +267,14 @@ class DifferentialController:
             robot_pose_center = np.array([translation[0], translation[1], yaw])
 
             robot_pose_control = robot_pose_center + np.array([np.cos(yaw)*self.a, np.sin(yaw)*self.a, 0.0])
+            
+            point = PointStamped()
+            point.header.frame_id = self.world_frame
+            point.header.stamp = rospy.Time.now()
+            point.point.x = robot_pose_control[0]
+            point.point.y = robot_pose_control[1]
+            point.point.z = 0.0
+            self.publish_control_point.publish(point)
 
             route = self.route
             route_dx = self.route_dx
