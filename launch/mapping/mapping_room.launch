@@ -19,7 +19,7 @@
     <arg name="y_max" default="4.0"/> 
 
     <node if="$(arg publish_transform)" pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
-        args="$(arg x_offset) $(arg y_offset) 0 0 0 1 0 $(arg base_frame) $(arg scan_frame)" />
+        args="$(arg x_offset) $(arg y_offset) 0 0.0 0.0 0.9996907340681903 0.02486837787638553 $(arg base_frame) $(arg scan_frame)" />
 
     <include file="$(find rrt_project)/launch/mapping/mapping_igor.launch" >
         <arg name="map_topic" value="$(arg map_topic)"/>
