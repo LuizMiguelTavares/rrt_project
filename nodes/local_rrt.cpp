@@ -30,6 +30,7 @@ public:
         this->getParamOrThrow(private_nh, "step_size", step_size_);
         this->getParamOrThrow(private_nh, "goal_threshold", goal_threshold_);
         this->getParamOrThrow(private_nh, "bias_probability", bias_probability_);
+        this->getParamOrThrow(private_nh, "control_point_offset", control_point_offset_);
         this->getParamOrThrow(private_nh, "radius", radius_);
 
         path_sub_ = nh.subscribe(path_topic_, 1, &MapPathSubscriber::pathCallback, this);
@@ -309,7 +310,7 @@ private:
         last_point_pub_.publish(last_point_inside_map);
 
         // local RRT
-        double x_start = std::round(map_.info.width/2);
+        double x_start = std::round(map_.info.width/2 + control_point_offset_ / map_.info.resolution);
         double y_start = std::round(map_.info.height/2);
 
         double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
@@ -619,7 +620,7 @@ private:
     int num_nodes_;
     double step_size_;
     double goal_threshold_;
-    double bias_probability_;
+    double bias_probability_, control_point_offset_;
     double radius_;
     int radius_pixel_;
     std::vector<double> robot_position;

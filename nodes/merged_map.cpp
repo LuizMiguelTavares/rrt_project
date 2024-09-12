@@ -150,9 +150,9 @@ public:
         // Get parameters from the parameter server
         nh_.param<std::string>("global_map_topic_1", global_map_topic_1_, "/map_topic_for_local_rrt");
         nh_.param<std::string>("global_map_topic_2", global_map_topic_2_, "/local_map_new");
-        nh_.param<std::string>("local_map_topic_1", local_map_topic_, "/local_map_teste");
+        nh_.param<std::string>("local_map_topic_1", local_map_topic_, "/local_map");
         // nh_.param<std::string>("local_map_topic_2", local_map_topic_2_, "/local_map_2");
-        nh_.param<double>("local_map_size", local_map_size_, 1.0);
+        nh_.param<double>("local_map_size", local_map_size_, 1.5);
         nh_.param<double>("local_map_resolution", local_map_resolution_, 0.02);
         nh_.param<double>("publish_frequency", publish_frequency_, 10.0);
 

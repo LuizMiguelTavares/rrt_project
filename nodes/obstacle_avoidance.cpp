@@ -640,8 +640,8 @@ public:
             potential_pt.y = std::copysign(saturate_potential_, potential_pt.y);
         }
 
-        potential_pt.x = potential_pt.x;
-        potential_pt.y = potential_pt.y;
+        // potential_pt.x = potential_pt.x;
+        // potential_pt.y = potential_pt.y;
         potential_pub.publish(potential_pt);
 
         // ROS_INFO_STREAM("Filtered x_dot: " << potential_pt.x << " y_dot: " << potential_pt.y);

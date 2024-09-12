@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
 
     // Get the map size from the parameter server or use a default
     double map_size;
-    nh.param("map_size", map_size, 1.5); 
+    nh.param("map_size", map_size, 2.0); 
 
     LocalMapNode local_map_node(nh, map_size);
 
