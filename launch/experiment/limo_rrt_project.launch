@@ -24,7 +24,7 @@
 
     <arg name="resolution_of_local_map" default="0.02"/>
     <arg name="use_rviz" default="false"/>
-    <arg name="control_point_offset" default="0.15" />
+    <arg name="control_point_offset" default="0.1" />
 
     <!-- <arg name="dynamic_obstacle" default="true" /> -->
 
@@ -84,7 +84,7 @@
         <param name="control_point_offset" value="-0.1" />
     </node>
 
-    <node pkg="rrt_project" type="differential_robot_control_path_omni.py" name="limo_control_node" output="screen">
+    <node pkg="rrt_project" type="differential_robot_control_path.py" name="limo_control_node" output="screen">
         <rosparam file="$(find rrt_project)/config/differential_robots/pioneer.yaml" command="load" />
         <param name="path_topic" value="$(arg control_path_topic)" />
         <param name="a" value="$(arg control_point_offset)" />

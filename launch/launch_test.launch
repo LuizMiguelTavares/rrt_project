@@ -1,0 +1,28 @@
+<launch>
+    <node pkg="rrt_project" type="emergency_button.py" name="emergency_button_local_rrt" output="screen" required="true"/>
+    <arg name="path_topic" default="/Pioneer_path" />
+    <arg name="world_frame" default="world" />
+    <arg name="robot_frame" default="L1" />
+    <arg name="cmd_vel_topic" default="/L1/cmd_vel" />
+    
+    <node pkg="tf2_ros" type="static_transform_publisher" name="static_transform_world_to_map"
+    args="0 0 0 0 0 0 1 world map"/>
+
+    <node pkg="rrt_project" type="differential_robot_control_path.py" name="limo_control_node" output="screen">
+        <rosparam file="$(find rrt_project)/config/differential_robots/pioneer.yaml" command="load" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
+        <param name="max_linear_velocity" value="0.1" />
+        <param name="reference_velocity" value="0.4" />
+
+        <!-- Mudar essa merda de 0.52 para 0.53 ta dando uma diferença gigantesca -->
+        <param name="max_angular_velocity" value="0.5"/>
+        <param name="angular_velocity_priority_gain" value="2"/>
+
+        <param name="apply_filter" value="False"/>
+        <param name="linear_filter_gain" value="1.0"/>
+        <param name="angular_filter_gain" value="0.9"/>
+    </node>
+</launch>
