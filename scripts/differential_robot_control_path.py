@@ -24,11 +24,14 @@ class DifferentialController:
         self.btn_emergencia = False
         self.btn_emergencia_is_on = False
         self.robot_path_is_on = False
+        self.robot_pose_is_on = False
         self.path_index = 0
         self.route = []
         self.end_of_path = False
         self.jacobian_true = False
         self.v_true = False
+        
+        self.old_route = None
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
@@ -51,12 +54,13 @@ class DifferentialController:
         self.apply_filter = rospy.get_param('~apply_filter', True)
         self.linear_filter_gain = rospy.get_param('~linear_filter_gain', 0.8)
         self.angular_filter_gain = rospy.get_param('~angular_filter_gain', 0.8)
+        self.pose_topic = rospy.get_param('~pose_topic', "/vrpn_client_node/L1/pose")
 
         self.last_linear_velocity = False
         self.last_angular_velocity = False
 
         # velocity_topic = rospy.get_param('~velocity_topic', None)
-        
+
         self.pgains = [gains['linear'], gains['angular']]
 
         print(f"Gains - Linear: {self.pgains[0]}, Angular: {self.pgains[1]}")
@@ -78,7 +82,9 @@ class DifferentialController:
         self.publisher_no_limits_no_potential = rospy.Publisher(robot_control_topic + '_no_limits_no_potential', message_types[robot_control_message], queue_size=10)
         self.publish_which_route_point = rospy.Publisher('which_route_point', PointStamped, queue_size=10)
         self.publish_control_point = rospy.Publisher('control_point', PointStamped, queue_size=10)
-
+        
+        rospy.Subscriber(self.pose_topic, PoseStamped, self.pose_callback, queue_size=10)
+        
         self.path_subscriber = rospy.Subscriber(self.path_topic,
                             Path,
                             self.route_callback)
@@ -87,17 +93,10 @@ class DifferentialController:
                                 Point,
                                 self.potential_callback)
 
-        # self.velocity_sub = rospy.Subscriber(velocity_topic,
-        #                                     TwistStamped,
-        #                                     self.velocity_callback,
-        #                                     queue_size=10)
-
         self.emergency_flag_subscriber = rospy.Subscriber('/emergency_flag',
                                                         Bool,
                                                         self.emergency_button_callback,
                                                         queue_size=10)
-        
-        self.vectors_pub = rospy.Publisher('/route_vectors', MarkerArray, queue_size=10)
 
         ### Stop message
         if self.robot_type == 'Solverbot':
@@ -118,89 +117,58 @@ class DifferentialController:
         self.x_dot_obs = X_dot_obs.x
         self.y_dot_obs = X_dot_obs.y
 
-    def jacobian_callback(self, jacobian_data):
-        self.jacobian = np.array([[jacobian_data.x, jacobian_data.y]])
-        self.jacobian_true = True
-    
-    def v_callback(self, v_data):
-        self.v = v_data.data
-        self.v_true = True
+    def pose_callback(self, pose):
+        self.robot_pose = pose
+        if not self.robot_pose_is_on:
+            self.robot_pose_is_on = True
 
     def route_callback(self, route_data):
-        transformed_route = []
-        transformed_route_dx = []
-        
-        # route_data.poses = route_data.poses[int(len(route_data.poses) * 0.15):]
+        if self.old_route and route_data.header.stamp == self.old_route.header.stamp:
+            return
 
         try:
             transform = self.tf_buffer.lookup_transform(self.world_frame,
                                                         route_data.header.frame_id,
                                                         rospy.Time(0),
                                                         rospy.Duration(1.0))
-            
-            vectors_marker_array = MarkerArray()
 
-            for idx, pose in enumerate(route_data.poses):
-                pose_stamped = PoseStamped()
-                pose_stamped.pose = pose.pose
-                pose_stamped.header.frame_id = route_data.header.frame_id
-                pose_stamped.header.stamp = pose.header.stamp
+            translation = np.array([transform.transform.translation.x,
+                                    transform.transform.translation.y,
+                                    transform.transform.translation.z])
+            quaternion = [transform.transform.rotation.x,
+                        transform.transform.rotation.y,
+                        transform.transform.rotation.z,
+                        transform.transform.rotation.w]
+            rotation_matrix = tf.transformations.quaternion_matrix(quaternion)[:3, :3]
 
-                transformed_pose = tf2_geometry_msgs.do_transform_pose(pose_stamped, transform)
+            num_poses = len(route_data.poses)
+            transformed_route = np.zeros((num_poses, 2))
+            transformed_route_dx = np.zeros((num_poses, 2))
 
-                transformed_route.append([transformed_pose.pose.position.x, transformed_pose.pose.position.y])
-                
-                if idx > 0:
-                    dx_vector = np.array([transformed_route[idx][0] - transformed_route[idx - 1][0], transformed_route[idx][1] - transformed_route[idx - 1][1]])
-                    unitary_dx_vector = dx_vector/np.linalg.norm(dx_vector)
-                    dx_vector = unitary_dx_vector * self.reference_velocity
-                    transformed_route_dx.append(dx_vector)
+            pose_positions = np.array([[pose.pose.position.x, pose.pose.position.y, 1] for pose in route_data.poses])
 
-                    arrow_marker = Marker()
-                    arrow_marker.header.frame_id = self.world_frame
-                    arrow_marker.header.stamp = rospy.Time.now()
-                    arrow_marker.ns = "route_vectors"
-                    arrow_marker.id = idx
-                    arrow_marker.type = Marker.ARROW
-                    arrow_marker.action = Marker.ADD
+            for i in range(num_poses):
+                transformed_position = np.dot(rotation_matrix[:2, :2], pose_positions[i, :2]) + translation[:2]
+                transformed_route[i] = transformed_position
 
-                    arrow_marker.scale.x = 0.05  # Shaft diameter
-                    arrow_marker.scale.y = 0.1   # Head diameter
-                    arrow_marker.scale.z = 0.1   # Head length
+                if i > 0:
+                    dx_vector = transformed_route[i] - transformed_route[i - 1]
+                    unitary_dx_vector = dx_vector / np.linalg.norm(dx_vector)
+                    transformed_route_dx[i - 1] = unitary_dx_vector * self.reference_velocity
 
-                    arrow_marker.color.a = 1.0
-                    arrow_marker.color.r = 0.0
-                    arrow_marker.color.g = 1.0
-                    arrow_marker.color.b = 0.0
+            transformed_route_dx[-1] = np.array([0, 0])
 
-                    start_point = Point()
-                    start_point.x = transformed_route[idx - 1][0]
-                    start_point.y = transformed_route[idx - 1][1]
-                    start_point.z = transformed_pose.pose.position.z
+            self.z_route = transform.transform.translation.z
 
-                    end_point = Point()
-                    end_point.x = transformed_route[idx][0]
-                    end_point.y = transformed_route[idx][1]
-                    end_point.z = transformed_pose.pose.position.z
-
-                    arrow_marker.points.append(start_point)
-                    arrow_marker.points.append(end_point)
-
-                    vectors_marker_array.markers.append(arrow_marker)
-
-                self.z_route = transformed_pose.pose.position.z
-            
-            self.vectors_pub.publish(vectors_marker_array)
-            transformed_route_dx.append([0, 0])
             self.robot_path_is_on = True
             self.route = transformed_route
             self.route_dx = transformed_route_dx
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
-            rospy.logerr("Failed to fetch or apply transform: %s" % e)
+            rospy.logerr(f"Failed to fetch or apply transform: {e}")
 
-        # Update the internal route representation with the transformed route
-        self.route = transformed_route
+        self.old_route = route_data
+
 
     def find_closest_point(self, robot_pose, route):
         min_dist = float('inf')
@@ -220,41 +188,22 @@ class DifferentialController:
             rospy.loginfo('Robot stopping by Emergency')
             rospy.loginfo('Sending emergency stop command')
 
-            if self.robot_type == 'Pioneer':
-                for _ in range(10):
-                    stop_cmd = Twist()
-                    stop_cmd.linear.x = 0.0
-                    stop_cmd.linear.y = 0.0
-                    stop_cmd.linear.z = 0.0
-                    stop_cmd.angular.x = 0.0
-                    stop_cmd.angular.y = 0.0
-                    stop_cmd.angular.z = 0.0
-                    # Publish the Twist message to stop the robot
-                    self.publisher.publish(stop_cmd)
+            for _ in range(10):
+                stop_cmd = Twist()
+                stop_cmd.linear.x = 0.0
+                stop_cmd.linear.y = 0.0
+                stop_cmd.linear.z = 0.0
+                stop_cmd.angular.x = 0.0
+                stop_cmd.angular.y = 0.0
+                stop_cmd.angular.z = 0.0
+                # Publish the Twist message to stop the robot
+                self.publisher.publish(stop_cmd)
 
-                # rospy.signal_shutdown("Pioneer Emergency stop")
-
-            if self.robot_type == 'Solverbot':
-                for _ in range(10):
-                    message = [0.0, 0.0]
-                    stop_cmd = ChannelFloat32(values=message)
-                    # Publish the Twist message to stop the robot
-                    self.publisher.publish(stop_cmd)
-
-                rospy.signal_shutdown("SolverBot Emergency stop")
+            #  rospy.signal_shutdown("SolverBot Emergency stop")
 
     def control_loop(self):
         while not rospy.is_shutdown():
-            try:
-                trans = self.tf_buffer.lookup_transform(self.world_frame, self.robot_frame, rospy.Time(0))
-                translation = np.array([trans.transform.translation.x, trans.transform.translation.y, trans.transform.translation.z])
-                quaternion = [trans.transform.rotation.x, trans.transform.rotation.y, trans.transform.rotation.z, trans.transform.rotation.w]
-            except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
-                rospy.logerr(f'{rospy.get_name()} failed to get transform: {e}')
-                self.rate.sleep()
-                continue
-
-            if self.robot_path_is_on == False or self.btn_emergencia_is_on == False:
+            if self.robot_path_is_on == False or self.btn_emergencia_is_on == False or self.robot_pose_is_on == False:
                 # rospy.loginfo(f'{rospy.get_name()}: No path or emergency button found')
                 self.rate.sleep()
                 continue
@@ -263,11 +212,14 @@ class DifferentialController:
                 self.rate.sleep()
                 continue
 
+            translation = np.array([self.robot_pose.pose.position.x, self.robot_pose.pose.position.y, self.robot_pose.pose.position.z])
+            quaternion = [self.robot_pose.pose.orientation.x, self.robot_pose.pose.orientation.y, self.robot_pose.pose.orientation.z, self.robot_pose.pose.orientation.w]
+
             yaw = tf.transformations.euler_from_quaternion(quaternion)[2]
             robot_pose_center = np.array([translation[0], translation[1], yaw])
 
             robot_pose_control = robot_pose_center + np.array([np.cos(yaw)*self.a, np.sin(yaw)*self.a, 0.0])
-            
+
             point = PointStamped()
             point.header.frame_id = self.world_frame
             point.header.stamp = rospy.Time.now()
@@ -278,9 +230,9 @@ class DifferentialController:
 
             route = self.route
             route_dx = self.route_dx
-            
+
             closest_point, closest_idx = self.find_closest_point(robot_pose_control, route)
-            
+
             if self.path_index > len(route) - 1:
                 self.path_index = len(route) - 1
 
@@ -293,7 +245,7 @@ class DifferentialController:
             x_d_goal = route[-1][0] - robot_pose_control[0]
             y_d_goal = route[-1][1] - robot_pose_control[1]
             distance_to_goal = np.sqrt((x_d_goal)**2 + (y_d_goal)**2)
-            
+
             point = PointStamped()
             point.header.frame_id = self.world_frame
             point.header.stamp = rospy.Time.now()
@@ -309,8 +261,6 @@ class DifferentialController:
                 self.publisher.publish(self.stop_msg)
                 self.rate.sleep()
                 continue
-
-            # print(f"The distance is: {distance} and the threshhold is: {self.goal_threshold}")
             
             ######## Control ########
             rotation_matrix_bw = np.array([[np.cos(yaw), -np.sin(yaw)],
@@ -321,21 +271,21 @@ class DifferentialController:
                             [-(1/self.a)*np.sin(yaw), (1/self.a)*np.cos(yaw)]])
 
             #### Calculate X_dot_ref_path ####
-            X_dot_desired_w = np.array([[x_dot_desired], 
+            X_dot_desired_w = np.array([[x_dot_desired],
                                         [y_dot_desired]])
-            
-            X_til_w = np.array([[x_desired - robot_pose_control[0]], 
+
+            X_til_w = np.array([[x_desired - robot_pose_control[0]],
                                 [y_desired - robot_pose_control[1]]])
 
-            gains = np.array([[self.pgains[0], 0], 
+            gains = np.array([[self.pgains[0], 0],
                                 [0, self.pgains[1]]])
-            
+
             X_dot_ref_path_w = X_dot_desired_w + gains @ X_til_w
-            
+
             #### Calculate X_dot_ref_obs ####
-            X_dot_obs_ref = np.array([[self.x_dot_obs], 
+            X_dot_obs_ref = np.array([[self.x_dot_obs],
                                         [self.y_dot_obs]])
-            
+
             ### X_obs_ref to world
             X_dot_obs_ref_w = rotation_matrix_bw @ X_dot_obs_ref
 
@@ -344,7 +294,7 @@ class DifferentialController:
 
             uw = H_inv @ X_dot_ref_w
 
-            reference_linear_velocity = uw[0][0]
+            reference_linear_velocity = uw[0][0]/(self.angular_velocity_priority_gain*np.abs(uw[1][0]))
             reference_angular_velocity = uw[1][0]
 
             ctrl_msg_no_limits = Twist()
@@ -384,13 +334,13 @@ class DifferentialController:
             ctrl_msg.angular.z = reference_angular_velocity
             self.publisher.publish(ctrl_msg)
 
-            # ############### No potential ##################
-            
+            # # ############### No potential ##################
+
             uw_no_potential = H_inv @ X_dot_ref_path_w
-            
-            reference_linear_velocity_no_potential = uw_no_potential[0][0]            
+
+            reference_linear_velocity_no_potential = uw_no_potential[0][0]
             reference_angular_velocity_no_potential = uw_no_potential[1][0]
-            
+
             ctrl_msg_no_potential = Twist()
             ctrl_msg_no_potential.linear.x = reference_linear_velocity_no_potential
             ctrl_msg_no_potential.linear.y = 0.0
@@ -402,33 +352,17 @@ class DifferentialController:
             self.publisher_no_limits_no_potential.publish(ctrl_msg_no_potential)
 
             # # print(f"linear: {np.round(reference_linear_velocity, 3)}, angular: {np.round(reference_angular_velocity, 3)}")
-            
+
+            # ctrl_msg_no_potential = Twist()
+            # ctrl_msg_no_potential.linear.x = 0.0
+            # ctrl_msg_no_potential.linear.y = 0.0
+            # ctrl_msg_no_potential.linear.z = 0.0
+            # ctrl_msg_no_potential.angular.x = 0.0
+            # ctrl_msg_no_potential.angular.y = 0.0
+            # ctrl_msg_no_potential.angular.z = 0.0
+
+            # self.publisher_no_limits_no_potential.publish(ctrl_msg_no_potential)
             self.rate.sleep()
-
-    def cumulative_dist_index(self, route, index=None):
-        if index is None:
-            index = 0  # Start from the beginning of the path
-        
-        cumulative_dist = 0
-        # print(f"Starting cumulative_dist_index from index: {index}")
-        
-        for i in range(index, len(route) - 1):  # Iterate through the route
-            x_dist = route[i][0] - route[i + 1][0]
-            y_dist = route[i][1] - route[i + 1][1]
-            dist = np.sqrt(x_dist**2 + y_dist**2)  # Calculate Euclidean distance
-            
-            cumulative_dist += dist  # Update cumulative distance
-            # print(f"Index: {i}, Cumulative Distance: {cumulative_dist}, Segment Distance: {dist}")
-            
-            if cumulative_dist >= self.distance_to_change_path_index:
-                # print(f"Threshold met at index: {i + 1}")
-                return i + 1  # Return the next index if the threshold is met
-        
-        # If we reach the end of the route
-        self.end_of_path = True
-        # print(f"End of path reached, returning index: {len(route) - 1}")
-        return len(route) - 1  # Return the last index
-
 
 def main():
     try:
