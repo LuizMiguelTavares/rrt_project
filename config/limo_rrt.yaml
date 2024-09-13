@@ -1,5 +1,5 @@
 num_nodes: 100000
-step_size: 3
+step_size: 1
 goal_threshold: 2
 bias_probability: 0.05
-radius: 0.15
+radius: 0.17

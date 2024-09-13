@@ -2,8 +2,8 @@ robot_type: 'Pioneer'
 control_frequency: 30
 
 gains:
-  linear: 0.1
-  angular: 0.05
+  linear: 10
+  angular: 10
 
 a: 0.15
 
