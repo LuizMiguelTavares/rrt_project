@@ -228,6 +228,7 @@ namespace motion_planning{
             if (new_node->x < 0 || new_node->x >= grid_map.cols || new_node->y < 0 || new_node->y >= grid_map.rows) {
                 std::cerr << "Error: New node is outside the boundaries of the map." << std::endl;
                 std::cerr << "Should not happen! Check steering function!";
+                continue;
                 std::vector<std::shared_ptr<Node>> error_node;
                 return error_node;
             }
