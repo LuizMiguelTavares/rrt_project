@@ -44,12 +44,9 @@ public:
         ros::service::waitForService("/updated_map");
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/updated_map");
         fetchStaticMap();
-        
-        ros::service::waitForService("/update_map");
-        update_map_client = nh.serviceClient<nav_msgs::SetMap>("/update_map");
 
-        ros::service::waitForService("/merged_map");
-        merged_map_client = nh.serviceClient<nav_msgs::GetMap>("/merged_map");
+        // ros::service::waitForService("/merged_map");
+        // merged_map_client = nh.serviceClient<nav_msgs::GetMap>("/merged_map");
 
         private_nh.param<std::string>("laser_scan_topic", laser_scan_topic_, "/laser/scan");
         laser_scan_sub_ = nh.subscribe(laser_scan_topic_, 1, &MapPathSubscriber::laserScanCallback, this);
@@ -90,30 +87,30 @@ public:
         map_frame_id_ = msg->header.frame_id;
     }
 
-    bool updateMap() {
-        nav_msgs::SetMap srv;
-        srv.request.map = this->map_;
-        srv.request.initial_pose = geometry_msgs::PoseWithCovarianceStamped();
-        if (update_map_client.call(srv)) {
-            ROS_INFO("LocalMap: Successfully updated map.");
-            return true;
-        } else {
-            ROS_ERROR("LocalMap: Failed to call /update_map service");
-            return false;
-        }
-    }
+    // bool updateMap() {
+    //     nav_msgs::SetMap srv;
+    //     srv.request.map = this->map_;
+    //     srv.request.initial_pose = geometry_msgs::PoseWithCovarianceStamped();
+    //     if (update_map_client.call(srv)) {
+    //         ROS_INFO("LocalMap: Successfully updated map.");
+    //         return true;
+    //     } else {
+    //         ROS_ERROR("LocalMap: Failed to call /update_map service");
+    //         return false;
+    //     }
+    // }
 
-    bool mergeMaps() {
-        nav_msgs::GetMap srv;
-        if (merged_map_client.call(srv)) {
-            merged_map_ = srv.response.map;
-            // ROS_INFO("Successfully called /merged_map service");
-            return true;
-        } else {
-            ROS_ERROR("Failed to call /merged_map service");
-            return false;
-        }
-    }
+    // bool mergeMaps() {
+    //     nav_msgs::GetMap srv;
+    //     if (merged_map_client.call(srv)) {
+    //         merged_map_ = srv.response.map;
+    //         // ROS_INFO("Successfully called /merged_map service");
+    //         return true;
+    //     } else {
+    //         ROS_ERROR("Failed to call /merged_map service");
+    //         return false;
+    //     }
+    // }
 
     void pathCallback(const nav_msgs::Path::ConstPtr& msg) {
         if (msg->poses.empty()) {
@@ -328,21 +325,21 @@ private:
 
         // See if there is an obstacle between the robot and the goal to update global map
         // Calculate the angle from the robot to the goal
-        double angle_to_goal = calculateAngleToGoal(last_point_inside_map_local_frame.point);
+        // double angle_to_goal = calculateAngleToGoal(last_point_inside_map_local_frame.point);
 
-        // Find the closest laser index corresponding to this angle
-        int closest_laser_index = findClosestLaserIndex(angle_to_goal);
+        // // Find the closest laser index corresponding to this angle
+        // int closest_laser_index = findClosestLaserIndex(angle_to_goal);
 
-        bool obstacle_detected = laserCollidesWithObstacle(closest_laser_index, last_point_inside_map_local_frame);
-        if (obstacle_detected) {
-            // ROS_WARN("Obstacle detected between robot and goal. Updating global map.");
-            // Update the global map
+        // bool obstacle_detected = laserCollidesWithObstacle(closest_laser_index, last_point_inside_map_local_frame);
+        // if (obstacle_detected) {
+        //     // ROS_WARN("Obstacle detected between robot and goal. Updating global map.");
+        //     // Update the global map
             
-            publishLaserPoint(closest_laser_index);
-        } else {
-            geometry_msgs::PoseStamped laser_point;
-            laser_point_pub_.publish(laser_point);
-        }
+        //     publishLaserPoint(closest_laser_index);
+        // } else {
+        //     geometry_msgs::PoseStamped laser_point;
+        //     laser_point_pub_.publish(laser_point);
+        // }
 
         std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
         std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
@@ -357,16 +354,16 @@ private:
         std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
         if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
             ROS_ERROR("No local path found!");
-            if (obstacle_detected){
-                if (!fetchStaticMap() || global_map_.data.empty()) {
-                    ROS_WARN("Global map is not yet available.");
-                    return;
-                }
+            // if (obstacle_detected){
+            //     if (!fetchStaticMap() || global_map_.data.empty()) {
+            //         ROS_WARN("Global map is not yet available.");
+            //         return;
+            //     }
 
-                // Update the global map
-                updateMap();
-                fetchStaticMap();
-            }
+            //     // Update the global map
+            //     updateMap();
+            //     fetchStaticMap();
+            // }
             return;
         } else {
             goal_path = motion_planning::trace_goal_path(nodes.back());
@@ -381,9 +378,9 @@ private:
     }
 
     std::vector<std::shared_ptr<motion_planning::Node>> run_rrt(std::shared_ptr<motion_planning::Node> start, std::shared_ptr<motion_planning::Node> end, int num_nodes, double step_size, double goal_threshold, double bias_probability, int radius_pixel){
-        mergeMaps();
-        merged_map_pub_.publish(merged_map_);
-        cv::Mat local_map = occupancyGridToCvMat(merged_map_);
+        // mergeMaps();
+        // merged_map_pub_.publish(merged_map_);
+        cv::Mat local_map = occupancyGridToCvMat(map_);
         if (local_map.empty()) {
             ROS_ERROR("Local map is empty");
             return {};
@@ -634,7 +631,7 @@ private:
     // ros::Publisher traveled_path_pub_;
     ros::ServiceClient static_map_client_;
     ros::ServiceClient update_map_client;
-    ros::ServiceClient merged_map_client;
+    // ros::ServiceClient merged_map_client;
 
     nav_msgs::OccupancyGrid map_;
     nav_msgs::OccupancyGrid merged_map_;
