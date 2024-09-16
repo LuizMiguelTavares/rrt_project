@@ -2,6 +2,9 @@
     <arg name="x_goal" default="3.127" />
     <arg name="y_goal" default="0.80" />
 
+    <!-- <arg name="x_goal" default="-1.42" />
+    <arg name="y_goal" default="0.988" /> -->
+
     <arg name="world_frame" default="world" />
     <arg name="robot_frame" default="L1" />
     <arg name="cmd_vel_topic" default="/L1/cmd_vel" />
@@ -20,7 +23,7 @@
     <node pkg="rrt_project" type="emergency_button.py" name="emergency_button_local_rrt" output="screen" required="true"/>
 
     <node pkg="rrt_project" type="map_server.py" name="map_server_node"/>
-    <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/>
+    <!-- <node pkg="rrt_project" type="merge_local_map" name="merge_local_map" output="screen"/> -->
 
     <arg name="resolution_of_local_map" default="0.02"/>
     <arg name="use_rviz" default="false"/>
@@ -55,7 +58,7 @@
     <node pkg="rrt_project" type="merged_map" name="merged_map" output="screen"/>
 
     <!-- Map dissertation -->
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/limo_map_latest/map.yaml">
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find rrt_project)/maps/limo_map_latest_2/map.yaml">
         <param name="frame_id" value="map" />
     </node>
 
@@ -79,9 +82,11 @@
         <param name="local_map_topic" value="$(arg local_map_topic)" />
         <param name="laser_scan_topic" value="$(arg laser_topic)" />
         <param name="path_topic" value="$(arg path_topic)" />
-        <param name="rate" value="15.0" />
+        <param name="rate" value="10.0" />
         <param name="robot_frame" value="$(arg robot_frame)" />
-        <param name="control_point_offset" value="-0.1" />
+        <param name="control_point_offset" value="-$(arg control_point_offset)" />
+        <!-- <param name="control_point_offset" value="0.0" /> -->
+        <param name="first_point_obstructed_offset_" value="0.15" />
     </node>
 
     <node pkg="rrt_project" type="differential_robot_control_path.py" name="limo_control_node" output="screen">
@@ -101,31 +106,37 @@
         <param name="apply_filter" value="False"/>
         <param name="linear_filter_gain" value="1.0"/>
         <param name="angular_filter_gain" value="0.9"/>
+
+        <param name="obs_filter_gain" value="0.5"/>
     </node>
 
     <node pkg="rrt_project" type="obstacle_avoidance" name="obstacle_avoidance_node" output="screen">
         <param name="num_clusters" value="12"/>
         <param name="use_angle_filter" value="true"/>
-        <param name="angle_filter_margin" value="0.4"/>
+        <param name="angle_filter_margin" value="0.3"/>
 
         <param name="filter_type" value="0"/>
         <param name="filter_gain" value="0.8"/>
 
-        <param name="robot_height" value="0.4"/>
-        <param name="robot_width" value="0.25"/>
+        <!-- <param name="robot_height" value="0.4"/> -->
+        <param name="robot_height" value="0.22"/>
+        <param name="robot_width" value="0.22"/>
         <param name="x_offset" value="-0.1"/>
         <param name="lidar_topic" value="/rplidar/scan"/>
 
         <param name="min_dist_threshold" value="0.3"/>
 
         <param name="obstacle_avoidance_n" value="2.0"/>
-        <param name="obstacle_avoidance_a" value="0.23"/>
-        <param name="obstacle_avoidance_b" value="0.23"/>
-        <param name="obstacle_avoidance_k" value="0.4"/>
+        <param name="obstacle_avoidance_a" value="0.27"/>
+        <param name="obstacle_avoidance_b" value="0.27"/>
+        <param name="obstacle_avoidance_k" value="0.6"/>
         <param name="obstacle_avoidance_lambda" value="0.001"/>
         <param name="potential_gain" value="-1.0"/>
 
         <param name="saturate_potential" value="8.0"/>
     </node>
 
+    <node pkg="rrt_project" type="publish_robot_traveled_path.py" name="publish_robot_traveled_path">
+        <param name="pose_topic" value="/vrpn_client_node/L1/pose" />
+    </node>
 </launch>
