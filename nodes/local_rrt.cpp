@@ -18,7 +18,7 @@
 
 class MapPathSubscriber {
 public:
-    MapPathSubscriber() : tf_listener_(tf_buffer_), quad_tree_initialized_(false), is_rrt_completed_(false), Log_time(tic()), log_time(2.0){
+    MapPathSubscriber() : tf_listener_(tf_buffer_), quad_tree_initialized_(false), is_rrt_completed_(false), Log_time(tic()), log_time(2.0), penalty_(0), first_point_obstructed_(false) {
         ros::NodeHandle nh;
         ros::NodeHandle private_nh("~");
 
@@ -32,6 +32,7 @@ public:
         this->getParamOrThrow(private_nh, "bias_probability", bias_probability_);
         this->getParamOrThrow(private_nh, "control_point_offset", control_point_offset_);
         this->getParamOrThrow(private_nh, "radius", radius_);
+        this->getParamOrThrow(private_nh, "first_point_obstructed_offset_", first_point_obstructed_offset_);
 
         path_sub_ = nh.subscribe(path_topic_, 1, &MapPathSubscriber::pathCallback, this);
         local_map_sub_ = nh.subscribe(local_map_topic_, 1, &MapPathSubscriber::mapCallback, this);
@@ -52,6 +53,7 @@ public:
         laser_scan_sub_ = nh.subscribe(laser_scan_topic_, 1, &MapPathSubscriber::laserScanCallback, this);
 
         laser_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("laser_point", 10);
+        point_pub = nh.advertise<geometry_msgs::PointStamped>("start_point_local_map", 10);
         merged_map_pub_ = nh.advertise<nav_msgs::OccupancyGrid>("/merged_map", 10);
     }
 
@@ -272,6 +274,7 @@ private:
         geometry_msgs::PoseStamped last_local_pose;
         bool last_local_pose_valid = false;
 
+        int first_index = closest_path_point->index;
         for (int i = closest_path_point->index; i < path_.poses.size(); i++) {
             geometry_msgs::PoseStamped pose;
             pose.header = path_.header;
@@ -289,6 +292,23 @@ private:
                     last_point_inside_map_local_frame.point = pose_map_frame.pose.position;
                     last_point_valid = true;
                 } else {
+                    if (penalty_ > 0) {
+                        if (i - penalty_ <= first_index){
+                            ROS_ERROR_STREAM("There is no valid point for the local path. Probably the problem is with the first point.");
+                            first_point_obstructed_ = true;
+                            penalty_= 0;
+                            return;
+                        }
+                        geometry_msgs::PoseStamped pose;
+                        pose.header = path_.header;
+                        pose.pose = path_.poses[i - penalty_].pose;
+
+                        geometry_msgs::PoseStamped pose_map_frame;
+                        transformPoseToMapFrame(pose, pose_map_frame);
+                        last_point_inside_map.point = pose.pose.position;
+                        last_point_inside_map_local_frame.point = pose_map_frame.pose.position;
+                        last_point_valid = true;
+                    }
                     break;
                 }
             }
@@ -309,6 +329,21 @@ private:
         // local RRT
         double x_start = std::round(map_.info.width/2 + control_point_offset_ / map_.info.resolution);
         double y_start = std::round(map_.info.height/2);
+
+        if (first_point_obstructed_){
+            x_start = std::round(map_.info.width/2 + first_point_obstructed_offset_ / map_.info.resolution);
+        }
+
+        geometry_msgs::PointStamped point_msg;
+        point_msg.header.stamp = ros::Time::now();
+        point_msg.header.frame_id = map_frame_id_;  
+        point_msg.point.x = (x_start - map_.info.width/2) * map_.info.resolution; 
+        point_msg.point.y = (y_start - map_.info.height/2) * map_.info.resolution; 
+        point_msg.point.z = 0.0;
+
+        point_pub.publish(point_msg);
+
+        // ROS_ERROR_STREAM("Start point: " << x_start << ", " << y_start);
 
         double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
         double y_goal = std::round((last_point_inside_map_local_frame.point.y - map_.info.origin.position.y) / map_.info.resolution);
@@ -354,6 +389,7 @@ private:
         std::vector<std::shared_ptr<motion_planning::Node>> goal_path;
         if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
             ROS_ERROR("No local path found!");
+            penalty_++;
             // if (obstacle_detected){
             //     if (!fetchStaticMap() || global_map_.data.empty()) {
             //         ROS_WARN("Global map is not yet available.");
@@ -366,6 +402,8 @@ private:
             // }
             return;
         } else {
+            penalty_ = 0;
+            first_point_obstructed_ = false;
             goal_path = motion_planning::trace_goal_path(nodes.back());
         }
 
@@ -618,16 +656,19 @@ private:
     double step_size_;
     double goal_threshold_;
     double bias_probability_, control_point_offset_;
-    double radius_;
+    double radius_, first_point_obstructed_offset_;
     int radius_pixel_;
     std::vector<double> robot_position;
     bool is_rrt_completed_;
+    int penalty_;
+    bool first_point_obstructed_;
 
     ros::Subscriber local_map_sub_;
     ros::Subscriber path_sub_;
     ros::Publisher last_point_pub_;
     ros::Publisher path_pub_;
     ros::Publisher smoothed_path_pub_;
+    ros::Publisher point_pub;
     // ros::Publisher traveled_path_pub_;
     ros::ServiceClient static_map_client_;
     ros::ServiceClient update_map_client;
