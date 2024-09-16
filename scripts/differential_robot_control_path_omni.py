@@ -9,6 +9,7 @@ from nav_msgs.msg import Path
 from std_msgs.msg import Bool, Float64
 from sensor_msgs.msg import ChannelFloat32
 from visualization_msgs.msg import Marker, MarkerArray
+import time 
 
 from aurora_py.differential_robot_controller import solver_bot_controller, pioneer_controller
 
@@ -54,6 +55,7 @@ class DifferentialController:
         self.angular_filter_gain = rospy.get_param('~angular_filter_gain', 0.8)
 
         self.last_linear_velocity = False
+        self.last_linear_velocity_y = False
         self.last_angular_velocity = False
 
         # velocity_topic = rospy.get_param('~velocity_topic', None)
@@ -118,6 +120,7 @@ class DifferentialController:
     def potential_callback(self, X_dot_obs):
         self.x_dot_obs = X_dot_obs.x
         self.y_dot_obs = X_dot_obs.y
+        # print(f"X_dot_obs: {self.x_dot_obs}, Y_dot_obs: {self.y_dot_obs}")
 
     def jacobian_callback(self, jacobian_data):
         self.jacobian = np.array([[jacobian_data.x, jacobian_data.y]])
@@ -243,9 +246,40 @@ class DifferentialController:
                     self.publisher.publish(stop_cmd)
 
                 rospy.signal_shutdown("SolverBot Emergency stop")
+    
+    def cumulative_distance(self, points, start_idx, threshold):
+        cumulative_distance = 0.0
+
+        for i in range(start_idx, len(points) - 1):
+            point_a = np.array(points[i])
+            point_b = np.array(points[i + 1])
+
+            dist = np.linalg.norm(point_b - point_a)
+            cumulative_distance += dist
+            
+            if cumulative_distance >= threshold:
+                return i + 1
+
+        return len(points) - 1
+
 
     def control_loop(self):
-        while not rospy.is_shutdown():
+        previous_time = time.time()
+        while not rospy.is_shutdown():    
+            # Record the start time of the loop
+            current_time = time.time()
+            
+            # Calculate loop duration (time since the last loop iteration)
+            loop_duration = current_time - previous_time
+            
+            # Update the previous time to the current time for the next iteration
+            previous_time = current_time
+            
+            # Calculate and display the frequency
+            if loop_duration > 0:
+                frequency = 1.0 / loop_duration
+                rospy.loginfo(f"Global loop frequency: {frequency:.2f} Hz")
+            
             try:
                 trans = self.tf_buffer.lookup_transform(self.world_frame, self.robot_frame, rospy.Time(0))
                 translation = np.array([trans.transform.translation.x, trans.transform.translation.y, trans.transform.translation.z])
@@ -281,6 +315,11 @@ class DifferentialController:
             route_dx = self.route_dx
             
             closest_point, closest_idx = self.find_closest_point(robot_pose_control, route)
+            
+            # idx_cumulative = self.cumulative_distance(route, closest_idx, 0.2)
+            
+            # closest_point = route[idx_cumulative]
+            # closest_idx = idx_cumulative
             
             if self.path_index > len(route) - 1:
                 self.path_index = len(route) - 1
@@ -372,6 +411,12 @@ class DifferentialController:
                     self.last_linear_velocity = reference_linear_velocity
                 else:
                     self.last_linear_velocity = reference_linear_velocity
+                    
+                if self.last_linear_velocity_y:
+                    reference_linear_velocity_y = self.linear_filter_gain * reference_linear_velocity_y + (1 - self.linear_filter_gain) * self.last_linear_velocity_y
+                    self.last_linear_velocity_y = reference_linear_velocity_y
+                else:
+                    self.last_linear_velocity_y = reference_linear_velocity_y
 
                 if self.last_angular_velocity:
                     reference_angular_velocity = self.angular_filter_gain * reference_angular_velocity + (1 - self.angular_filter_gain) * self.last_angular_velocity
