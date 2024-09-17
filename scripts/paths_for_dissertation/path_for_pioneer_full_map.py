@@ -23,8 +23,8 @@ class PathGenerator:
         self.rate = rospy.Rate(self.publish_rate)
 
     def generate_and_publish_path(self):
-        x_offset = 1.4
-        y_offset = 0.35
+        x_offset = 2.5
+        y_offset = 0.2
         
         x_radius = 0.8
         y_radius = 0.7
