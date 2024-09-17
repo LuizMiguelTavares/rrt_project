@@ -15,7 +15,6 @@
 #include <filters/mean.hpp>
 #include <filters/filter_chain.hpp>
 
-
 // Point Cloud class definition for nanoflann
 struct PointCloud {
     struct Point {
@@ -131,16 +130,10 @@ public:
         // Initialize the filter chain
         filter_chain_x.configure("double", private_nh);
         filter_chain_y.configure("double", private_nh);
-
-        // Start the processing thread
-        processing_thread = std::thread(&ObstacleAvoidance::processLoop, this);
     }
 
     ~ObstacleAvoidance() {
         running = false;
-        if (processing_thread.joinable()) {
-            processing_thread.join();
-        }
     }
 
     void initFilterParameters() {
@@ -167,25 +160,7 @@ public:
     }
 
     void lidarCallback(const sensor_msgs::LaserScan::ConstPtr& msg) {
-        std::lock_guard<std::mutex> lock(scan_mutex);
-        latest_scan = msg;
-    }
-
-    void processLoop() {
-        ros::Rate rate(30);
-        while (running && ros::ok()) {
-            sensor_msgs::LaserScan::ConstPtr scan;
-            {
-                std::lock_guard<std::mutex> lock(scan_mutex);
-                scan = latest_scan;
-            }
-            if (scan) {
-                processScan(scan);
-            }
-
-            scan = nullptr;
-            rate.sleep();
-        }
+        processScan(msg);
     }
 
     void processScan(const sensor_msgs::LaserScan::ConstPtr& msg) {
@@ -741,7 +716,6 @@ private:
     PointCloud base_cloud_;
     std::unique_ptr<my_kd_tree_t> base_index_;
     sensor_msgs::LaserScan::ConstPtr latest_scan;
-    std::thread processing_thread;
     std::mutex scan_mutex;
     bool running;
 
