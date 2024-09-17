@@ -6,14 +6,12 @@ Panels:
       Expanded:
         - /Global Options1
         - /Grid1/Offset1
-        - /Pose1
         - /Global Map1/Position1
         - /Global Map1/Orientation1
         - /Local Map1/Position1
         - /Local Map1/Orientation1
         - /RRT Global Path1/Offset1
         - /TF1/Tree1
-        - /PointStamped2
       Splitter Ratio: 0.5
     Tree Height: 826
   - Class: rviz/Selection
@@ -114,7 +112,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.009999999776482582
       Style: Flat Squares
-      Topic: /laser/scan
+      Topic: /rplidar/scan
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -357,12 +355,12 @@ Visualization Manager:
       Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
-      Enabled: false
+      Enabled: true
       Name: Map
       Topic: /map_topic_for_local_rrt
       Unreliable: false
       Use Timestamp: false
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -497,7 +495,7 @@ Visualization Manager:
       Shaft Length: 0.25
       Shaft Radius: 0.029999999329447746
       Shape: Arrow
-      Topic: /vrpn_client_node/Pioneer/pose
+      Topic: /vrpn_client_node/P1/pose
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -509,6 +507,41 @@ Visualization Manager:
       Queue Size: 10
       Radius: 0.029999999329447746
       Topic: /start_point_local_map
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /Pioneer_path
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: true
+      History Length: 1
+      Name: PointStamped
+      Queue Size: 10
+      Radius: 0.03999999910593033
+      Topic: /P1/which_route_point
       Unreliable: false
       Value: true
   Enabled: true
@@ -538,7 +571,7 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 3.1099913120269775
+      Angle: 6.254986763000488
       Class: rviz/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -548,10 +581,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: -170.7095947265625
+      Scale: 228.22840881347656
       Target Frame: <Fixed Frame>
-      X: 0.9148476719856262
-      Y: -0.41995781660079956
+      X: -1.1774377822875977
+      Y: 0.350755512714386
     Saved: ~
 Window Geometry:
   Displays:
