@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+#!/usr/bin/env python3
 
 import rospy
 import tf2_ros
@@ -50,13 +51,15 @@ class DifferentialController:
         robot_control_message = rospy.get_param('~robot_control_message', None)
         self.rate = rospy.Rate(rospy.get_param('~control_frequency', 30))
         self.path_topic = rospy.get_param('~path_topic', "path")
-        self.goal_threshold = rospy.get_param('~goal_threshold', 0.25)
+        self.goal_threshold = rospy.get_param('~goal_threshold', 0.05)
         self.apply_filter = rospy.get_param('~apply_filter', True)
         self.linear_filter_gain = rospy.get_param('~linear_filter_gain', 0.8)
         self.angular_filter_gain = rospy.get_param('~angular_filter_gain', 0.8)
         self.pose_topic = rospy.get_param('~pose_topic', "/vrpn_client_node/L1/pose")
+        self.obs_filter_gain = rospy.get_param('~obs_filter_gain', 0.7)
 
         self.last_linear_velocity = False
+        self.last_X_obs_dot = False
         self.last_angular_velocity = False
 
         # velocity_topic = rospy.get_param('~velocity_topic', None)
@@ -199,7 +202,7 @@ class DifferentialController:
                 # Publish the Twist message to stop the robot
                 self.publisher.publish(stop_cmd)
 
-            #  rospy.signal_shutdown("SolverBot Emergency stop")
+            rospy.signal_shutdown("Limo Emergency stop")
 
     def control_loop(self):
         while not rospy.is_shutdown():
@@ -245,6 +248,8 @@ class DifferentialController:
             x_d_goal = route[-1][0] - robot_pose_control[0]
             y_d_goal = route[-1][1] - robot_pose_control[1]
             distance_to_goal = np.sqrt((x_d_goal)**2 + (y_d_goal)**2)
+            
+            # print(f"Distance to goal: {distance_to_goal}")
 
             point = PointStamped()
             point.header.frame_id = self.world_frame
@@ -256,7 +261,7 @@ class DifferentialController:
 
             # print(distance_to_goal)
 
-            if (self.path_index >= len(route) - 1) and (distance_to_goal <= self.goal_threshold):
+            if (self.path_index >= len(route) - 1) or (distance_to_goal <= self.goal_threshold):
                 rospy.loginfo('Path completed')
                 self.publisher.publish(self.stop_msg)
                 self.rate.sleep()
@@ -283,6 +288,15 @@ class DifferentialController:
             X_dot_ref_path_w = X_dot_desired_w + gains @ X_til_w
 
             #### Calculate X_dot_ref_obs ####
+            
+            if self.last_X_obs_dot:
+                self.x_dot_obs = self.obs_filter_gain * self.x_dot_obs + (1 - self.obs_filter_gain) * self.last_X_obs_dot[0]
+                self.y_dot_obs = self.obs_filter_gain * self.y_dot_obs + (1 - self.obs_filter_gain) * self.last_X_obs_dot[1]
+                
+                self.last_X_obs_dot = [self.x_dot_obs, self.y_dot_obs]
+            else:
+                self.last_X_obs_dot = [self.x_dot_obs, self.y_dot_obs]
+            
             X_dot_obs_ref = np.array([[self.x_dot_obs],
                                         [self.y_dot_obs]])
 
