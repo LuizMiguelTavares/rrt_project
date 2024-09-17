@@ -1,9 +1,9 @@
 <launch>
-    <arg name="x_goal" default="3.127" />
-    <arg name="y_goal" default="0.80" />
+    <!-- <arg name="x_goal" default="3.58" />
+    <arg name="y_goal" default="1.14" /> -->
 
-    <!-- <arg name="x_goal" default="-1.42" />
-    <arg name="y_goal" default="0.988" /> -->
+    <arg name="x_goal" default="-1.42" />
+    <arg name="y_goal" default="0.988" />
 
     <arg name="world_frame" default="world" />
     <arg name="robot_frame" default="L1" />
@@ -100,7 +100,7 @@
         <param name="reference_velocity" value="0.4" />
 
         <!-- Mudar essa merda de 0.52 para 0.53 ta dando uma diferença gigantesca -->
-        <param name="max_angular_velocity" value="0.35"/>
+        <param name="max_angular_velocity" value="0.6"/>
         <param name="angular_velocity_priority_gain" value="0"/>
 
         <param name="apply_filter" value="False"/>
