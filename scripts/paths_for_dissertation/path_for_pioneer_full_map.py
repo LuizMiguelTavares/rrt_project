@@ -27,7 +27,7 @@ class PathGenerator:
         y_offset = 0.2
         
         x_radius = 0.8
-        y_radius = 0.7
+        y_radius = 0.6
         
         steps = np.linspace(0, 2*np.pi, 300)
         

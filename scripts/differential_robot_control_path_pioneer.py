@@ -69,20 +69,12 @@ class DifferentialController:
         print(f"Gains - Linear: {self.pgains[0]}, Angular: {self.pgains[1]}")
         self.a = rospy.get_param('~a', 0.15)
 
-        if self.robot_type == 'Solverbot':
-            self.differential_robot_controller = solver_bot_controller
-
-        if self.robot_type == 'Pioneer':
-            self.differential_robot_controller = pioneer_controller
-
         message_types = {
             'Twist': Twist,
             'ChannelFloat32': ChannelFloat32,
         }
 
         self.publisher = rospy.Publisher(robot_control_topic, message_types[robot_control_message], queue_size=10)
-        self.publisher_no_limits = rospy.Publisher(robot_control_topic + '_no_limits', message_types[robot_control_message], queue_size=10)
-        self.publisher_no_limits_no_potential = rospy.Publisher(robot_control_topic + '_no_limits_no_potential', message_types[robot_control_message], queue_size=10)
         self.publish_which_route_point = rospy.Publisher('which_route_point', PointStamped, queue_size=10)
         self.publish_control_point = rospy.Publisher('control_point', PointStamped, queue_size=10)
         
@@ -91,15 +83,6 @@ class DifferentialController:
         self.path_subscriber = rospy.Subscriber(self.path_topic,
                             Path,
                             self.route_callback)
-
-        self.potential_subscriber = rospy.Subscriber(f"potential",
-                                Point,
-                                self.potential_callback)
-
-        self.emergency_flag_subscriber = rospy.Subscriber('/emergency_flag',
-                                                        Bool,
-                                                        self.emergency_button_callback,
-                                                        queue_size=10)
 
         ### Stop message
         if self.robot_type == 'Solverbot':
@@ -115,10 +98,6 @@ class DifferentialController:
             self.stop_msg.angular.z = 0.0
 
         rospy.loginfo(f'{rospy.get_name()} started!')
-
-    def potential_callback(self, X_dot_obs):
-        self.x_dot_obs = X_dot_obs.x
-        self.y_dot_obs = X_dot_obs.y
 
     def pose_callback(self, pose):
         self.robot_pose = pose
@@ -186,26 +165,6 @@ class DifferentialController:
                 closest_idx = idx
         return closest_point, closest_idx
 
-    def emergency_button_callback(self, emergency):
-        self.btn_emergencia_is_on = True
-        if emergency.data:
-            self.btn_emergencia = True
-            rospy.loginfo('Robot stopping by Emergency')
-            rospy.loginfo('Sending emergency stop command')
-
-            for _ in range(10):
-                stop_cmd = Twist()
-                stop_cmd.linear.x = 0.0
-                stop_cmd.linear.y = 0.0
-                stop_cmd.linear.z = 0.0
-                stop_cmd.angular.x = 0.0
-                stop_cmd.angular.y = 0.0
-                stop_cmd.angular.z = 0.0
-                # Publish the Twist message to stop the robot
-                self.publisher.publish(stop_cmd)
-
-            rospy.signal_shutdown("Limo Emergency stop")
-
     def control_loop(self):
         while not rospy.is_shutdown():
             if self.robot_path_is_on == False or self.robot_pose_is_on == False:
@@ -261,14 +220,6 @@ class DifferentialController:
             point.point.z = self.z_route
             self.publish_which_route_point.publish(point)
 
-            # print(distance_to_goal)
-
-            # if (self.path_index >= len(route) - 1) or (distance_to_goal <= self.goal_threshold):
-            #     rospy.loginfo('Path completed')
-            #     self.publisher.publish(self.stop_msg)
-            #     self.rate.sleep()
-            #     continue
-            
             ######## Control ########
             rotation_matrix_bw = np.array([[np.cos(yaw), -np.sin(yaw)],
                                            [np.sin(yaw), np.cos(yaw)]])
@@ -310,18 +261,8 @@ class DifferentialController:
 
             uw = H_inv @ X_dot_ref_w
 
-            reference_linear_velocity = uw[0][0]/(self.angular_velocity_priority_gain*np.abs(uw[1][0]))
+            reference_linear_velocity = uw[0][0]
             reference_angular_velocity = uw[1][0]
-
-            ctrl_msg_no_limits = Twist()
-            ctrl_msg_no_limits.linear.x = reference_linear_velocity
-            ctrl_msg_no_limits.linear.y = 0.0
-            ctrl_msg_no_limits.linear.z = 0.0
-            ctrl_msg_no_limits.angular.x = 0.0
-            ctrl_msg_no_limits.angular.y = 0.0
-            ctrl_msg_no_limits.angular.z = reference_angular_velocity
-
-            self.publisher_no_limits.publish(ctrl_msg_no_limits)
 
             if np.abs(reference_linear_velocity) > self.max_linear_velocity:
                 reference_linear_velocity = np.sign(reference_linear_velocity)*self.max_linear_velocity
@@ -350,34 +291,6 @@ class DifferentialController:
             ctrl_msg.angular.z = reference_angular_velocity
             self.publisher.publish(ctrl_msg)
 
-            # # ############### No potential ##################
-
-            uw_no_potential = H_inv @ X_dot_ref_path_w
-
-            reference_linear_velocity_no_potential = uw_no_potential[0][0]
-            reference_angular_velocity_no_potential = uw_no_potential[1][0]
-
-            ctrl_msg_no_potential = Twist()
-            ctrl_msg_no_potential.linear.x = reference_linear_velocity_no_potential
-            ctrl_msg_no_potential.linear.y = 0.0
-            ctrl_msg_no_potential.linear.z = 0.0
-            ctrl_msg_no_potential.angular.x = 0.0
-            ctrl_msg_no_potential.angular.y = 0.0
-            ctrl_msg_no_potential.angular.z = reference_angular_velocity_no_potential
-
-            self.publisher_no_limits_no_potential.publish(ctrl_msg_no_potential)
-
-            # # print(f"linear: {np.round(reference_linear_velocity, 3)}, angular: {np.round(reference_angular_velocity, 3)}")
-
-            # ctrl_msg_no_potential = Twist()
-            # ctrl_msg_no_potential.linear.x = 0.0
-            # ctrl_msg_no_potential.linear.y = 0.0
-            # ctrl_msg_no_potential.linear.z = 0.0
-            # ctrl_msg_no_potential.angular.x = 0.0
-            # ctrl_msg_no_potential.angular.y = 0.0
-            # ctrl_msg_no_potential.angular.z = 0.0
-
-            # self.publisher_no_limits_no_potential.publish(ctrl_msg_no_potential)
             self.rate.sleep()
 
 def main():
