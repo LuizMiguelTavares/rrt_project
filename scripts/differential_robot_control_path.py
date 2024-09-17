@@ -203,6 +203,21 @@ class DifferentialController:
                 self.publisher.publish(stop_cmd)
 
             rospy.signal_shutdown("Limo Emergency stop")
+    
+    def cumulative_distance(self, points, start_idx, threshold):
+        cumulative_distance = 0.0
+
+        for i in range(start_idx, len(points) - 1):
+            point_a = np.array(points[i])
+            point_b = np.array(points[i + 1])
+
+            dist = np.linalg.norm(point_b - point_a)
+            cumulative_distance += dist
+            
+            if cumulative_distance >= threshold:
+                return i + 1
+
+        return len(points) - 1
 
     def control_loop(self):
         while not rospy.is_shutdown():
@@ -235,6 +250,11 @@ class DifferentialController:
             route_dx = self.route_dx
 
             closest_point, closest_idx = self.find_closest_point(robot_pose_control, route)
+            
+            idx_cumulative = self.cumulative_distance(route, closest_idx, 0.05)
+            
+            closest_point = route[idx_cumulative]
+            closest_idx = idx_cumulative
 
             if self.path_index > len(route) - 1:
                 self.path_index = len(route) - 1
@@ -263,9 +283,15 @@ class DifferentialController:
 
             if (self.path_index >= len(route) - 1) or (distance_to_goal <= self.goal_threshold):
                 rospy.loginfo('Path completed')
-                self.publisher.publish(self.stop_msg)
-                self.rate.sleep()
-                continue
+                x_desired = robot_pose_control[0]
+                y_desired = robot_pose_control[1]
+                
+                x_dot_desired = 0
+                y_dot_desired = 0
+                
+                # self.publisher.publish(self.stop_msg)
+                # self.rate.sleep()
+                # continue
             
             ######## Control ########
             rotation_matrix_bw = np.array([[np.cos(yaw), -np.sin(yaw)],
