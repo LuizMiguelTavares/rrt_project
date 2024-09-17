@@ -36,6 +36,7 @@ public:
         nh.param("world_frame", world_frame, std::string("world_frame"));
         nh.param("path_topic", path_topic, std::string("path"));
         nh.param("pose_topic", pose_topic, std::string("/vrpn_client_node/L1/pose"));
+        
         nh.param("a", a, 0.15);
 
         std::string robot_control_topic, robot_control_message;
@@ -79,7 +80,9 @@ public:
 
     void controlLoop() {
         while (ros::ok()) {
-            if (!robot_pose_is_on || !robot_path_is_on || btn_emergencia) {
+            ros::spinOnce();
+
+            if (!robot_pose_is_on || !robot_path_is_on || !btn_emergencia_is_on) {
                 rate->sleep();
                 continue;
             }
