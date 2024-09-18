@@ -15,6 +15,7 @@ class DifferentialController {
 public:
     DifferentialController() : tfListener(tfBuffer) {
         ros::NodeHandle nh("~");
+        ros::NodeHandle nh_;
 
         // Variables initialization
         x_dot_obs = y_dot_obs = 0.0;
@@ -52,14 +53,14 @@ public:
         pgains = Eigen::Vector2d(pgains_linear, pgains_angular);
 
         // Publishers and subscribers
-        control_pub = nh.advertise<geometry_msgs::Twist>(robot_control_topic, 10);
-        control_point_pub = nh.advertise<geometry_msgs::PointStamped>("control_point", 10);
-        route_point_pub = nh.advertise<geometry_msgs::PointStamped>("which_route_point", 10);
+        control_pub = nh_.advertise<geometry_msgs::Twist>(robot_control_topic, 10);
+        control_point_pub = nh_.advertise<geometry_msgs::PointStamped>("control_point", 10);
+        route_point_pub = nh_.advertise<geometry_msgs::PointStamped>("which_route_point", 10);
 
-        pose_sub = nh.subscribe(pose_topic, 10, &DifferentialController::poseCallback, this);
-        path_sub = nh.subscribe(path_topic, 10, &DifferentialController::routeCallback, this);
-        potential_sub = nh.subscribe("/potential", 10, &DifferentialController::potentialCallback, this);
-        emergency_sub = nh.subscribe("/emergency_flag", 10, &DifferentialController::emergencyCallback, this);
+        pose_sub = nh_.subscribe(pose_topic, 10, &DifferentialController::poseCallback, this);
+        path_sub = nh_.subscribe(path_topic, 10, &DifferentialController::routeCallback, this);
+        potential_sub = nh_.subscribe("/potential", 10, &DifferentialController::potentialCallback, this);
+        emergency_sub = nh_.subscribe("/emergency_flag", 10, &DifferentialController::emergencyCallback, this);
 
         // Initialize stop messages
         stop_msg.linear.x = 0.0;
@@ -112,12 +113,21 @@ public:
             // Find the closest point on the route
             auto [closest_point, closest_idx] = findClosestPoint(robot_pose_control, route);
 
+            geometry_msgs::PointStamped route_point;
+            route_point.header.stamp = ros::Time::now();
+            route_point.header.frame_id = robot_pose.header.frame_id;
+            route_point.point.x = closest_point(0);
+            route_point.point.y = closest_point(1);
+
+            route_point_pub.publish(route_point);
+
+
             if (path_index > route.size() - 1) {
                 path_index = route.size() - 1;
             }
 
             Eigen::Vector2d X_dot_desired = route_dx[closest_idx];
-            Eigen::Vector2d X_til = closest_point - robot_pose_control.head<2>();
+            Eigen::Vector2d X_til = (closest_point - robot_pose_control.head<2>());
 
             // Compute the reference velocity based on the control gains
             Eigen::Matrix2d gains;
@@ -135,8 +145,8 @@ public:
             double ref_angular_velocity = uw(1);
 
             // Apply velocity limits
-            ref_linear_velocity = std::clamp(ref_linear_velocity, -max_linear_velocity, max_linear_velocity);
-            ref_angular_velocity = std::clamp(ref_angular_velocity, -max_angular_velocity, max_angular_velocity);
+            // ref_linear_velocity = std::clamp(ref_linear_velocity, -max_linear_velocity, max_linear_velocity);
+            // ref_angular_velocity = std::clamp(ref_angular_velocity, -max_angular_velocity, max_angular_velocity);
 
             geometry_msgs::Twist ctrl_msg;
             ctrl_msg.linear.x = ref_linear_velocity;
