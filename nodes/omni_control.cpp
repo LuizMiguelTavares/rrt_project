@@ -30,7 +30,11 @@ public:
         nh.param("world_frame", world_frame, std::string("world_frame"));
         nh.param("path_topic", path_topic, std::string("path"));
         nh.param("pose_topic", pose_topic, std::string("/vrpn_client_node/L1/pose"));
-        
+        nh.param("angular_gain", angular_gain, 2.0);
+        nh.param("angular_filter_gain", angular_filter_gain, 0.6);
+        nh.param("use_X_obs_on_psi_control", use_X_obs_on_psi_control, false);
+
+
         nh.param("a", a, 0.15);
 
         nh.getParam("robot_control_topic", robot_control_topic);
@@ -60,6 +64,8 @@ public:
         stop_msg.angular.z = 0.0;
 
         last_X_obs_dot = Eigen::Vector2d::Zero();
+        last_x_dot_ref_psi = 0.0;
+        last_x_dot_ref_psi = 0.0;
         rate = new ros::Rate(control_frequency);
         ROS_INFO("Differential controller started.");
     }
@@ -128,24 +134,62 @@ public:
             X_dot_obs = obs_filter_gain * X_dot_obs + (1 - obs_filter_gain) * last_X_obs_dot;
             last_X_obs_dot = X_dot_obs;
 
-            Eigen::Vector2d uw = computeControl(yaw, X_dot_ref, X_dot_obs);
+            // Compute control
+            Eigen::Matrix2d rotation_matrix_bw;
+            rotation_matrix_bw << std::cos(yaw), -std::sin(yaw),
+                                std::sin(yaw), std::cos(yaw);
+
+            Eigen::Matrix2d rotation_matrix_wb;
+            rotation_matrix_wb << std::cos(yaw), std::sin(yaw),
+                                -std::sin(yaw), std::cos(yaw);
+
+            Eigen::Vector2d X_dot_ref_path_w = X_dot_ref;
+            Eigen::Vector2d X_dot_obs_ref_w = rotation_matrix_bw * X_dot_obs;
+
+            Eigen::Vector2d X_dot_ref_w = X_dot_obs_ref_w + X_dot_ref_path_w;
+            Eigen::Vector2d uw = rotation_matrix_wb * X_dot_ref_w;
             
-            double ref_linear_velocity = uw(0);
-            double ref_angular_velocity = uw(1);
+            // Eigen::Vector2d uw = computeControl(yaw, X_dot_ref, X_dot_obs);
+            
+            double ref_linear_velocity_x = uw(0);
+            double ref_linear_velocity_y = uw(1);
+            double psi_desired;
+
+            if (use_X_obs_on_psi_control){
+                double x_dot_ref_psi = X_dot_ref_w(0) * angular_filter_gain + (1 - angular_filter_gain) * last_x_dot_ref_psi;
+                double y_dot_ref_psi = X_dot_ref_w(1) * angular_filter_gain + (1 - angular_filter_gain) * last_y_dot_ref_psi;
+                psi_desired = std::atan2(y_dot_ref_psi, x_dot_ref_psi);
+                last_x_dot_ref_psi = x_dot_ref_psi;
+                last_y_dot_ref_psi = y_dot_ref_psi;
+            } else {
+                psi_desired = std::atan2(X_dot_ref_path_w(1), X_dot_ref_path_w(0));
+            }
+            
+            double psi_til = psi_desired - yaw;
+
+            if (psi_til > M_PI) {
+                psi_til -= 2 * M_PI;
+            }
+            if (psi_til < -M_PI) {
+                psi_til += 2 * M_PI;
+            }
+
+            double ref_angular_velocity = angular_gain*psi_til;
 
             geometry_msgs::Twist ctrl_msg;
-            ctrl_msg.linear.x = ref_linear_velocity;
+            ctrl_msg.linear.x = ref_linear_velocity_x;
+            ctrl_msg.linear.y = ref_linear_velocity_y;
             ctrl_msg.angular.z = ref_angular_velocity;
             control_pub.publish(ctrl_msg);
 
-            Eigen::Vector2d uw_no_potential = computeControl(yaw, X_dot_ref, {0.0, 0.0});
-            double ref_linear_velocity_no_potential = uw_no_potential(0);
-            double ref_angular_velocity_no_potential = uw_no_potential(1);
+            // Eigen::Vector2d uw_no_potential = computeControl(yaw, X_dot_ref, {0.0, 0.0});
+            // double ref_linear_velocity_no_potential = uw_no_potential(0);
+            // double ref_angular_velocity_no_potential = uw_no_potential(1);
 
-            geometry_msgs::Twist ctrl_msg_no_potential;
-            ctrl_msg_no_potential.linear.x = ref_linear_velocity_no_potential;
-            ctrl_msg_no_potential.angular.z = ref_angular_velocity_no_potential;
-            control_pub_no_potential.publish(ctrl_msg_no_potential);
+            // geometry_msgs::Twist ctrl_msg_no_potential;
+            // ctrl_msg_no_potential.linear.x = ref_linear_velocity_no_potential;
+            // ctrl_msg_no_potential.angular.z = ref_angular_velocity_no_potential;
+            // control_pub_no_potential.publish(ctrl_msg_no_potential);
 
             rate->sleep();
         }
@@ -166,11 +210,12 @@ private:
     double x_dot_obs, y_dot_obs;
     double x_dot_world, y_dot_world;
     double reference_velocity;
-    double obs_filter_gain;
+    double obs_filter_gain, angular_gain, angular_filter_gain;
     double a;
     Eigen::Vector2d last_X_obs_dot;
+    double last_x_dot_ref_psi, last_y_dot_ref_psi;
 
-    bool btn_emergencia, robot_path_is_on, robot_pose_is_on, btn_emergencia_is_on;
+    bool btn_emergencia, robot_path_is_on, robot_pose_is_on, btn_emergencia_is_on, use_X_obs_on_psi_control;
     std::vector<Eigen::Vector2d> route, route_dx;
     int path_index = 0;
 
@@ -256,21 +301,21 @@ private:
         return std::make_pair(closest_point, closest_idx);
     }
 
-    Eigen::Vector2d computeControl(double yaw, const Eigen::Vector2d& X_dot_ref, const Eigen::Vector2d& X_dot_obs) {
-        Eigen::Matrix2d rotation_matrix_bw;
-        rotation_matrix_bw << std::cos(yaw), -std::sin(yaw),
-                              std::sin(yaw), std::cos(yaw);
+    // Eigen::Vector2d computeControl(double yaw, const Eigen::Vector2d& X_dot_ref, const Eigen::Vector2d& X_dot_obs) {
+    //     Eigen::Matrix2d rotation_matrix_bw;
+    //     rotation_matrix_bw << std::cos(yaw), -std::sin(yaw),
+    //                           std::sin(yaw), std::cos(yaw);
 
-        Eigen::Matrix2d H_inv;
-        H_inv << std::cos(yaw), std::sin(yaw),
-                -(1 / a) * std::sin(yaw), (1 / a) * std::cos(yaw);
+    //     Eigen::Matrix2d rotation_matrix_wb;
+    //     rotation_matrix_wb << std::cos(yaw), std::sin(yaw),
+    //                           -std::sin(yaw), std::cos(yaw);
 
-        Eigen::Vector2d X_dot_ref_path_w = X_dot_ref;
-        Eigen::Vector2d X_dot_obs_ref_w = rotation_matrix_bw * X_dot_obs;
+    //     Eigen::Vector2d X_dot_ref_path_w = X_dot_ref;
+    //     Eigen::Vector2d X_dot_obs_ref_w = rotation_matrix_bw * X_dot_obs;
 
-        Eigen::Vector2d X_dot_ref_w = X_dot_obs_ref_w + X_dot_ref_path_w;
-        return H_inv * X_dot_ref_w;
-    }
+    //     Eigen::Vector2d X_dot_ref_w = X_dot_obs_ref_w + X_dot_ref_path_w;
+    //     return rotation_matrix_wb * X_dot_ref_w;
+    // }
 };
 
 int main(int argc, char** argv) {

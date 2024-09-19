@@ -23,7 +23,7 @@ def quaternion_to_degrees(quaternion):
 if __name__ == "__main__":
     # Example usage:
     # Convert 45 degrees to quaternion
-    angle_in_deg = - 2.85
+    angle_in_deg =  180 - 1.4
     quaternion = degrees_to_quaternion(angle_in_deg)
     print(f"Quaternion from {angle_in_deg} degrees: {quaternion[1]} {quaternion[2]} {quaternion[3]} {quaternion[0]}")
     

@@ -32,15 +32,12 @@ public:
             double range = scan->ranges[i];
 
             if (range >= scan->range_min && range <= scan->range_max) {
-                // Calculate coordinates in the lidar frame
                 double x = range * cos(angle);
                 double y = range * sin(angle);
 
-                // Map coordinates to grid cells
                 int grid_x = static_cast<int>((x + map_size_ / 2) / grid_resolution_);
                 int grid_y = static_cast<int>((y + map_size_ / 2) / grid_resolution_);
 
-                // Ensure the point is within the bounds of the map
                 if (grid_x >= 0 && grid_x < local_map_.info.width &&
                     grid_y >= 0 && grid_y < local_map_.info.height) {
                     int index = grid_x + grid_y * local_map_.info.width;
@@ -67,7 +64,6 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "local_map_node");
     ros::NodeHandle nh;
 
-    // Get the map size from the parameter server or use a default
     double map_size;
     nh.param("map_size", map_size, 2.0); 
 

@@ -52,25 +52,19 @@ target_link_libraries(rrt_star_lib
 
 add_library(potential_lib
             src/potential.cpp)
-
+    
 # Executables
-add_executable(publish_robot_potential_points nodes/robot_points.cpp)
-target_link_libraries(publish_robot_potential_points ${catkin_LIBRARIES})
-
-add_executable(local_map nodes/local_map.cpp)
-target_link_libraries(local_map ${catkin_LIBRARIES})
-
 add_executable(differential_control nodes/differential_control.cpp)
 target_link_libraries(differential_control ${catkin_LIBRARIES})
 
-add_executable(local_map_new nodes/local_map_new.cpp)
-target_link_libraries(local_map_new ${catkin_LIBRARIES})
+add_executable(omni_control nodes/omni_control.cpp)
+target_link_libraries(omni_control ${catkin_LIBRARIES})
 
-add_executable(merged_map nodes/merged_map.cpp)
-target_link_libraries(merged_map ${catkin_LIBRARIES})
+add_executable(local_map_lidar nodes/local_map_lidar.cpp)
+target_link_libraries(local_map_lidar ${catkin_LIBRARIES})
 
-add_executable(merge_local_map nodes/merge_local_map.cpp)
-target_link_libraries(merge_local_map ${catkin_LIBRARIES})
+add_executable(merge_local_maps nodes/merge_local_maps.cpp)
+target_link_libraries(merge_local_maps ${catkin_LIBRARIES})
 
 add_executable(global_rrt nodes/global_rrt.cpp)
 target_link_libraries(global_rrt ${catkin_LIBRARIES} motion_planning_lib)

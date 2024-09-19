@@ -32,6 +32,7 @@ public:
         this->getParamOrThrow(private_nh, "bias_probability", bias_probability_);
         this->getParamOrThrow(private_nh, "control_point_offset", control_point_offset_);
         this->getParamOrThrow(private_nh, "radius", radius_);
+        this->getParamOrThrow(private_nh, "number_of_bezier_points", number_of_bezier_points_);
         this->getParamOrThrow(private_nh, "first_point_obstructed_offset_", first_point_obstructed_offset_);
 
         path_sub_ = nh.subscribe(path_topic_, 1, &MapPathSubscriber::pathCallback, this);
@@ -40,21 +41,15 @@ public:
         last_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("last_point_inside_map", 10);
         path_pub_ = nh.advertise<nav_msgs::Path>("local_path", 10);
         smoothed_path_pub_ = nh.advertise<nav_msgs::Path>("smoothed_local_path", 10);
-        // traveled_path_pub_ = nh.advertise<nav_msgs::Path>("traveled_path", 10);
 
-        ros::service::waitForService("/updated_map");
-        static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/updated_map");
+        ros::service::waitForService("/static_map");
+        static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/static_map");
         fetchStaticMap();
-
-        // ros::service::waitForService("/merged_map");
-        // merged_map_client = nh.serviceClient<nav_msgs::GetMap>("/merged_map");
 
         private_nh.param<std::string>("laser_scan_topic", laser_scan_topic_, "/laser/scan");
         laser_scan_sub_ = nh.subscribe(laser_scan_topic_, 1, &MapPathSubscriber::laserScanCallback, this);
 
-        laser_point_pub_ = nh.advertise<geometry_msgs::PointStamped>("laser_point", 10);
         point_pub = nh.advertise<geometry_msgs::PointStamped>("start_point_local_map", 10);
-        merged_map_pub_ = nh.advertise<nav_msgs::OccupancyGrid>("/merged_map", 10);
     }
 
     void laserScanCallback(const sensor_msgs::LaserScan::ConstPtr& msg) {
@@ -88,31 +83,6 @@ public:
         map_ = *msg;
         map_frame_id_ = msg->header.frame_id;
     }
-
-    // bool updateMap() {
-    //     nav_msgs::SetMap srv;
-    //     srv.request.map = this->map_;
-    //     srv.request.initial_pose = geometry_msgs::PoseWithCovarianceStamped();
-    //     if (update_map_client.call(srv)) {
-    //         ROS_INFO("LocalMap: Successfully updated map.");
-    //         return true;
-    //     } else {
-    //         ROS_ERROR("LocalMap: Failed to call /update_map service");
-    //         return false;
-    //     }
-    // }
-
-    // bool mergeMaps() {
-    //     nav_msgs::GetMap srv;
-    //     if (merged_map_client.call(srv)) {
-    //         merged_map_ = srv.response.map;
-    //         // ROS_INFO("Successfully called /merged_map service");
-    //         return true;
-    //     } else {
-    //         ROS_ERROR("Failed to call /merged_map service");
-    //         return false;
-    //     }
-    // }
 
     void pathCallback(const nav_msgs::Path::ConstPtr& msg) {
         if (msg->poses.empty()) {
@@ -164,7 +134,6 @@ public:
                     }
                 }
                 generateLocalRRT();
-                // updateTraveledPath();
             } else {
                 if (toc(Log_time) > log_time){
                     ROS_WARN("Occupancy grid map or path is not yet available.");
@@ -230,13 +199,11 @@ private:
 
     cv::Mat occupancyGridToCvMat(const nav_msgs::OccupancyGrid& grid) {
         std::lock_guard<std::mutex> lock(local_map_mutex);
-        // Create a cv::Mat with the same dimensions as the occupancy grid, but flipped dimensions
         cv::Mat mat(grid.info.width, grid.info.height, CV_8UC1);
 
-        // Fill the cv::Mat with data from the occupancy grid, correcting for coordinate axes
         for (unsigned int y = 0; y < grid.info.height; y++) {
             for (unsigned int x = 0; x < grid.info.width; x++) {
-                int i = x + y * grid.info.width; // Original index in the occupancy grid data array
+                int i = x + y * grid.info.width;
                 if (grid.data[i] == -1) {
                     mat.at<uchar>(x, grid.info.height - 1 - y) = 127;
                 } else if (grid.data[i] == 0){
@@ -247,7 +214,6 @@ private:
             }
         }
 
-        // Transpose and flip to correct orientation
         cv::Mat rotated;
         cv::rotate(mat, rotated, cv::ROTATE_90_CLOCKWISE);
         cv::flip(rotated, rotated, 1);
@@ -314,7 +280,7 @@ private:
             }
         }
 
-        if (!last_point_valid) { // Generate a new global path
+        if (!last_point_valid) {
             ROS_ERROR("%s: No global path point inside the local map.", ros::this_node::getName().c_str());
             last_point_inside_map.header.stamp = ros::Time::now();
             last_point_inside_map.header.frame_id = path_.header.frame_id;
@@ -326,7 +292,6 @@ private:
         last_point_inside_map.header.frame_id = path_.header.frame_id;
         last_point_pub_.publish(last_point_inside_map);
 
-        // local RRT
         double x_start = std::round(map_.info.width/2 + control_point_offset_ / map_.info.resolution);
         double y_start = std::round(map_.info.height/2);
 
@@ -343,8 +308,6 @@ private:
 
         point_pub.publish(point_msg);
 
-        // ROS_ERROR_STREAM("Start point: " << x_start << ", " << y_start);
-
         double x_goal = std::round((last_point_inside_map_local_frame.point.x - map_.info.origin.position.x) / map_.info.resolution);
         double y_goal = std::round((last_point_inside_map_local_frame.point.y - map_.info.origin.position.y) / map_.info.resolution);
 
@@ -357,24 +320,6 @@ private:
             ROS_ERROR("%s: Goal point outside the local map.", ros::this_node::getName().c_str());
             return;
         }
-
-        // See if there is an obstacle between the robot and the goal to update global map
-        // Calculate the angle from the robot to the goal
-        // double angle_to_goal = calculateAngleToGoal(last_point_inside_map_local_frame.point);
-
-        // // Find the closest laser index corresponding to this angle
-        // int closest_laser_index = findClosestLaserIndex(angle_to_goal);
-
-        // bool obstacle_detected = laserCollidesWithObstacle(closest_laser_index, last_point_inside_map_local_frame);
-        // if (obstacle_detected) {
-        //     // ROS_WARN("Obstacle detected between robot and goal. Updating global map.");
-        //     // Update the global map
-            
-        //     publishLaserPoint(closest_laser_index);
-        // } else {
-        //     geometry_msgs::PoseStamped laser_point;
-        //     laser_point_pub_.publish(laser_point);
-        // }
 
         std::shared_ptr<motion_planning::Node> start_node = std::make_shared<motion_planning::Node>(x_start, y_start, nullptr);
         std::shared_ptr<motion_planning::Node> goal_node = std::make_shared<motion_planning::Node>(x_goal, y_goal, nullptr);
@@ -390,16 +335,6 @@ private:
         if (nodes.back()->x != goal_node->x || nodes.back()->y != goal_node->y) {
             ROS_ERROR("No local path found!");
             penalty_++;
-            // if (obstacle_detected){
-            //     if (!fetchStaticMap() || global_map_.data.empty()) {
-            //         ROS_WARN("Global map is not yet available.");
-            //         return;
-            //     }
-
-            //     // Update the global map
-            //     updateMap();
-            //     fetchStaticMap();
-            // }
             return;
         } else {
             penalty_ = 0;
@@ -407,17 +342,14 @@ private:
             goal_path = motion_planning::trace_goal_path(nodes.back());
         }
 
-        // Convert the path from nodes to a ROS path message
         nav_msgs::Path ros_path = convertNodesToPath(goal_path, map_);
-        nav_msgs::Path smoothed_path = smoothPath(ros_path, 20);
+        nav_msgs::Path smoothed_path = smoothPath(ros_path, number_of_bezier_points_);
 
         smoothed_path_pub_.publish(smoothed_path);
         path_pub_.publish(ros_path);
     }
 
     std::vector<std::shared_ptr<motion_planning::Node>> run_rrt(std::shared_ptr<motion_planning::Node> start, std::shared_ptr<motion_planning::Node> end, int num_nodes, double step_size, double goal_threshold, double bias_probability, int radius_pixel){
-        // mergeMaps();
-        // merged_map_pub_.publish(merged_map_);
         cv::Mat local_map = occupancyGridToCvMat(map_);
         if (local_map.empty()) {
             ROS_ERROR("Local map is empty");
@@ -454,117 +386,6 @@ private:
         return path;
     }
 
-    int findClosestLaserIndex(double angle) {
-        if (!latest_laser_scan_) {
-            ROS_WARN("Laser scan data not yet available.");
-            return -1;
-        }
-
-        double laser_min_angle = latest_laser_scan_->angle_min;
-        double laser_max_angle = latest_laser_scan_->angle_max;
-        int num_laser_points = latest_laser_scan_->ranges.size();
-        double laser_angle_increment = latest_laser_scan_->angle_increment;
-
-        // Normalize the angle to be within [laser_min_angle, laser_max_angle]
-        while (angle < laser_min_angle) {
-            angle += 2 * M_PI;
-        }
-        while (angle > laser_max_angle) {
-            angle -= 2 * M_PI;
-        }
-
-        // Ensure the angle is within the bounds of the laser scan angles
-        if (angle < laser_min_angle) {
-            angle = laser_min_angle;
-        } else if (angle > laser_max_angle) {
-            angle = laser_max_angle;
-        }
-
-        int closest_index = std::round((angle - laser_min_angle) / laser_angle_increment);
-
-        // Ensure the index is within valid bounds
-        if (closest_index < 0) {
-            closest_index = 0;
-        } else if (closest_index >= num_laser_points) {
-            closest_index = num_laser_points - 1;
-        }
-
-        return closest_index;
-    }
-
-    void publishLaserPoint(int index) {
-        if (!latest_laser_scan_ || index < 0 || index >= latest_laser_scan_->ranges.size()) {
-            ROS_WARN("Invalid laser scan data or index.");
-            return;
-        }
-
-        geometry_msgs::PointStamped laser_point;
-        laser_point.header.frame_id = latest_laser_scan_->header.frame_id;
-        laser_point.header.stamp = ros::Time::now();
-
-        double range = latest_laser_scan_->ranges[index];
-        if (std::isinf(range) || std::isnan(range)) {
-            // ROS_WARN("Invalid range value at index %d: %f", index, range);
-            return;
-        }
-
-        double angle = latest_laser_scan_->angle_min + index * latest_laser_scan_->angle_increment;
-
-        laser_point.point.x = range * cos(angle);
-        laser_point.point.y = range * sin(angle);
-        laser_point.point.z = 0.0;
-
-        ROS_INFO("Laser point: (%f, %f)", laser_point.point.x, laser_point.point.y);
-
-        laser_point_pub_.publish(laser_point);
-    }
-
-    double calculateAngleToGoal(const geometry_msgs::Point& goal_point) {
-        // Assuming the goal_point is already in the laser frame
-        double angle_to_goal = std::atan2(goal_point.y, goal_point.x);
-        return angle_to_goal;
-    }
-
-    bool laserCollidesWithObstacle(int index, const geometry_msgs::PointStamped last_point_inside_map_local_frame) {
-        if (!latest_laser_scan_ || index < 0 || index >= latest_laser_scan_->ranges.size()) {
-            ROS_WARN("Invalid laser scan data or index.");
-            return false;
-        }
-
-        double range = latest_laser_scan_->ranges[index];
-        if (std::isinf(range) || std::isnan(range)) {
-            // ROS_WARN("Invalid range value at index %d: %f", index, range);
-            return false;
-        }
-
-        double point_distance = std::sqrt(std::pow(last_point_inside_map_local_frame.point.x, 2) + std::pow(last_point_inside_map_local_frame.point.y, 2));
-
-        if (range < point_distance) {
-            return true;
-        }
-
-        return false;
-    }
-
-    // void updateTraveledPath() {
-    //     geometry_msgs::PoseStamped current_pose;
-    //     current_pose.header.frame_id = global_map_.header.frame_id;
-    //     current_pose.header.stamp = ros::Time::now();
-    //     current_pose.pose.position.x = robot_position[0];
-    //     current_pose.pose.position.y = robot_position[1];
-    //     current_pose.pose.position.z = 0;
-
-    //     current_pose.pose.orientation.x = 0.0;
-    //     current_pose.pose.orientation.y = 0.0;
-    //     current_pose.pose.orientation.z = 0.0;
-    //     current_pose.pose.orientation.w = 1.0;
-
-    //     traveled_path_.poses.push_back(current_pose);
-    //     traveled_path_.header.frame_id = global_map_.header.frame_id;
-    //     traveled_path_.header.stamp = ros::Time::now();
-    //     traveled_path_pub_.publish(traveled_path_);
-    // }
-
     std::chrono::time_point<std::chrono::high_resolution_clock> tic() {
         return std::chrono::high_resolution_clock::now();
     }
@@ -590,7 +411,6 @@ private:
         return p;
     }
 
-    // Function to generate a smoothed path using an n-point Bézier curve
     nav_msgs::Path smoothPath(const nav_msgs::Path& rrtPath, int numPoints, float smoothness = 0.01) {
         nav_msgs::Path smoothPath;
         smoothPath.header = rrtPath.header; 
@@ -598,7 +418,6 @@ private:
         std::vector<std::pair<double, double>> controlPoints;
         std::vector<std::pair<double, double>> rrtPoints;
 
-        // Extract points from the RRT path
         for (const auto& pose : rrtPath.poses) {
             rrtPoints.emplace_back(pose.pose.position.x, pose.pose.position.y);
         }
@@ -606,7 +425,7 @@ private:
         int n = numPoints > 0 ? numPoints : rrtPoints.size();
 
         if (n > rrtPoints.size()) {
-            n = rrtPoints.size();  // Ensure n does not exceed the size of the RRT path
+            n = rrtPoints.size();
         }
 
         if (n > rrtPoints.size() || rrtPoints.size() < 4) {
@@ -618,7 +437,6 @@ private:
 
         controlPoints.push_back(rrtPoints.front());
 
-        // Select equally spaced points from the RRT path, or use all points if numPoints is 0
         for (int i = 0; i < n; ++i) {
             if (i * step == 0){
                 continue;
@@ -630,14 +448,13 @@ private:
 
         controlPoints.push_back(rrtPoints.back());
 
-        // Generate points on the Bézier curve
         for (double t = 0.0; t <= 1.0; t += smoothness) {
             std::pair<double, double> pt = bezierPoint(controlPoints, t);
 
             geometry_msgs::PoseStamped pose;
             pose.pose.position.x = pt.first;
             pose.pose.position.y = pt.second;
-            pose.pose.position.z = 0.0;  // Assuming a 2D path, z remains 0
+            pose.pose.position.z = 0.0;
             smoothPath.poses.push_back(pose);
         }
 
@@ -657,7 +474,7 @@ private:
     double goal_threshold_;
     double bias_probability_, control_point_offset_;
     double radius_, first_point_obstructed_offset_;
-    int radius_pixel_;
+    int radius_pixel_, number_of_bezier_points_;
     std::vector<double> robot_position;
     bool is_rrt_completed_;
     int penalty_;
@@ -669,10 +486,8 @@ private:
     ros::Publisher path_pub_;
     ros::Publisher smoothed_path_pub_;
     ros::Publisher point_pub;
-    // ros::Publisher traveled_path_pub_;
     ros::ServiceClient static_map_client_;
     ros::ServiceClient update_map_client;
-    // ros::ServiceClient merged_map_client;
 
     nav_msgs::OccupancyGrid map_;
     nav_msgs::OccupancyGrid merged_map_;
@@ -684,8 +499,6 @@ private:
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
 
-    ros::Publisher laser_point_pub_;
-    ros::Publisher merged_map_pub_;
     ros::Subscriber laser_scan_sub_;
     sensor_msgs::LaserScan::ConstPtr latest_laser_scan_;
     std::string laser_scan_topic_;
