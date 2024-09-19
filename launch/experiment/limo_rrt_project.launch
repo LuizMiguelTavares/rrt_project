@@ -1,9 +1,9 @@
 <launch>
-    <arg name="x_goal" default="3.58" />
-    <arg name="y_goal" default="1.14" />
+    <!-- <arg name="x_goal" default="3.58" />
+    <arg name="y_goal" default="1.14" /> -->
 
-    <!-- <arg name="x_goal" default="-1.42" />
-    <arg name="y_goal" default="0.988" /> -->
+    <arg name="x_goal" default="-1.42" />
+    <arg name="y_goal" default="0.988" />
 
     <arg name="world_frame" default="world" />
     <arg name="robot_frame" default="L1" />
@@ -21,7 +21,7 @@
 
     <arg name="resolution_of_local_map" default="0.02"/>
     <arg name="use_rviz" default="false"/>
-    <arg name="control_point_offset" default="0.1" />
+    <arg name="control_point_offset" default="0.05" />
 
     <!-- <include file="$(find rrt_project)/launch/rosbag.launch">
         <arg name="filename" value="RRT_simple_limo.bag"/>
@@ -77,7 +77,8 @@
         <param name="rate" value="10.0" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="control_point_offset" value="-$(arg control_point_offset)" />
-        <param name="first_point_obstructed_offset_" value="0.15" />
+        <param name="first_point_obstructed_offset_" value="0.1" />
+        <param name="number_of_bezier_points" value="6" />
     </node>
 
     <node pkg="rrt_project" type="differential_control" name="limo_control_node" output="screen">
