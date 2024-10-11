@@ -31,8 +31,11 @@ public:
         getParamOrThrow(private_nh, "robot_frame", robot_frame_);
         getParamOrThrow(private_nh, "x_goal", x_goal_);
         getParamOrThrow(private_nh, "y_goal", y_goal_);
+        private_nh.param("bezier_distance", bezier_distance_, 0.1); // Distance for bezier curve control points
 
         path_pub_ = nh.advertise<nav_msgs::Path>(path_topic_, 10);
+        smoothed_path_pub_ = nh.advertise<nav_msgs::Path>(path_topic_ + "_smoothed", 10);
+
         points_pub_ = nh.advertise<sensor_msgs::PointCloud>("/rrt_nodes_", 10);
         ros::service::waitForService("/static_map");
         static_map_client_ = nh.serviceClient<nav_msgs::GetMap>("/static_map");
@@ -85,6 +88,7 @@ public:
                     generateRRT();
                 } else {
                     path_pub_.publish(ros_path_);
+                    smoothed_path_pub_.publish(smoothed_path_);
                     points_pub_.publish(rrt_points_);
                 }
             } else {
@@ -206,7 +210,110 @@ private:
         }
 
         ros_path_ = convertNodesToPath(goal_path, map_);
+        int num_control_points = calculateBezierControlPoints(ros_path_, bezier_distance_);
+        smoothed_path_ = smoothPath(ros_path_, 20, num_control_points);
         rrt_points_ = allNodesToPointCloud(nodes, map_);
+    }
+
+    int calculateBezierControlPoints(const nav_msgs::Path& path, double bezier_distance) {
+        // ROS_ERROR_STREAM("Path size: " << path.poses.size());
+        // ROS_ERROR_STREAM("Bezier distance: " << bezier_distance);
+
+        if (path.poses.empty()) {
+            return 0;
+        }
+
+        double total_length = 0.0;
+        for (size_t i = 1; i < path.poses.size(); ++i) {
+            double dx = path.poses[i].pose.position.x - path.poses[i - 1].pose.position.x;
+            double dy = path.poses[i].pose.position.y - path.poses[i - 1].pose.position.y;
+            total_length += std::sqrt(dx * dx + dy * dy);
+        }
+
+        // ROS_ERROR_STREAM("Total length: " << total_length);
+
+        int num_control_points = static_cast<int>(std::ceil(total_length / bezier_distance));
+
+        // ROS_ERROR_STREAM("Number of control points: " << num_control_points);
+        return num_control_points;
+    }
+
+    std::pair<double, double> bezierPoint(const std::vector<std::pair<double, double>>& controlPoints, double t) {
+        int n = controlPoints.size() - 1;
+        std::pair<double, double> p = {0.0, 0.0};
+
+        for (int i = 0; i <= n; ++i) {
+            double binomialCoefficient = std::tgamma(n + 1) / (std::tgamma(i + 1) * std::tgamma(n - i + 1));
+            double term = binomialCoefficient * std::pow(1 - t, n - i) * std::pow(t, i);
+
+            p.first += term * controlPoints[i].first;
+            p.second += term * controlPoints[i].second;
+        }
+
+        return p;
+    }
+
+    nav_msgs::Path smoothPath(const nav_msgs::Path& rrtPath, int points_per_segment, int numPoints, float smoothness = 0.01) {
+        nav_msgs::Path smoothPath;
+        smoothPath.header = rrtPath.header; 
+
+        std::vector<std::pair<double, double>> controlPoints;
+        std::vector<std::pair<double, double>> rrtPoints;
+
+        for (const auto& pose : rrtPath.poses) {
+            rrtPoints.emplace_back(pose.pose.position.x, pose.pose.position.y);
+        }
+
+        int n = numPoints > 0 ? numPoints : rrtPoints.size();
+
+        if (n > rrtPoints.size()) {
+            n = rrtPoints.size();
+        }
+
+        if (rrtPoints.size() < 4) {
+            ROS_ERROR("Not enough points to form a Bézier curve. Need at least 4 points.");
+            return rrtPath;
+        }
+
+        int step = (rrtPoints.size() - 1) / (n - 1);
+
+        controlPoints.push_back(rrtPoints.front());
+
+        for (int i = 0; i < n; ++i) {
+            if (i * step == 0){
+                continue;
+            } else if (i * step >= rrtPoints.size()){
+                break;
+            }
+            controlPoints.push_back(rrtPoints[i * step]);
+        }
+
+        controlPoints.push_back(rrtPoints.back());
+
+        int num_segments = static_cast<int>(std::ceil(static_cast<double>(numPoints) / points_per_segment));
+        std::vector<std::pair<double, double>> segment_control_points;
+
+        for (int i = 0; i < num_segments; ++i) {
+            segment_control_points.clear();
+            int start_index = i * points_per_segment;
+            int end_index = std::min(start_index + points_per_segment, static_cast<int>(controlPoints.size()));
+
+            for (int j = start_index; j < end_index; ++j) {
+            segment_control_points.push_back(controlPoints[j]);
+            }
+
+            for (double t = 0.0; t <= 1.0; t += smoothness) {
+                std::pair<double, double> pt = bezierPoint(segment_control_points, t);
+
+                geometry_msgs::PoseStamped pose;
+                pose.pose.position.x = pt.first;
+                pose.pose.position.y = pt.second;
+                pose.pose.position.z = 0.0;
+                smoothPath.poses.push_back(pose);
+            }
+        }
+
+        return smoothPath;
     }
 
     sensor_msgs::PointCloud allNodesToPointCloud(const std::vector<std::shared_ptr<motion_planning::Node>> nodes, const nav_msgs::OccupancyGrid map) {
@@ -256,6 +363,7 @@ private:
 
     bool found_path_;
     nav_msgs::Path ros_path_;
+    nav_msgs::Path smoothed_path_;
     sensor_msgs::PointCloud rrt_points_;
     std::mutex local_map_mutex;
     int rate_;
@@ -270,8 +378,10 @@ private:
     std::string robot_frame_;
     double x_goal_;
     double y_goal_;
+    double bezier_distance_;
 
     ros::Publisher path_pub_;
+    ros::Publisher smoothed_path_pub_;
     ros::Publisher points_pub_;
     ros::ServiceClient static_map_client_;
 

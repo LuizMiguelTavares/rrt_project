@@ -32,6 +32,7 @@
         <param name="x_goal" value="$(arg x_goal)" />
         <param name="y_goal" value="$(arg y_goal)" />
         <param name="rate" value="1.0" />
+        <param name="bezier_distance" value="0.05" />
     </node>
 
     <node pkg="rrt_project" type="global_rrt_star" name="global_rrt_star" output="screen" if="$(arg run_rrt_star)">
@@ -44,7 +45,7 @@
         <param name="rate" value="1.0" />
     </node>
 
-    <include file="$(find rrt_project)/launch/launches_for_dissertation/simulation/mapping/limo_mapping.launch">
+    <include file="$(find rrt_project)/launch/simulation/mapping/limo_mapping.launch">
         <arg name="scan_topic" value="$(arg laser_topic)" />
         <arg name="map_topic" value="$(arg map_topic_for_local_rrt)" />
         <arg name="map_frame" value="$(arg map_frame_for_local_rrt)" />

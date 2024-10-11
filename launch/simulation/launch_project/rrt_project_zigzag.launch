@@ -1,5 +1,5 @@
 <launch>
-    <include file="$(find rrt_project)/launch/launches_for_dissertation/simulation/rrt_project_simulation_setup.launch">
+    <include file="$(find rrt_project)/launch/simulation/rrt_project_simulation_setup.launch">
         <arg name="x_goal" value="2.5"/>
         <arg name="y_goal" value="-0.9"/>
     </include>
