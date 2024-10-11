@@ -6,13 +6,13 @@
     <arg name="robot_frame" default="base_link" />
     <arg name="cmd_vel_topic" default="/cmd_vel" />
     <arg name="path_topic" default="/rrt_path" />
-    <arg name="control_path_topic" default="/rrt_path_smoothed" />
+    <arg name="control_path_topic" default="/rrt_path" />
     <arg name="pose_topic" default="/vrpn_client_node/L1/pose" />
     <arg name="control_point_offset" default="0.05" />
 
     <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true" />
 
-    <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen">
+    <!-- <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen">
         <rosparam file="$(find rrt_project)/config/simulation/rrt.yaml" command="load" />
         <param name="robot_frame" value="$(arg robot_frame)" />
         <param name="world_frame" value="$(arg world_frame)" />
@@ -21,6 +21,16 @@
         <param name="y_goal" value="$(arg y_goal)" />
         <param name="rate" value="1.0" />
         <param name="bezier_distance" value="0.1" />
+    </node> -->
+
+    <node pkg="rrt_project" type="global_rrt_star" name="global_rrt_star" output="screen">
+        <rosparam file="$(find rrt_project)/config/simulation/rrt.yaml" command="load" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="x_goal" value="$(arg x_goal)" />
+        <param name="y_goal" value="$(arg y_goal)" />
+        <param name="rate" value="1.0" />
     </node>
 
     <!-- Control and potential nodes -->

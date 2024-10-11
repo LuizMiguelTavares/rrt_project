@@ -264,14 +264,14 @@ namespace rrt_star{
         std::uniform_real_distribution<> rand_unif(0, 1.0);
         
         // Generate random float coordinates
-        float rand_x = rand_unif(rand_gen) * this->m_map.rows;
-        float rand_y = rand_unif(rand_gen) * this->m_map.cols;
+        float rand_y = rand_unif(rand_gen) * this->m_map.rows;
+        float rand_x = rand_unif(rand_gen) * this->m_map.cols;
         
         // Convert to integer coordinates
-        int rand_x_int = static_cast<int>(rand_x);
         int rand_y_int = static_cast<int>(rand_y);
+        int rand_x_int = static_cast<int>(rand_x);
         
-        if (rand_x_int >= 0 && rand_x_int < this->m_map.rows && rand_y_int >= 0 && rand_y_int < this->m_map.cols) {
+        if (rand_y_int >= 0 && rand_y_int < this->m_map.rows && rand_x_int >= 0 && rand_x_int < this->m_map.cols) {
             std::shared_ptr<Node> rand_randomnode = std::make_shared<Node>();
             rand_randomnode->set_position(Point(rand_x_int, rand_y_int));
             return rand_randomnode;

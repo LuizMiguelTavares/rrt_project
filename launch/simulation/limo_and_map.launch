@@ -55,6 +55,7 @@
     <arg name="robot_frame" default="odom" />
     <arg name="robot_name" default="limo/" />
     <node pkg="rrt_project" type="publish_gazebo_positions.py" name="publish_gazebo_positions" >
+        <param name="robot_vrpn_topic" value="/vrpn_client_node/L1/pose" />
         <param name="robot_frame" value="$(arg robot_frame)"/>
         <param name="robot_name" value="$(arg robot_name)"/>
         <param name="frame_id" value="$(arg world_frame)"/>

@@ -190,7 +190,6 @@ private:
                 found_path_ = true;
                 return;
             }
-            
         } else {
             ROS_INFO("Generating a new path.");
             goal_path = rrtstar_.planner();
@@ -200,11 +199,12 @@ private:
             } else {
                 ROS_ERROR("rrt_star_path: Failed to find a rrt star path.");
             }
-        } 
+        }
 
         ROS_INFO("rrtstar_.reached(): %d", rrtstar_.reached());
 
         ros_path_ = convertPointToPath(goal_path, map_);
+        path_pub_.publish(ros_path_);
     }
 
     nav_msgs::Path convertPointToPath(const std::vector<rrt_star::Point> points, const nav_msgs::OccupancyGrid map) {
