@@ -4,6 +4,7 @@
     <arg name="with_obstacle" default="false"/>
     <arg name="gui" default="false"/>
     <arg name="room_model" default="$(find rrt_project)/worlds/SALA_LIMO/model.sdf"/>
+    <arg name="obstacle_model" default="$(find rrt_project)/worlds/obstacles/model.sdf"/>
     <arg name="map" default="$(find rrt_project)/maps/simulation/limo_map/map.yaml"/>
 
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -35,7 +36,7 @@
 
     <!-- Launch room -->
     <node pkg="gazebo_ros" type="spawn_model" name="spawn_room" args="-file $(arg room_model) -sdf -model my_custom_model -y 0 -x 0" output="screen" />
-    <node pkg="gazebo_ros" type="spawn_model" name="spawn_obstacles" args="-file $(find rrt_project)/worlds/obstacles/model.sdf -sdf -model obstacles -y 2.46 -x -1.8 -z 0.54" output="screen" if="$(arg with_obstacle)" />
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn_obstacles" args="-file $(arg obstacle_model) -sdf -model obstacles -y 2.46 -x -1.8 -z 0.54" output="screen" if="$(arg with_obstacle)" />
 
     <!-- Load joint controller configurations from YAML file to parameter server -->
     <rosparam file="$(find limo_gazebo_sim)/config/limo_four_diff_control.yaml" command="load" />
@@ -46,7 +47,7 @@
 
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
-    <arg name="use_rviz" default="true" />
+    <arg name="use_rviz" default="false" />
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rrt_project)/rviz/rrt_project_simulation.rviz" required="false" if="$(arg use_rviz)" />
 
     <node name="map_server" pkg="map_server" type="map_server" args="$(arg map)" />

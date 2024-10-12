@@ -1,7 +1,11 @@
 <launch>
+    <arg name="with_obstacle" default="false"/>
+    
     <include file="$(find rrt_project)/launch/simulation/limo_and_map.launch">
-        <arg name="room_model" value="$(find rrt_project)/worlds/SHORT_PASSAGE/model.sdf"/>
-        <arg name="map" default="$(find rrt_project)/maps/simulation/ZIGZAG/map.yaml"/>
+        <arg name="map" value="$(find rrt_project)/maps/simulation/SHORT_PASSAGE/map.yaml"/>
+        <arg name="room_model" value="$(find rrt_project)/worlds/SHORT_PASSAGE/world/model.sdf"/>
+        <arg name="obstacle_model" value="$(find rrt_project)/worlds/SHORT_PASSAGE/obstacle/model.sdf"/>
+        <arg name="with_obstacle" value="$(arg with_obstacle)"/>
         <!-- <arg name="x" value="-2.87"/>
         <arg name="y" value="1.6"/> -->
         <arg name="x" value="-2.8"/>
