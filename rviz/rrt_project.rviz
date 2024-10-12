@@ -140,22 +140,22 @@ Visualization Manager:
       Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: Gmapping Map
       Topic: /map_topic_for_local_rrt
       Unreliable: false
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 0.699999988079071
       Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: Dynamic Local Map
       Topic: /local_map_new
       Unreliable: false
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -370,7 +370,7 @@ Visualization Manager:
       Marker Topic: /potential_arrows
       Name: Potential Arrows
       Namespaces:
-        {}
+        potential_arrows: true
       Queue Size: 100
       Value: true
     - Alpha: 1

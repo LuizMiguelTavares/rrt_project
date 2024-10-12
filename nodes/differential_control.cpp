@@ -10,6 +10,7 @@
 #include <Eigen/Dense>
 #include <sensor_msgs/ChannelFloat32.h>
 #include <cmath>
+#include <visualization_msgs/Marker.h>
 
 class DifferentialController {
 public:
@@ -51,6 +52,10 @@ public:
         potential_sub = nh_.subscribe("/potential", 10, &DifferentialController::potentialCallback, this);
         emergency_sub = nh_.subscribe("/emergency_flag", 10, &DifferentialController::emergencyCallback, this);
 
+        arrow_pub = nh_.advertise<visualization_msgs::Marker>("/velocity_arrow_reference", 10);
+        arrow_pub_no_potential = nh_.advertise<visualization_msgs::Marker>("/velocity_arrow_no_potential", 10);
+        arrow_pub_obs = nh_.advertise<visualization_msgs::Marker>("/velocity_arrow_obs", 10);
+
         // Initialize stop messages
         stop_msg.linear.x = 0.0;
         stop_msg.linear.y = 0.0;
@@ -58,6 +63,9 @@ public:
         stop_msg.angular.x = 0.0;
         stop_msg.angular.y = 0.0;
         stop_msg.angular.z = 0.0;
+
+        btn_emergencia = false;
+        btn_emergencia_is_on = false;
 
         last_X_obs_dot = Eigen::Vector2d::Zero();
         rate = new ros::Rate(control_frequency);
@@ -128,8 +136,9 @@ public:
             X_dot_obs = obs_filter_gain * X_dot_obs + (1 - obs_filter_gain) * last_X_obs_dot;
             last_X_obs_dot = X_dot_obs;
 
-            Eigen::Vector2d uw = computeControl(yaw, X_dot_ref, X_dot_obs);
-            
+            // Call computeControl, passing the frame_id
+            Eigen::Vector2d uw = computeControl(yaw, X_dot_ref, X_dot_obs, robot_pose.header.frame_id);
+
             double ref_linear_velocity = uw(0);
             double ref_angular_velocity = uw(1);
 
@@ -138,14 +147,14 @@ public:
             ctrl_msg.angular.z = ref_angular_velocity;
             control_pub.publish(ctrl_msg);
 
-            Eigen::Vector2d uw_no_potential = computeControl(yaw, X_dot_ref, {0.0, 0.0});
-            double ref_linear_velocity_no_potential = uw_no_potential(0);
-            double ref_angular_velocity_no_potential = uw_no_potential(1);
+            // Eigen::Vector2d uw_no_potential = computeControl(yaw, X_dot_ref, {0.0, 0.0});
+            // double ref_linear_velocity_no_potential = uw_no_potential(0);
+            // double ref_angular_velocity_no_potential = uw_no_potential(1);
 
-            geometry_msgs::Twist ctrl_msg_no_potential;
-            ctrl_msg_no_potential.linear.x = ref_linear_velocity_no_potential;
-            ctrl_msg_no_potential.angular.z = ref_angular_velocity_no_potential;
-            control_pub_no_potential.publish(ctrl_msg_no_potential);
+            // geometry_msgs::Twist ctrl_msg_no_potential;
+            // ctrl_msg_no_potential.linear.x = ref_linear_velocity_no_potential;
+            // ctrl_msg_no_potential.angular.z = ref_angular_velocity_no_potential;
+            // control_pub_no_potential.publish(ctrl_msg_no_potential);
 
             rate->sleep();
         }
@@ -157,6 +166,7 @@ private:
     ros::Subscriber pose_sub, path_sub, potential_sub, emergency_sub;
     tf2_ros::Buffer tfBuffer;
     tf2_ros::TransformListener tfListener;
+    ros::Publisher arrow_pub, arrow_pub_no_potential, arrow_pub_obs;
 
     ros::Rate *rate;
     geometry_msgs::Twist stop_msg;
@@ -256,20 +266,73 @@ private:
         return std::make_pair(closest_point, closest_idx);
     }
 
-    Eigen::Vector2d computeControl(double yaw, const Eigen::Vector2d& X_dot_ref, const Eigen::Vector2d& X_dot_obs) {
+    Eigen::Vector2d computeControl(double yaw, const Eigen::Vector2d& X_dot_ref, const Eigen::Vector2d& X_dot_obs, const std::string& frame_id) {
         Eigen::Matrix2d rotation_matrix_bw;
         rotation_matrix_bw << std::cos(yaw), -std::sin(yaw),
-                              std::sin(yaw), std::cos(yaw);
+                            std::sin(yaw), std::cos(yaw);
 
         Eigen::Matrix2d H_inv;
         H_inv << std::cos(yaw), std::sin(yaw),
                 -(1 / a) * std::sin(yaw), (1 / a) * std::cos(yaw);
 
-        Eigen::Vector2d X_dot_ref_path_w = X_dot_ref;
-        Eigen::Vector2d X_dot_obs_ref_w = rotation_matrix_bw * X_dot_obs;
+        Eigen::Vector2d X_dot_ref_path_w = X_dot_ref + X_dot_obs; // With potential
+        Eigen::Vector2d X_dot_ref_w = X_dot_ref; // Without potential
+        Eigen::Vector2d X_dot_obs_ref_w = X_dot_obs; // Potential only
 
-        Eigen::Vector2d X_dot_ref_w = X_dot_obs_ref_w + X_dot_ref_path_w;
-        return H_inv * X_dot_ref_w;
+        // Calculate the control velocities
+        Eigen::Vector2d X_dot_ref_w_final = H_inv * (X_dot_obs + X_dot_ref);
+        
+        // Get the control position from the robot's current pose
+        Eigen::Vector2d control_position(robot_pose.pose.position.x, robot_pose.pose.position.y); // Starting from robot control topic
+
+        // Publish arrows for visualization with different colors and namespaces
+        publishVelocityArrow(X_dot_ref_path_w, frame_id, ros::Time::now(), 0, control_position, "velocity_ref_path", 0.0, 1.0, 0.0, arrow_pub); // Red for X_dot_ref_path_w
+        publishVelocityArrow(X_dot_ref_w, frame_id, ros::Time::now(), 1, control_position, "velocity_ref", 0.0, 0.0, 1.0, arrow_pub_no_potential); // Green for X_dot_ref_w
+        publishVelocityArrow(X_dot_obs_ref_w, frame_id, ros::Time::now(), 2, control_position, "velocity_obs", 1.0, 0.0, 0.0, arrow_pub_obs); // Blue for X_dot_obs_ref_w
+
+        return X_dot_ref_w_final;
+    }
+
+
+    void publishVelocityArrow(const Eigen::Vector2d& velocity, const std::string& frame_id, ros::Time timestamp, int arrow_id, const Eigen::Vector2d& start_position, const std::string& ns, float r, float g, float b, ros::Publisher& publisher) {
+        visualization_msgs::Marker arrow;
+        arrow.header.frame_id = frame_id;
+        arrow.header.stamp = timestamp;
+        arrow.ns = ns; // Namespace for better organization
+        arrow.id = arrow_id; // Unique ID for each arrow
+        arrow.type = visualization_msgs::Marker::ARROW;
+        arrow.action = visualization_msgs::Marker::ADD;
+
+        // Set the start point of the arrow (base)
+        arrow.points.resize(2);
+        arrow.points[0].x = start_position.x();
+        arrow.points[0].y = start_position.y();
+        arrow.points[0].z = 0; // Adjust if needed
+
+        // Set the end point of the arrow based on the velocity
+        arrow.points[1].x = arrow.points[0].x + velocity.x();
+        arrow.points[1].y = arrow.points[0].y + velocity.y();
+        arrow.points[1].z = 0; // Adjust if needed
+
+        arrow.pose.orientation.x = 0.0;
+        arrow.pose.orientation.y = 0.0;
+        arrow.pose.orientation.z = 0.0;
+        arrow.pose.orientation.w = 1.0;
+
+
+        // Set other properties of the arrow
+        arrow.scale.x = 0.02; // Shaft diameter
+        arrow.scale.y = 0.04; // Head diameter
+        arrow.scale.z = 0.1;  // Head length
+
+        // Set color (modify as needed)
+        arrow.color.r = r; // Red component
+        arrow.color.g = g; // Green component
+        arrow.color.b = b; // Blue component
+        arrow.color.a = 1.0; // Opacity
+
+        // Publish the marker
+        publisher.publish(arrow);
     }
 };
 

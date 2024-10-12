@@ -6,7 +6,7 @@
     <arg name="robot_frame" default="base_link" />
     <arg name="cmd_vel_topic" default="/cmd_vel" />
     <arg name="path_topic" default="/rrt_path" />
-    <arg name="control_path_topic" default="/rrt_path_smoothed" />
+    <arg name="control_path_topic" default="/rrt_path" />
     <arg name="pose_topic" default="/vrpn_client_node/L1/pose" />
     <arg name="control_point_offset" default="0.05" />
 
