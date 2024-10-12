@@ -23,16 +23,6 @@
     <arg name="use_rviz" default="false"/>
     <arg name="control_point_offset" default="0.05" />
 
-    <!-- <include file="$(find rrt_project)/launch/rosbag.launch">
-        <arg name="filename" value="RRT_simple_limo.bag"/>
-    </include> -->
-
-    <!-- <node name="vrpn_client_node" pkg="vrpn_client_ros" type="vrpn_client_node" output="screen"/> -->
-
-    <!-- <include file="$(find rplidar_ros)/launch/rplidar_a2m12.launch">
-        <arg name="serial_port" value="/dev/ttyUSB0"/>
-    </include> -->
-
     <!-- Static Local Map -->
     <include file="$(find rrt_project)/launch/mapping/mapping_room.launch">
         <arg name="map_topic" value="$(arg map_topic_for_local_rrt)"/>
