@@ -1,0 +1,38 @@
+<launch>
+    <arg name="world_frame" default="map" />
+    <arg name="path_topic" default="/Pioneer_path" />
+    <arg name="namespace" default="Pioneer" />
+
+    <include file="$(find rrt_project)/launch/simulation/spawn_pioneer.launch">
+        <arg name="x" value="-1.0" />
+        <arg name="y" value="-1.0" />
+        <arg name="yaw" value="0" />
+        <arg name="tf_prefix" value="$(arg namespace)" />
+    </include>
+
+    <node pkg="rrt_project" type="path_for_pioneer_short_passage.py" name="Pioneer_path" >
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+    </node>
+
+    <group ns="P1">
+        <node pkg="rrt_project" type="differential_robot_control_path_pioneer.py" name="pioneer_control_node" output="screen">
+            <rosparam file="$(find rrt_project)/config/simulation/differential_robots/pioneer.yaml" command="load" />
+            <param name="path_topic" value="$(arg path_topic)" />
+            <param name="pose_topic" value="/vrpn_client_node/Pioneer/pose" />
+            <param name="world_frame" value="$(arg world_frame)" />
+            <param name="robot_control_topic" value="/$(arg namespace)/cmd_vel"/>
+            
+            <param name="a" value="0.1" />
+            <param name="max_linear_velocity" value="0.1" />
+            <param name="reference_velocity" value="0.4" />
+
+            <param name="max_angular_velocity" value="0.4"/>
+            <param name="angular_velocity_priority_gain" value="0"/>
+
+            <param name="apply_filter" value="False"/>
+            <param name="linear_filter_gain" value="1.0"/>
+            <param name="angular_filter_gain" value="0.9"/>
+        </node>
+    </group>
+</launch>
