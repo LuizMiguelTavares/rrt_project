@@ -215,6 +215,11 @@ public:
             float x = closest_point * cos(angle);
             float y = closest_point * sin(angle);
 
+            if (isPointInsideEllipse(x, y)) {
+                ROS_ERROR("Collision detected at x=%f, y=%f", x, y);
+                continue;
+            }
+
             // Store the closest point in Cartesian coordinates
             closest_points.push_back(std::make_pair(x, y));
         }

@@ -9,7 +9,12 @@ class LocalMapNode {
 public:
     LocalMapNode(ros::NodeHandle& nh, double map_size)
         : map_size_(map_size), grid_resolution_(0.02) { 
-        lidar_sub_ = nh.subscribe("/rplidar/scan", 10, &LocalMapNode::lidarCallback, this);
+
+        ros::NodeHandle private_nh("~");
+        private_nh.param<std::string>("lidar_topic", lidar_topic, "/rplidar/scan");
+
+        lidar_sub_ = nh.subscribe(lidar_topic, 10, &LocalMapNode::lidarCallback, this);
+
         map_pub_ = nh.advertise<nav_msgs::OccupancyGrid>("/local_map_new", 10);
 
         // Initialize occupancy grid parameters
@@ -53,6 +58,7 @@ public:
     }
 
 private:
+    std::string lidar_topic;
     ros::Subscriber lidar_sub_;
     ros::Publisher map_pub_;
     nav_msgs::OccupancyGrid local_map_;

@@ -21,7 +21,7 @@
     <node if="$(arg publish_transform)" pkg="tf2_ros" type="static_transform_publisher" name="world_to_base_link_tf_publisher"
         args="$(arg x_offset) $(arg y_offset) 0 0.0 0.0 0.9996907340681903 0.02486837787638553 $(arg base_frame) $(arg scan_frame)" />
 
-      <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
         <remap from="/map" to="$(arg map_topic)"/>
         <param name="map_frame" value="$(arg map_frame)"/>
 

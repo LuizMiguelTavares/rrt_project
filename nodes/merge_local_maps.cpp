@@ -7,6 +7,10 @@ public:
     LocalMapGenerator(ros::NodeHandle& nh)
         : nh_(nh),
           tf_listener_() {
+
+        ros::NodeHandle private_nh("~");
+
+        private_nh.param<std::string>("local_map_frame", local_map_frame_, "laser");
         nh_.param<std::string>("global_map_topic_1", global_map_topic_1_, "/map_topic_for_local_rrt");
         nh_.param<std::string>("global_map_topic_2", global_map_topic_2_, "/local_map_new");
         nh_.param<std::string>("local_map_topic_1", local_map_topic_, "/local_map");
@@ -53,7 +57,7 @@ public:
             }
             
             local_map_.header.stamp = ros::Time::now();
-            local_map_.header.frame_id = "laser";
+            local_map_.header.frame_id = local_map_frame_;
             local_map_.info.resolution = local_map_resolution_;
             local_map_.info.width = local_map_1_.info.width;
             local_map_.info.height = local_map_1_.info.height;
@@ -71,7 +75,7 @@ private:
         double resolution = local_map_resolution_;
 
         nav_msgs::OccupancyGrid local_map;
-        local_map.header.frame_id = "laser";
+        local_map.header.frame_id = local_map_frame_;
         local_map.info.resolution = local_map_resolution_;
         local_map.info.width = local_width;
         local_map.info.height = local_width;
@@ -87,7 +91,7 @@ private:
 
                 tf::StampedTransform transform;
                 try {
-                    tf_listener_.lookupTransform(global_map.header.frame_id, "laser", ros::Time(0), transform);
+                    tf_listener_.lookupTransform(global_map.header.frame_id, local_map_frame_, ros::Time(0), transform);
                 } catch (tf::TransformException& ex) {
                     ROS_WARN("%s", ex.what());
                     continue;
@@ -121,6 +125,7 @@ private:
     ros::Timer publish_timer_;
     nav_msgs::OccupancyGrid global_map_1_; 
     nav_msgs::OccupancyGrid global_map_2_;  
+    std::string local_map_frame_;
 
     tf::TransformListener tf_listener_;
     std::string global_map_topic_1_;
