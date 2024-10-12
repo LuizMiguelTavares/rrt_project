@@ -3,15 +3,10 @@
 
 import rospy
 import tf2_ros
-import tf2_geometry_msgs
 import tf
-from geometry_msgs.msg import Twist, Point, TwistStamped, PoseStamped, PointStamped
+from geometry_msgs.msg import Twist, PoseStamped, PointStamped
 from nav_msgs.msg import Path
-from std_msgs.msg import Bool, Float64
 from sensor_msgs.msg import ChannelFloat32
-from visualization_msgs.msg import Marker, MarkerArray
-
-from aurora_py.differential_robot_controller import solver_bot_controller, pioneer_controller
 
 import numpy as np
 
@@ -45,7 +40,6 @@ class DifferentialController:
         self.max_linear_velocity = rospy.get_param('~max_linear_velocity', 0.2)
         self.max_angular_velocity = rospy.get_param('~max_angular_velocity', 0.5)
         self.world_frame = rospy.get_param('~world_frame', None)
-        self.robot_frame = rospy.get_param('~robot_frame', None)
         self.robot_type = rospy.get_param('~robot_type', None)
         robot_control_topic = rospy.get_param('~robot_control_topic', None)
         robot_control_message = rospy.get_param('~robot_control_message', None)
