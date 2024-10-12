@@ -1,18 +1,46 @@
 <launch>
+    <!-- <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true"/> -->
+
     <arg name="x_goal" default="2.25" />
     <arg name="y_goal" default="-1" />
 
     <arg name="world_frame" default="map" />
     <arg name="robot_frame" default="base_link" />
     <arg name="cmd_vel_topic" default="/cmd_vel" />
-    <arg name="path_topic" default="/rrt_path" />
-    <arg name="control_path_topic" default="/rrt_path_smoothed" />
-    <arg name="pose_topic" default="/vrpn_client_node/L1/pose" />
-    <arg name="control_point_offset" default="0.05" />
+    <arg name="local_map_topic" default="/local_map" />
     <arg name="laser_topic" default="/laser/scan" />
+    <arg name="laser_frame" default="laser_link" />
+    <arg name="path_topic" default="/rrt_path" />
+    <arg name="pose_topic" default="/vrpn_client_node/L1/pose" />
+    <arg name="control_path_topic" default="/local_path" />
 
+    <arg name="map_topic_for_local_rrt" default="/map_topic_for_local_rrt" />
+    <arg name="map_frame_for_local_rrt" default="map_frame_for_local_rrt" />
 
-    <!-- <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true" /> -->
+    <arg name="resolution_of_local_map" default="0.02"/>
+    <arg name="control_point_offset" default="0.05" />
+    
+    <!-- Dynamic Local Map -->
+    <node pkg="rrt_project" type="local_map_lidar" name="local_map_lidar" output="screen">
+        <param name="lidar_topic" value="$(arg laser_topic)" />
+    </node>
+
+    <!-- Static Local Map -->
+    <include file="$(find rrt_project)/launch/mapping/mapping_room.launch">
+        <arg name="scan_topic" value="$(arg laser_topic)"/>
+        <arg name="map_topic" value="$(arg map_topic_for_local_rrt)"/>
+        <arg name="map_frame" value="$(arg map_frame_for_local_rrt)"/>
+        <arg name="resolution" value="$(arg resolution_of_local_map)"/>
+        <arg name="base_frame"  value="$(arg robot_frame)"/>
+        <arg name="scan_frame"  value="$(arg laser_frame)"/>
+        <arg name="odom_frame"  value="$(arg world_frame)"/>
+        <arg name="publish_transform" default="false"/>
+    </include>
+
+    <!-- Merge Static and Dynamic Local Map -->
+    <node pkg="rrt_project" type="merge_local_maps" name="merge_local_maps" output="screen">
+        <param name="local_map_frame" value="$(arg laser_frame)"/>
+    </node>
 
     <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen">
         <rosparam file="$(find rrt_project)/config/simulation/rrt.yaml" command="load" />
@@ -22,7 +50,20 @@
         <param name="x_goal" value="$(arg x_goal)" />
         <param name="y_goal" value="$(arg y_goal)" />
         <param name="rate" value="1.0" />
-        <param name="bezier_distance" value="0.1" />
+        <param name="bezier_distance" value="0.05" />
+    </node>
+
+    <!-- Max rate is over 1000hz with this specs -->
+    <node pkg="rrt_project" type="local_rrt" name="local_rrt" output="screen">
+        <rosparam file="$(find rrt_project)/config/limo_local_rrt.yaml" command="load" />
+        <param name="local_map_topic" value="$(arg local_map_topic)" />
+        <param name="laser_scan_topic" value="$(arg laser_topic)" />
+        <param name="path_topic" value="$(arg path_topic)" />
+        <param name="rate" value="10.0" />
+        <param name="robot_frame" value="$(arg robot_frame)" />
+        <param name="control_point_offset" value="-$(arg control_point_offset)" />
+        <param name="first_point_obstructed_offset_" value="0.1" />
+        <param name="number_of_bezier_points" value="6" />
     </node>
 
     <!-- Control and potential nodes -->
@@ -32,7 +73,7 @@
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="a" value="$(arg control_point_offset)" />
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
-        <param name="reference_velocity" value="0.1" />
+        <param name="reference_velocity" value="0.15" />
 
         <param name="gains/x" type="double" value="1"/>
         <param name="gains/y" type="double" value="1"/>
@@ -64,12 +105,11 @@
         <param name="obstacle_avoidance_lambda" value="0.001"/>
         <param name="potential_gain" value="1.0"/>
 
-        <param name="saturate_potential" value="100.0"/>
+        <param name="saturate_potential" value="0.15"/>
     </node>
 
     <node name="traveled_path" pkg="rrt_project" type="publish_robot_traveled_path.py" output="screen">
-        <!-- <param name="pose_topic" value="/robot_pose"/>
-        <param name="path_topic" value="/robot_path"/> -->
+        <param name="pose_topic" value="$(arg pose_topic)" />
         <param name="rate" value="10"/>
     </node>
 </launch>
