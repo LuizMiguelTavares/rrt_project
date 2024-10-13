@@ -11,7 +11,7 @@
     <arg name="control_point_offset" default="0.1" />
     <arg name="laser_topic" default="/laser/scan" />
 
-    <!-- <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true" /> -->
+    <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true" />
 
     <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen">
         <rosparam file="$(find rrt_project)/config/simulation/rrt.yaml" command="load" />

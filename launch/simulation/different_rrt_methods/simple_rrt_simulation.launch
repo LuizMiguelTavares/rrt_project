@@ -10,7 +10,7 @@
     <arg name="pose_topic" default="/vrpn_client_node/L1/pose" />
     <arg name="control_point_offset" default="0.05" />
 
-    <!-- <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true" /> -->
+    <node pkg="rrt_project" type="emergency_button.py" name="emergency_button" output="screen" required="true" />
 
     <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen">
         <rosparam file="$(find rrt_project)/config/simulation/rrt.yaml" command="load" />

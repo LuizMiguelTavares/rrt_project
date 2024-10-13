@@ -1,0 +1,6 @@
+<launch>
+    <arg name="robot_namespace" default="/"/>
+
+    <param name="robot_description" command="$(find xacro)/xacro '$(find limo_description)/urdf/limo_four_diff.xacro'
+        robot_namespace:=$(arg robot_namespace)" />
+</launch>
