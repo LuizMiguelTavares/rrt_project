@@ -31,10 +31,10 @@ public:
         getParamOrThrow(private_nh, "robot_frame", robot_frame_);
         getParamOrThrow(private_nh, "x_goal", x_goal_);
         getParamOrThrow(private_nh, "y_goal", y_goal_);
-        private_nh.param("bezier_distance", bezier_distance_, 0.1); // Distance for bezier curve control points
+        // private_nh.param("bezier_distance", bezier_distance_, 0.1); // Distance for bezier curve control points
 
         path_pub_ = nh.advertise<nav_msgs::Path>(path_topic_, 10);
-        smoothed_path_pub_ = nh.advertise<nav_msgs::Path>(path_topic_ + "_smoothed", 10);
+        // smoothed_path_pub_ = nh.advertise<nav_msgs::Path>(path_topic_ + "_smoothed", 10);
 
         points_pub_ = nh.advertise<sensor_msgs::PointCloud>("/rrt_nodes_", 10);
         ros::service::waitForService("/static_map");
@@ -88,7 +88,7 @@ public:
                     generateRRT();
                 } else {
                     path_pub_.publish(ros_path_);
-                    smoothed_path_pub_.publish(smoothed_path_);
+                    // smoothed_path_pub_.publish(smoothed_path_);
                     points_pub_.publish(rrt_points_);
                 }
             } else {
@@ -210,8 +210,8 @@ private:
         }
 
         ros_path_ = convertNodesToPath(goal_path, map_);
-        int num_control_points = calculateBezierControlPoints(ros_path_, bezier_distance_);
-        smoothed_path_ = smoothPath(ros_path_, 20, num_control_points);
+        // int num_control_points = calculateBezierControlPoints(ros_path_, bezier_distance_);
+        // smoothed_path_ = smoothPath(ros_path_, 20, num_control_points);
         rrt_points_ = allNodesToPointCloud(nodes, map_);
     }
 

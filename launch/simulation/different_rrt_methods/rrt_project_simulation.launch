@@ -12,7 +12,7 @@
     <arg name="laser_frame" default="laser_link" />
     <arg name="path_topic" default="/rrt_path" />
     <arg name="pose_topic" default="/vrpn_client_node/L1/pose" />
-    <arg name="control_path_topic" default="/local_path" />
+    <arg name="control_path_topic" default="/smoothed_local_path" />
 
     <arg name="map_topic_for_local_rrt" default="/map_topic_for_local_rrt" />
     <arg name="map_frame_for_local_rrt" default="map_frame_for_local_rrt" />

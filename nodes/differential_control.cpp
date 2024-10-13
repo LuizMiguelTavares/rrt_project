@@ -107,6 +107,14 @@ public:
             // Compute robot control pose
             Eigen::Vector3d robot_pose_control = robot_position + Eigen::Vector3d(std::cos(yaw) * a, std::sin(yaw) * a, 0.0);
 
+            geometry_msgs::PointStamped control_point;
+            control_point.header.stamp = ros::Time::now();
+            control_point.header.frame_id = robot_pose.header.frame_id;
+            control_point.point.x = robot_pose_control(0);
+            control_point.point.y = robot_pose_control(1);
+
+            control_point_pub.publish(control_point);
+
             // Find the closest point on the route
             auto [closest_point, closest_idx] = findClosestPoint(robot_pose_control, route);
 
@@ -117,7 +125,6 @@ public:
             route_point.point.y = closest_point(1);
 
             route_point_pub.publish(route_point);
-
 
             if (path_index > route.size() - 1) {
                 path_index = route.size() - 1;
@@ -257,8 +264,6 @@ private:
                 min_dist_sqr = dist_sqr;
                 closest_point = route[i];
                 closest_idx = i;
-            } else if (dist_sqr > prev_dist_sqr) {
-                break;
             }
             prev_dist_sqr = dist_sqr;
         }
