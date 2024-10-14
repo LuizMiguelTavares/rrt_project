@@ -144,7 +144,7 @@ public:
             last_X_obs_dot = X_dot_obs;
 
             // Call computeControl, passing the frame_id
-            Eigen::Vector2d uw = computeControl(yaw, X_dot_ref, X_dot_obs, robot_pose.header.frame_id);
+            Eigen::Vector2d uw = computeControl(yaw, X_dot_ref, X_dot_obs, robot_pose.header.frame_id, robot_pose_control);
 
             double ref_linear_velocity = uw(0);
             double ref_angular_velocity = uw(1);
@@ -231,15 +231,23 @@ private:
                 route.clear();
                 route_dx.clear();
 
+                Eigen::Vector2d last_position = Eigen::Vector2d::Zero();
                 for (const auto& pose : route_data->poses) {
+                    
                     Eigen::Vector2d position(pose.pose.position.x, pose.pose.position.y);
                     Eigen::Vector2d transformed_position = rotation_matrix_eigen * position.head<2>() + translation.head<2>();
+
+                    if (last_position == position){
+                        continue;
+                    } else {
+                        last_position = position;
+                    }
 
                     route.push_back(transformed_position);
 
                     if (route.size() > 1) {
                         Eigen::Vector2d dx_vector = route.back() - *(route.end() - 2);
-                        Eigen::Vector2d unitary_dx_vector = dx_vector.normalized();
+                        Eigen::Vector2d unitary_dx_vector = dx_vector.normalized();    
                         route_dx.push_back(unitary_dx_vector * reference_velocity);
                     }
                 }
@@ -271,24 +279,29 @@ private:
         return std::make_pair(closest_point, closest_idx);
     }
 
-    Eigen::Vector2d computeControl(double yaw, const Eigen::Vector2d& X_dot_ref, const Eigen::Vector2d& X_dot_obs, const std::string& frame_id) {
+    Eigen::Vector2d computeControl(double yaw, const Eigen::Vector2d& X_dot_ref, const Eigen::Vector2d& X_dot_obs, const std::string& frame_id, Eigen::Vector3d robot_pose_control) {
         Eigen::Matrix2d rotation_matrix_bw;
         rotation_matrix_bw << std::cos(yaw), -std::sin(yaw),
                             std::sin(yaw), std::cos(yaw);
+
+        
+        Eigen::Vector2d X_dot_obs_w = rotation_matrix_bw * X_dot_obs;
 
         Eigen::Matrix2d H_inv;
         H_inv << std::cos(yaw), std::sin(yaw),
                 -(1 / a) * std::sin(yaw), (1 / a) * std::cos(yaw);
 
-        Eigen::Vector2d X_dot_ref_path_w = X_dot_ref + X_dot_obs; // With potential
+        Eigen::Vector2d X_dot_ref_path_w = X_dot_ref + X_dot_obs_w; // With potential
         Eigen::Vector2d X_dot_ref_w = X_dot_ref; // Without potential
-        Eigen::Vector2d X_dot_obs_ref_w = X_dot_obs; // Potential only
+        Eigen::Vector2d X_dot_obs_ref_w = X_dot_obs_w; // Potential only
 
         // Calculate the control velocities
-        Eigen::Vector2d X_dot_ref_w_final = H_inv * (X_dot_obs + X_dot_ref);
+        Eigen::Vector2d X_dot_ref_w_final = H_inv * (X_dot_obs_w + X_dot_ref);
         
         // Get the control position from the robot's current pose
-        Eigen::Vector2d control_position(robot_pose.pose.position.x, robot_pose.pose.position.y); // Starting from robot control topic
+        // Eigen::Vector2d control_position(robot_pose.pose.position.x, robot_pose.pose.position.y); // Starting from robot control topic
+
+        Eigen::Vector2d control_position(robot_pose_control(0), robot_pose_control(1)); // Starting from robot control topic
 
         // Publish arrows for visualization with different colors and namespaces
         publishVelocityArrow(X_dot_ref_path_w, frame_id, ros::Time::now(), 0, control_position, "velocity_ref_path", 0.0, 1.0, 0.0, arrow_pub); // Red for X_dot_ref_path_w

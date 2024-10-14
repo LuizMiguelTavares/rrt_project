@@ -36,10 +36,14 @@ public:
 
     void publishLocalMaps(const ros::TimerEvent&) {
         if (!global_map_1_.data.empty()) {
-            createLocalMap(global_map_1_, local_map_1_);
+            if(!createLocalMap(global_map_1_, local_map_1_)){
+                return;
+            }
         }
         if (!global_map_2_.data.empty()) {
-            createLocalMap(global_map_2_, local_map_2_);
+            if(!createLocalMap(global_map_2_, local_map_2_)){
+                return;
+            }
         }
 
         local_map_.data.assign(local_map_1_.data.size(), -1);
@@ -70,7 +74,7 @@ public:
     }
 
 private:
-    void createLocalMap(const nav_msgs::OccupancyGrid& global_map, nav_msgs::OccupancyGrid& local_map_now) {
+    bool createLocalMap(const nav_msgs::OccupancyGrid& global_map, nav_msgs::OccupancyGrid& local_map_now) {
         int local_width = local_map_size_ / local_map_resolution_;
         double resolution = local_map_resolution_;
 
@@ -84,18 +88,18 @@ private:
         local_map.info.origin.position.z = 0;
         local_map.data.resize(local_width * local_width);
 
+        tf::StampedTransform transform;
+        try {
+            tf_listener_.lookupTransform(global_map.header.frame_id, local_map_frame_, ros::Time(0), transform);
+        } catch (tf::TransformException& ex) {
+            ROS_WARN("%s", ex.what());
+            return false;
+        }
+
         for (int i = 0; i < local_width; ++i) {
             for (int j = 0; j < local_width; ++j) {
                 double local_x = (i - local_width / 2) * resolution;
                 double local_y = (j - local_width / 2) * resolution;
-
-                tf::StampedTransform transform;
-                try {
-                    tf_listener_.lookupTransform(global_map.header.frame_id, local_map_frame_, ros::Time(0), transform);
-                } catch (tf::TransformException& ex) {
-                    ROS_WARN("%s", ex.what());
-                    continue;
-                }
 
                 tf::Vector3 local_point(local_x, local_y, 0.0);
                 tf::Vector3 global_point = transform * local_point;
@@ -113,6 +117,7 @@ private:
         }
 
         local_map_now = local_map;
+        return true;
     }
 
     ros::NodeHandle& nh_;

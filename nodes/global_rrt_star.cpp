@@ -67,7 +67,10 @@ public:
                 } 
                 
                 if (rrtstar_.reached()) {
-                    path_pub_.publish(ros_path_);
+                    if (ros_path_.poses.size() > 0) {
+                        path_pub_.publish(ros_path_);
+                    }
+                    
                 }
             } else {
                 if (fetchStaticMap()) {
@@ -204,7 +207,17 @@ private:
         ROS_INFO("rrtstar_.reached(): %d", rrtstar_.reached());
 
         ros_path_ = convertPointToPath(goal_path, map_);
-        path_pub_.publish(ros_path_);
+        ROS_INFO("Number of nodes in the RRT path before: %d", ros_path_.poses.size());
+
+        double max_distance = 0.02;
+        ros_path_ = interpolatePath(ros_path_, max_distance);
+
+        // Plot the number of nodes in the RRT path
+        ROS_INFO("Number of nodes in the RRT path after: %d", ros_path_.poses.size());
+
+        if (ros_path_.poses.size() > 0){
+            path_pub_.publish(ros_path_);
+            }
     }
 
     nav_msgs::Path convertPointToPath(const std::vector<rrt_star::Point> points, const nav_msgs::OccupancyGrid map) {
@@ -234,6 +247,46 @@ private:
 
         return path;
     }
+
+    nav_msgs::Path interpolatePath(const nav_msgs::Path& path, double max_distance) {
+        nav_msgs::Path interpolated_path;
+        interpolated_path.header = path.header;
+
+        for (size_t i = 0; i < path.poses.size() - 1; ++i) {
+            const geometry_msgs::PoseStamped& pose1 = path.poses[i];
+            const geometry_msgs::PoseStamped& pose2 = path.poses[i + 1];
+
+            interpolated_path.poses.push_back(pose1);
+
+            double dx = pose2.pose.position.x - pose1.pose.position.x;
+            double dy = pose2.pose.position.y - pose1.pose.position.y;
+            double dz = pose2.pose.position.z - pose1.pose.position.z;
+            double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+
+            if (distance > max_distance) {
+                int num_intermediate_points = static_cast<int>(std::ceil(distance / max_distance)) - 1;
+                double step_x = dx / (num_intermediate_points + 1);
+                double step_y = dy / (num_intermediate_points + 1);
+                double step_z = dz / (num_intermediate_points + 1);
+
+                for (int j = 1; j <= num_intermediate_points; ++j) {
+                    geometry_msgs::PoseStamped intermediate_pose;
+                    intermediate_pose.header = interpolated_path.header;
+                    intermediate_pose.pose.position.x = pose1.pose.position.x + step_x * j;
+                    intermediate_pose.pose.position.y = pose1.pose.position.y + step_y * j;
+                    intermediate_pose.pose.position.z = pose1.pose.position.z + step_z * j;
+                    // Interpolate orientation if needed
+                    intermediate_pose.pose.orientation = pose1.pose.orientation;
+                    interpolated_path.poses.push_back(intermediate_pose);
+                }
+            }
+        }
+
+        // Add the last pose
+        interpolated_path.poses.push_back(path.poses.back());
+        return interpolated_path;
+    }
+
 
     std::vector<rrt_star::Point> goal_path;
     bool first_path_found_;

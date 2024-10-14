@@ -18,7 +18,9 @@
     <arg name="map_frame_for_local_rrt" default="map_frame_for_local_rrt" />
 
     <arg name="resolution_of_local_map" default="0.02"/>
-    <arg name="control_point_offset" default="0.05" />
+    <arg name="control_point_offset" default="0.1" />
+
+    <!-- O laser está adiantado 10 cm do base_link 0.103 -->
     
     <!-- Dynamic Local Map -->
     <node pkg="rrt_project" type="local_map_lidar" name="local_map_lidar" output="screen">
@@ -40,6 +42,8 @@
     <!-- Merge Static and Dynamic Local Map -->
     <node pkg="rrt_project" type="merge_local_maps" name="merge_local_maps" output="screen">
         <param name="local_map_frame" value="$(arg laser_frame)"/>
+        <param name="publish_frequency" value="20.0"/>
+        <param name="local_map_size" value="1"/>
     </node>
 
     <node pkg="rrt_project" type="global_rrt" name="global_rrt" output="screen">
@@ -50,7 +54,7 @@
         <param name="x_goal" value="$(arg x_goal)" />
         <param name="y_goal" value="$(arg y_goal)" />
         <param name="rate" value="1.0" />
-        <param name="bezier_distance" value="0.05" />
+        <param name="bezier_distance" value="0.1" />
     </node>
 
     <!-- Max rate is over 1000hz with this specs -->
@@ -61,8 +65,8 @@
         <param name="path_topic" value="$(arg path_topic)" />
         <param name="rate" value="10.0" />
         <param name="robot_frame" value="$(arg robot_frame)" />
-        <param name="control_point_offset" value="-$(arg control_point_offset)" />
-        <param name="first_point_obstructed_offset_" value="0.1" />
+        <param name="control_point_offset" value="-0.0" />
+        <param name="first_point_obstructed_offset_" value="-0.1" />
         <param name="number_of_bezier_points" value="6" />
     </node>
 
@@ -73,10 +77,10 @@
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="a" value="$(arg control_point_offset)" />
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
-        <param name="reference_velocity" value="0.15" />
+        <param name="reference_velocity" value="0.12" />
 
         <param name="gains/x" type="double" value="1"/>
-        <param name="gains/y" type="double" value="1"/>
+        <param name="gains/y" type="double" value="1.5"/>
 
         <param name="obs_filter_gain" value="0.3"/>
         <param name="filter_gain" value="1.0"/>
@@ -101,7 +105,7 @@
         <param name="obstacle_avoidance_n" value="2.0"/>
         <param name="obstacle_avoidance_a" value="0.23"/>
         <param name="obstacle_avoidance_b" value="0.23"/>
-        <param name="obstacle_avoidance_k" value="0.1"/>
+        <param name="obstacle_avoidance_k" value="0.12"/>
         <param name="obstacle_avoidance_lambda" value="0.001"/>
         <param name="potential_gain" value="1.0"/>
 

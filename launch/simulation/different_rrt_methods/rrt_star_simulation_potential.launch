@@ -30,7 +30,7 @@
         <param name="world_frame" value="$(arg world_frame)" />
         <param name="a" value="$(arg control_point_offset)" />
         <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
-        <param name="reference_velocity" value="0.15" />
+        <param name="reference_velocity" value="0.12" />
 
         <param name="gains/x" type="double" value="1"/>
         <param name="gains/y" type="double" value="1"/>
@@ -58,7 +58,7 @@
         <param name="obstacle_avoidance_n" value="2.0"/>
         <param name="obstacle_avoidance_a" value="0.23"/>
         <param name="obstacle_avoidance_b" value="0.23"/>
-        <param name="obstacle_avoidance_k" value="0.1"/>
+        <param name="obstacle_avoidance_k" value="0.08"/>
         <param name="obstacle_avoidance_lambda" value="0.001"/>
         <param name="potential_gain" value="1.0"/>
 
