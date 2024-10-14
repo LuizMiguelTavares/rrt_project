@@ -24,7 +24,7 @@
             <param name="robot_control_topic" value="/$(arg namespace)/cmd_vel"/>
             
             <param name="a" value="0.1" />
-            <param name="max_linear_velocity" value="0.1" />
+            <param name="max_linear_velocity" value="0.05" />
             <param name="reference_velocity" value="0.4" />
 
             <param name="max_angular_velocity" value="0.4"/>
