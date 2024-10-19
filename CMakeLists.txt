@@ -57,6 +57,9 @@ add_library(potential_lib
 add_executable(differential_control nodes/differential_control.cpp)
 target_link_libraries(differential_control ${catkin_LIBRARIES})
 
+add_executable(differential_control_plot nodes/differential_control_plot.cpp)
+target_link_libraries(differential_control_plot ${catkin_LIBRARIES})
+
 add_executable(omni_control nodes/omni_control.cpp)
 target_link_libraries(omni_control ${catkin_LIBRARIES})
 
@@ -77,4 +80,8 @@ target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib)
 
 add_executable(obstacle_avoidance nodes/obstacle_avoidance.cpp)
 target_link_libraries(obstacle_avoidance 
+                      ${catkin_LIBRARIES} potential_lib)
+
+add_executable(obstacle_avoidance_plot nodes/obstacle_avoidance_plot.cpp)
+target_link_libraries(obstacle_avoidance_plot 
                       ${catkin_LIBRARIES} potential_lib)

@@ -67,8 +67,7 @@
     </node>
 
     <node name="traveled_path" pkg="rrt_project" type="publish_robot_traveled_path.py" output="screen">
-        <!-- <param name="pose_topic" value="/robot_pose"/>
-        <param name="path_topic" value="/robot_path"/> -->
+        <param name="pose_topic" value="$(arg pose_topic)" />
         <param name="rate" value="10"/>
     </node>
 </launch>

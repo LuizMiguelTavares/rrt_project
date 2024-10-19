@@ -1,0 +1,25 @@
+<launch>
+    <param name="use_sim_time" value="true" />
+
+    <arg name="control_path_topic" default="/smoothed_local_path" />
+    <arg name="pose_topic" default="/vrpn_client_node/L1/pose" />
+    <arg name="world_frame" default="world" />
+    <arg name="control_point_offset" default="0.05" />
+    <arg name="cmd_vel_topic" default="/L1/cmd_vel" />
+    
+    <node pkg="rrt_project" type="differential_control_plot" name="limo_control_node_plot" output="screen">
+        <param name="path_topic" value="$(arg control_path_topic)" />
+        <param name="pose_topic" value="$(arg pose_topic)" />
+        <param name="world_frame" value="$(arg world_frame)" />
+        <param name="a" value="$(arg control_point_offset)" />
+        <param name="robot_control_topic" value="$(arg cmd_vel_topic)"/>
+        <param name="reference_velocity" value="0.15" />
+
+        <param name="gains/x" type="double" value="1"/>
+        <param name="gains/y" type="double" value="1"/>
+
+        <param name="obs_filter_gain" value="0.3"/>
+        <param name="filter_gain" value="1.0"/>
+        <param name="control_frequency" value="30.0"/>
+    </node>
+</launch>

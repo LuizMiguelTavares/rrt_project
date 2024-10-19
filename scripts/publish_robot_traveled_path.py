@@ -10,7 +10,7 @@ class PathPublisher:
         rospy.init_node('path_publisher')
 
         self.is_path_on = False
-        self.pose_topic = rospy.get_param('~pose_topic', '/vrpn_client_node/P1/pose')
+        self.pose_topic = rospy.get_param('~pose_topic', '/vrpn_client_node/L1/pose')
         self.path_topic = rospy.get_param('~path_topic', '/traveled_path')
         self.rate = rospy.get_param('~rate', 10)
 

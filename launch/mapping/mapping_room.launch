@@ -32,8 +32,8 @@
         <param name="base_frame" value="$(arg base_frame)"/>
         <param name="odom_frame" value="$(arg odom_frame)"/>
         <param name="map_update_interval" value="0.5"/>
-        <param name="maxUrange" value="0.6"/>
-        <param name="maxRange" value="0.6"/>
+        <param name="maxUrange" value="10"/>
+        <param name="maxRange" value="10"/>
         <param name="sigma" value="0.02"/>
         <param name="kernelSize" value="3"/>
         <param name="lstep" value="0.05"/>
