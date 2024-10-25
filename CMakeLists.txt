@@ -79,9 +79,10 @@ add_executable(local_rrt nodes/local_rrt.cpp)
 target_link_libraries(local_rrt ${catkin_LIBRARIES} motion_planning_lib)
 
 add_executable(obstacle_avoidance nodes/obstacle_avoidance.cpp)
-target_link_libraries(obstacle_avoidance 
-                      ${catkin_LIBRARIES} potential_lib)
+target_link_libraries(obstacle_avoidance ${catkin_LIBRARIES} potential_lib)
 
 add_executable(obstacle_avoidance_plot nodes/obstacle_avoidance_plot.cpp)
-target_link_libraries(obstacle_avoidance_plot 
-                      ${catkin_LIBRARIES} potential_lib)
+target_link_libraries(obstacle_avoidance_plot ${catkin_LIBRARIES} potential_lib)
+
+add_executable(discretized_rectangle nodes/discretized_rectangle.cpp)
+target_link_libraries(discretized_rectangle ${catkin_LIBRARIES}) 

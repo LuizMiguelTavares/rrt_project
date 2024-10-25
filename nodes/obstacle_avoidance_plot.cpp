@@ -477,7 +477,7 @@ public:
 
             arrow_marker.scale.x = 0.02; // Shaft diameter
             arrow_marker.scale.y = 0.04; // Head diameter
-            arrow_marker.scale.z = 0.1;  // Head length
+            arrow_marker.scale.z = 0.02;  // Head length
 
             arrow_marker.color.r = 0.0;
             arrow_marker.color.g = 0.0;

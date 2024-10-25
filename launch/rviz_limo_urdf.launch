@@ -1,0 +1,8 @@
+<launch>
+    <param name="use_sim_time" value="true" />
+    <arg name="robot_namespace" default="/"/>
+
+    <param name="robot_description" command="$(find xacro)/xacro '$(find limo_description)/urdf/limo_four_diff.xacro' robot_namespace:=$(arg robot_namespace)" />
+
+    <node pkg="tf2_ros" type="static_transform_publisher" name="static_tf_L1_to_base_link" args="-0.07 0 0 0 0 0 1 L1 odom"/>
+</launch>

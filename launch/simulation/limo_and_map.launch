@@ -4,7 +4,7 @@
     <arg name="with_obstacle" default="false"/>
     <arg name="gui" default="false"/>
     <arg name="room_model" default="$(find rrt_project)/worlds/SALA_LIMO/model.sdf"/>
-    <arg name="obstacle_model" default="$(find rrt_project)/worlds/obstacles/model.sdf"/>
+    <arg name="obstacle_model" default="$(find rrt_project)/worlds/obstacles_new/model.sdf"/>
     <arg name="map" default="$(find rrt_project)/maps/simulation/limo_map/map.yaml"/>
 
     <include file="$(find gazebo_ros)/launch/empty_world.launch">

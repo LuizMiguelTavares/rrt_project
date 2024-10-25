@@ -1,0 +1,13 @@
+<launch>
+    <param name="use_sim_time" value="true" />
+
+    <node pkg="rrt_project" type="discretized_rectangle" name="discretized_rectangle_node" output="screen">
+        <param name="x_offset" value="-0.065"/>
+        <param name="y_offset" value="0.0"/>
+        <param name="width" value="0.322"/>
+        <param name="height" value="0.220"/>
+        <param name="resolution" value="0.01"/>
+        <param name="robot_frame" value="L1"/>
+    </node>
+
+</launch>

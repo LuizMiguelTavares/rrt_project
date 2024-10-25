@@ -81,7 +81,6 @@ public:
             ros::spinOnce();
 
             if (!robot_pose_is_on || !robot_path_is_on) {
-                ROS_ERROR("Robot pose or path not available.");
                 rate->sleep();
                 continue;
             }
@@ -92,8 +91,6 @@ public:
                 rate->sleep();
                 continue;
             }
-
-            ROS_ERROR("Robot pose and path available.");
 
             // Get the robot's current pose and yaw
             Eigen::Vector3d robot_position(robot_pose.pose.position.x, robot_pose.pose.position.y, robot_pose.pose.position.z);
@@ -344,7 +341,7 @@ private:
         // Set other properties of the arrow
         arrow.scale.x = 0.02; // Shaft diameter
         arrow.scale.y = 0.04; // Head diameter
-        arrow.scale.z = 0.1;  // Head length
+        arrow.scale.z = 0.04;  // Head length
 
         // Set color (modify as needed)
         arrow.color.r = r; // Red component

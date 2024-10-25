@@ -1,7 +1,9 @@
 <launch>
     <param name="use_sim_time" value="true" />
 
-    <arg name="control_path_topic" default="/smoothed_local_path" />
+    <!-- <arg name="control_path_topic" default="/smoothed_local_path" /> -->
+    <arg name="control_path_topic" default="/rrt_path" />
+
     <arg name="pose_topic" default="/vrpn_client_node/L1/pose" />
     <arg name="world_frame" default="world" />
     <arg name="control_point_offset" default="0.05" />
