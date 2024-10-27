@@ -1,0 +1,6 @@
+<launch>
+    <param name="use_sim_time" value="true" />
+    <node pkg="rrt_project" type="merge_local_maps_plot" name="merge_local_maps_plot" output="screen">
+        <param name="publish_frequency" value="20.0" />
+    </node>
+</launch> 

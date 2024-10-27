@@ -69,6 +69,9 @@ target_link_libraries(local_map_lidar ${catkin_LIBRARIES})
 add_executable(merge_local_maps nodes/merge_local_maps.cpp)
 target_link_libraries(merge_local_maps ${catkin_LIBRARIES})
 
+add_executable(merge_local_maps_plot nodes/merge_local_maps_plot.cpp)
+target_link_libraries(merge_local_maps_plot ${catkin_LIBRARIES})
+
 add_executable(global_rrt nodes/global_rrt.cpp)
 target_link_libraries(global_rrt ${catkin_LIBRARIES} motion_planning_lib)
 
